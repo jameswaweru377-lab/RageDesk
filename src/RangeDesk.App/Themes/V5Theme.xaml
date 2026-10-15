@@ -241,4 +241,126 @@
       </Setter.Value>
     </Setter>
   </Style>
+
+  <!-- The separately scoped LIGHT downloads workspace. The navy sidebar and
+       bottom transfer inspector deliberately retain the approved V5 styles. -->
+  <SolidColorBrush x:Key="V5LightCanvas" Color="#F4F8FF"/>
+  <SolidColorBrush x:Key="V5LightSurface" Color="#FFFFFF"/>
+  <SolidColorBrush x:Key="V5LightBorder" Color="#DDE8F7"/>
+  <SolidColorBrush x:Key="V5LightText" Color="#142B50"/>
+  <SolidColorBrush x:Key="V5LightMuted" Color="#7286A7"/>
+  <SolidColorBrush x:Key="V5LightSelected" Color="#E7F2FF"/>
+  <SolidColorBrush x:Key="V5LightBlue" Color="#127BFA"/>
+  <Style x:Key="V5LightToolbarButton" TargetType="{x:Type Button}">
+    <Setter Property="Padding" Value="13,9"/>
+    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+    <Setter Property="Background" Value="{StaticResource V5LightSurface}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource V5LightBorder}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Cursor" Value="Hand"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Button}">
+          <Border x:Name="LightChrome" Background="{TemplateBinding Background}"
+             BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
+             Padding="{TemplateBinding Padding}" CornerRadius="7">
+            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="LightChrome" Property="Background" Value="{StaticResource V5LightSelected}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.43"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="V5LightPrimaryButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
+    <Setter Property="Background" Value="{StaticResource V5LightBlue}"/>
+    <Setter Property="Foreground" Value="White"/>
+    <Setter Property="BorderThickness" Value="0"/>
+  </Style>
+  <Style x:Key="V5LightTabButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Background" Value="#EDF2FA"/>
+    <Setter Property="Padding" Value="13,8"/>
+    <Setter Property="Margin" Value="0,0,6,0"/>
+  </Style>
+  <Style x:Key="V5LightGridRow" TargetType="{x:Type DataGridRow}">
+    <Setter Property="Height" Value="55"/>
+    <Setter Property="Background" Value="{StaticResource V5LightSurface}"/>
+    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+    <Setter Property="BorderBrush" Value="#EAF0F9"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Style.Triggers>
+      <Trigger Property="IsSelected" Value="True">
+        <Setter Property="Background" Value="{StaticResource V5LightSelected}"/>
+        <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+      </Trigger>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="#EEF6FF"/>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="V5LightGridCell" TargetType="{x:Type DataGridCell}">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="7,4"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type DataGridCell}">
+          <Border x:Name="SelectedCell" Background="{TemplateBinding Background}"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="SelectedCell" Property="Background" Value="{StaticResource V5LightSelected}"/>
+              <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="V5LightHeader" TargetType="{x:Type DataGridColumnHeader}">
+    <Setter Property="Background" Value="#F5F8FD"/>
+    <Setter Property="Foreground" Value="{StaticResource V5LightMuted}"/>
+    <Setter Property="BorderBrush" Value="#E6EDF8"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="FontSize" Value="11"/>
+    <Setter Property="Height" Value="35"/>
+    <Setter Property="FontWeight" Value="Normal"/>
+    <Setter Property="Padding" Value="8,7"/>
+  </Style>
+  <Style x:Key="V5LightGridText" TargetType="{x:Type TextBlock}">
+    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="V5LightProgress" TargetType="{x:Type ProgressBar}">
+    <Setter Property="Height" Value="7"/>
+    <Setter Property="Background" Value="#E1E9F5"/>
+    <Setter Property="Foreground" Value="{StaticResource V5LightBlue}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ProgressBar}">
+          <Grid ClipToBounds="True">
+            <Border CornerRadius="4" Background="{TemplateBinding Background}"/>
+            <Grid x:Name="PART_Track" ClipToBounds="True">
+              <Border x:Name="PART_Indicator" HorizontalAlignment="Left"
+                      Background="{TemplateBinding Foreground}" CornerRadius="4"/>
+            </Grid>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
 </ResourceDictionary>
