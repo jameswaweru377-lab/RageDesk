@@ -132,7 +132,10 @@ public sealed class DownloadEngine : IDisposable
                     return;
                 }
             }
-            if (e.RequestedConnections > 1)
+            // An adaptive probe already established whether parallel mode is viable.
+            // Avoid probing again unless we must resume a legacy v1 segment journal.
+            if (e.RequestedConnections > 1 &&
+                (!e.Adaptive || Directory.Exists(e.Destination + ".rdsegments")))
             {
                 var parallel = new ParallelRangeTransfer(_http);
                 bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections, limiter,
