@@ -629,6 +629,52 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StartAutomatically.IsChecked = QueueOnly.IsChecked != true;
     }
 
+    private bool _syncingFileName;
+
+    private void Destination_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_syncingFileName || NewDestination is null || NewFileName is null) return;
+        _syncingFileName = true;
+        try { NewFileName.Text = Path.GetFileName(NewDestination.Text); }
+        finally { _syncingFileName = false; }
+    }
+
+    private void FileName_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (_syncingFileName || NewDestination is null || NewFileName is null) return;
+        string fileName = NewFileName.Text.Trim();
+        if (fileName.Length == 0 || fileName == "." || fileName == ".." ||
+            fileName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return;
+        string? parent;
+        try { parent = Path.GetDirectoryName(NewDestination.Text); }
+        catch (ArgumentException) { return; }
+        if (string.IsNullOrWhiteSpace(parent) ||
+            Path.GetFileName(NewDestination.Text).Equals(fileName, StringComparison.Ordinal)) return;
+        _syncingFileName = true;
+        try { NewDestination.Text = Path.Combine(parent, fileName); }
+        finally { _syncingFileName = false; }
+    }
+
+    private void PasteUrl_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!Clipboard.ContainsText()) return;
+            var text = Clipboard.GetText().Trim();
+            if (!DownloadEngine.IsAllowedUrl(text))
+            {
+                FormError.Text = "Clipboard does not contain a direct HTTP or HTTPS URL.";
+                return;
+            }
+            NewUrl.Text = text;
+            NewUrl.Focus();
+        }
+        catch (System.Runtime.InteropServices.ExternalException)
+        {
+            FormError.Text = "Clipboard is busy. Paste the link manually.";
+        }
+    }
+
     private void Url_Changed(object sender, TextChangedEventArgs e)
     {
         if (NewUrl is null || NewDestination is null ||
