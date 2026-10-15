@@ -57,4 +57,109 @@
     <Setter Property="Padding" Value="10,7"/>
     <Setter Property="FontSize" Value="12"/>
   </Style>
+
+  <!-- Remove operating-system light chrome: WPF's default ComboBox and TabItem
+       templates produced white surfaces against the navy workspace. -->
+  <Style x:Key="V5ComboItem" TargetType="ComboBoxItem">
+    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
+    <Setter Property="Padding" Value="11,9"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBoxItem">
+          <Border x:Name="Choice" CornerRadius="4" Margin="3,1" Background="{TemplateBinding Background}" Padding="{TemplateBinding Padding}">
+            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsHighlighted" Value="True">
+              <Setter TargetName="Choice" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+            </Trigger>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="Choice" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="V5Combo" TargetType="ComboBox">
+    <Setter Property="Height" Value="34"/>
+    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="ItemContainerStyle" Value="{StaticResource V5ComboItem}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="ComboBox">
+          <Grid>
+            <Border x:Name="Root" Background="{TemplateBinding Background}"
+              BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6"/>
+            <ContentPresenter IsHitTestVisible="False" Margin="11,0,30,0" HorizontalAlignment="Left" VerticalAlignment="Center"
+              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+            <Path IsHitTestVisible="False" Data="M 0 0 L 4 4 L 8 0" Stroke="{StaticResource V5MutedBrush}" StrokeThickness="1.5"
+              Width="8" Height="4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,11,0"/>
+            <ToggleButton Focusable="False" Background="Transparent" Opacity="0"
+              BorderThickness="0" ClickMode="Press"
+              IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"/>
+            <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
+              AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+              <Border Background="{StaticResource V5SurfaceBrush}" MinWidth="{Binding ActualWidth, ElementName=Root}"
+                BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1" CornerRadius="6" Padding="3">
+                <ScrollViewer MaxHeight="290" CanContentScroll="True" VerticalScrollBarVisibility="Auto">
+                  <ItemsPresenter/>
+                </ScrollViewer>
+              </Border>
+            </Popup>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsEnabled" Value="False">
+              <Setter Property="Opacity" Value="0.45"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource V5AccentLightBrush}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="V5TabItem" TargetType="TabItem">
+    <Setter Property="Foreground" Value="{StaticResource V5MutedBrush}"/>
+    <Setter Property="Padding" Value="15,10"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="TabItem">
+          <Border x:Name="Chrome" CornerRadius="4,4,0,0" Background="Transparent" Padding="{TemplateBinding Padding}" Margin="0,0,3,0">
+            <StackPanel>
+              <ContentPresenter ContentSource="Header" HorizontalAlignment="Center"/>
+              <Border x:Name="Indicator" Height="2" Margin="0,7,0,0" Background="Transparent"/>
+            </StackPanel>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+              <Setter TargetName="Chrome" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              <Setter TargetName="Indicator" Property="Background" Value="{StaticResource V5AccentLightBrush}"/>
+            </Trigger>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="Chrome" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+            </Trigger>
+            <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.34"/></Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="V5TabControl" TargetType="TabControl">
+    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="ItemContainerStyle" Value="{StaticResource V5TabItem}"/>
+  </Style>
+  <Style x:Key="V5Progress" TargetType="ProgressBar">
+    <Setter Property="Foreground" Value="{StaticResource V5AccentLightBrush}"/>
+    <Setter Property="Background" Value="#1C3756"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Height" Value="7"/>
+  </Style>
 </ResourceDictionary>
