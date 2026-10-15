@@ -1,6 +1,7 @@
 <Window x:Class="RangeDesk.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:charts="clr-namespace:RangeDesk.App.Controls"
         Title="RangeDesk" Width="1480" Height="900" MinWidth="1030" MinHeight="630"
         Background="{StaticResource V5CanvasBrush}" Foreground="{StaticResource V5TextBrush}"
         FontFamily="Segoe UI" FontSize="12">
@@ -194,6 +195,7 @@
                     Background="#203956" Foreground="{StaticResource V5AccentLightBrush}"/>
                   <TextBlock Text="{Binding SelectedDownload.TransferredLabel}" Margin="0,7,0,18" Foreground="{StaticResource V5MutedBrush}"/>
                   <TextBlock Text="TRANSFER ACTIVITY" FontWeight="SemiBold"/>
+                  <charts:SpeedGraph Source="{Binding SelectedDownload}" Height="101" Margin="0,8,0,8"/>
                   <TextBlock Text="Live transfer metrics reflect actual network activity; no simulated data." TextWrapping="Wrap"
                              Foreground="{StaticResource V5MutedBrush}" Margin="0,7,0,8"/>
                   <TextBlock Text="{Binding SelectedDownload.Error}" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap"/>
