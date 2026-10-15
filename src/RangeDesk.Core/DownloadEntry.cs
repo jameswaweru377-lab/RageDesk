@@ -17,6 +17,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private string? _error;
     private readonly List<double> _speedSamples = new(64);
     private readonly ObservableCollection<string> _events = new();
+    private readonly ObservableCollection<DownloadWorkerState> _workers = new();
 
     public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0)
     {
@@ -33,6 +34,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         Labels = labels;
         AddedAt = DateTimeOffset.Now;
         Events = new ReadOnlyObservableCollection<string>(_events);
+        Workers = new ReadOnlyObservableCollection<DownloadWorkerState>(_workers);
         _events.Add($"{DateTime.Now:HH:mm:ss}  Added to downloads");
     }
 
@@ -56,6 +58,18 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public IReadOnlyList<double> SpeedSamples => _speedSamples;
     /// <summary>Locally held state changes only; never includes signed URLs, tokens or headers.</summary>
     public ReadOnlyObservableCollection<string> Events { get; private set; } = null!;
+    /// <summary>Actual measured per-worker telemetry; no synthetic connection cards.</summary>
+    public ReadOnlyObservableCollection<DownloadWorkerState> Workers { get; private set; } = null!;
+
+    public void ReportWorkers(IReadOnlyList<WorkerMetric> metrics)
+    {
+        foreach (var metric in metrics)
+        {
+            while (_workers.Count <= metric.Index)
+                _workers.Add(new DownloadWorkerState(_workers.Count));
+            _workers[metric.Index].Update(metric);
+        }
+    }
     public double? Percent => _total is > 0 ? Math.Min(100, 100.0 * _received / _total.Value) : null;
     public bool IsIndeterminate => _total is null && _status == DownloadStatus.Downloading;
     public string ProgressLabel => Percent is double p ? $"{p:0.0}%" : "—";
