@@ -16,6 +16,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+      - name: Set up .NET for recovery verification
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '10.0.402'
       - name: Download and verify original source snapshot
         shell: pwsh
         run: |
@@ -47,12 +51,26 @@ jobs:
           **/*.pdb
           *.msi
           '@ | Set-Content -Path .gitignore -Encoding utf8
+          dotnet restore RangeDesk.slnx
+          if ($LASTEXITCODE -ne 0) { throw 'Restore failed; source not published.' }
+          dotnet test RangeDesk.slnx --configuration Release --no-restore
+          if ($LASTEXITCODE -ne 0) { throw 'Windows tests failed; source not published.' }
+          dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
+          if ($LASTEXITCODE -ne 0) { throw 'Publish failed; source not published.' }
+          Compress-Archive -Path artifact/RangeDesk/* -DestinationPath artifact/RangeDesk-v4-Recovery-Preview.zip -Force
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -B recover/rangedesk-v4
           git add .gitignore README.md RangeDesk.slnx global.json src tests
           git commit -m "chore: recover verified original RangeDesk v4 source"
           git push --set-upstream origin recover/rangedesk-v4
+      - name: Upload validated Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-v4-Recovery-Preview
+          path: artifact/RangeDesk-v4-Recovery-Preview.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Next steps
         shell: pwsh
-        run: Write-Host 'Recovered branch pushed. Windows CI will validate its WPF build and tests. Do not merge until it passes.'
+        run: Write-Host 'Recovered branch pushed after successful Windows build/tests. Verify the downloaded preview manually before merge.'
