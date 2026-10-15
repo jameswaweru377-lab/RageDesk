@@ -45,8 +45,8 @@
   <Style x:Key="V5NavButton" TargetType="Button" BasedOn="{StaticResource V5ToolbarButton}">
     <Setter Property="Background" Value="Transparent"/>
     <Setter Property="HorizontalContentAlignment" Value="Left"/>
-    <Setter Property="Margin" Value="0,2"/>
-    <Setter Property="Padding" Value="13,10"/>
+    <Setter Property="Margin" Value="0,1"/>
+    <Setter Property="Padding" Value="10,6"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
   <Style x:Key="V5Input" TargetType="TextBox">
