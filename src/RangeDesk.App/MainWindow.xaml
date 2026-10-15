@@ -183,7 +183,7 @@
               </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTextColumn Header="SIZE" Binding="{Binding TransferredLabel}" ElementStyle="{StaticResource V5GridText}" Width="1.4*" MinWidth="105" MinWidth="108"/>
+          <DataGridTextColumn Header="SIZE" Binding="{Binding TransferredLabel}" ElementStyle="{StaticResource V5GridText}" Width="1.4*" MinWidth="105"/>
           <DataGridTextColumn Header="SPEED" Binding="{Binding SpeedLabel}" ElementStyle="{StaticResource V5GridText}" Width="0.95*" MinWidth="82"/>
           <DataGridTextColumn Header="ETA" Binding="{Binding EtaLabel}" ElementStyle="{StaticResource V5GridText}" Width="0.8*" MinWidth="66"/>
           <DataGridTextColumn Header="CONNECTIONS" Binding="{Binding Connections}" ElementStyle="{StaticResource V5GridText}" Width="0.95*" MinWidth="80"/>
