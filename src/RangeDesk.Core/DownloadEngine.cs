@@ -42,12 +42,12 @@ public sealed class DownloadEngine : IDisposable
             && u.Host.Length > 0;
     }
 
-    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null)
+    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null, bool adaptive = false)
     {
         if (!IsAllowedUrl(url)) throw new ArgumentException("Enter a valid HTTP or HTTPS download URL without credentials.");
         if (string.IsNullOrWhiteSpace(destination) || !Path.IsPathFullyQualified(destination))
             throw new ArgumentException("Choose a complete local filename for the download.");
-        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections, bandwidthKiBps, expectedSha256);
+        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections, bandwidthKiBps, expectedSha256, adaptive);
     }
 
     public bool Start(DownloadEntry entry)
@@ -111,6 +111,27 @@ public sealed class DownloadEngine : IDisposable
                 throw new IOException("The destination already exists. Choose a different filename; existing files are never overwritten.");
 
             var limiter = new SharedBandwidthLimiter(e.BandwidthKiBps);
+            if (!e.Adaptive && Directory.Exists(e.Destination + ".rdadaptive"))
+                throw new InvalidDataException("Adaptive checkpoint exists. Reopen this transfer with adaptive mode to resume safely.");
+            if (e.Adaptive && e.RequestedConnections > 1)
+            {
+                var adaptive = new AdaptiveRangeTransfer(_http);
+                bool completed = await adaptive.TryDownloadAsync(e, limiter,
+                    (bytes, total, speed, workers) =>
+                        Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
+                    metrics =>
+                    {
+                        void Update() => e.ReportWorkers(metrics);
+                        if (_ui is not null) _ui.Post(_ => Update(), null);
+                        else Update();
+                    }, token);
+                if (completed)
+                {
+                    var assembledLength = new FileInfo(e.Destination).Length;
+                    Publish(e, DownloadStatus.Completed, assembledLength, assembledLength);
+                    return;
+                }
+            }
             if (e.RequestedConnections > 1)
             {
                 var parallel = new ParallelRangeTransfer(_http);
