@@ -493,7 +493,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (sender is not Button { DataContext: DownloadEntry entry } button) return;
         SelectedDownload = entry;
-        var menu = new ContextMenu { Background = Brushes.White, Foreground = (Brush)FindResource("V5LightText") };
+        var menu = new ContextMenu
+        {
+            Background = (Brush)FindResource("V5ElevatedBrush"),
+            BorderBrush = (Brush)FindResource("V5OutlineBrush"),
+            Foreground = (Brush)FindResource("V5TextBrush")
+        };
         var resume = new MenuItem { Header = "Resume", IsEnabled = entry.Status != DownloadStatus.Completed };
         resume.Click += (_, _) => _engine.Start(entry);
         var pause = new MenuItem { Header = "Pause", IsEnabled = entry.Status == DownloadStatus.Downloading };
@@ -506,11 +511,42 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         menu.Items.Add(pause);
         menu.Items.Add(stop);
         menu.Items.Add(new Separator());
+        var startQueue = new MenuItem { Header = "Start all queued downloads" };
+        startQueue.Click += StartQueue_Click;
+        var earlier = new MenuItem { Header = "Move earlier", IsEnabled = Downloads.IndexOf(entry) > 0 };
+        earlier.Click += (_, _) => MoveQueue(entry, -1);
+        var later = new MenuItem { Header = "Move later", IsEnabled = Downloads.IndexOf(entry) < Downloads.Count - 1 };
+        later.Click += (_, _) => MoveQueue(entry, 1);
+        menu.Items.Add(startQueue);
+        menu.Items.Add(earlier);
+        menu.Items.Add(later);
+        menu.Items.Add(new Separator());
         menu.Items.Add(folder);
         button.ContextMenu = menu;
         menu.PlacementTarget = button;
         menu.IsOpen = true;
         e.Handled = true;
+    }
+
+    private void MoveQueue(DownloadEntry item, int direction)
+    {
+        int index = Downloads.IndexOf(item);
+        int destination = index + direction;
+        if (index < 0 || destination < 0 || destination >= Downloads.Count) return;
+        Downloads.Move(index, destination);
+        SelectedDownload = item;
+        SaveCatalog(); // queue ordering survives application restart
+        RefreshFilter();
+    }
+
+    private void StartQueue_Click(object sender, RoutedEventArgs e)
+    {
+        int started = 0;
+        foreach (var item in Downloads.Where(d => d.Status == DownloadStatus.Queued).ToArray())
+            if (_engine.Start(item)) started++;
+        StatusMessage.Text = started > 0
+            ? $"Queued transfers started in saved order: {started}"
+            : "There are no queued transfers to start.";
     }
 
     protected override void OnPreviewKeyDown(KeyEventArgs e)
