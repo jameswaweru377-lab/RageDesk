@@ -83,6 +83,19 @@
             <TextBlock Text="LABELS" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
             <Button Tag="Work" Click="Label_Click" Style="{StaticResource V5NavButton}" ToolTip="Work"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="&#xE8F9;" FontFamily="{StaticResource V5IconFont}" Foreground="#2DAAFF" FontSize="17" VerticalAlignment="Center" Width="26"/><TextBlock Tag="NavCaption" Text="Work" Foreground="{StaticResource V5TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"/></StackPanel><Border Grid.Column="1" Tag="NavBadge" Background="#163656" Padding="5,2" CornerRadius="6" Margin="4,0,1,0" MinWidth="23"><TextBlock Text="{Binding WorkCount}" HorizontalAlignment="Center" Foreground="{StaticResource V5AccentLightBrush}" FontSize="10"/></Border></Grid></Button>
             <Button Tag="Personal" Click="Label_Click" Style="{StaticResource V5NavButton}" ToolTip="Personal"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="&#xE77B;" FontFamily="{StaticResource V5IconFont}" Foreground="#B577FC" FontSize="17" VerticalAlignment="Center" Width="26"/><TextBlock Tag="NavCaption" Text="Personal" Foreground="{StaticResource V5TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"/></StackPanel><Border Grid.Column="1" Tag="NavBadge" Background="#163656" Padding="5,2" CornerRadius="6" Margin="4,0,1,0" MinWidth="23"><TextBlock Text="{Binding PersonalCount}" HorizontalAlignment="Center" Foreground="{StaticResource V5AccentLightBrush}" FontSize="10"/></Border></Grid></Button>
+            <Button Tag="Research" Click="Label_Click" Style="{StaticResource V5NavButton}" ToolTip="Research">
+              <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                  <TextBlock Text="&#xE774;" FontFamily="{StaticResource V5IconFont}" Foreground="#58D8AB" FontSize="17" Width="26"/>
+                  <TextBlock Tag="NavCaption" Text="Research" Foreground="{StaticResource V5TextBrush}"
+                             VerticalAlignment="Center" FontSize="12"/>
+                </StackPanel>
+                <Border Grid.Column="1" Tag="NavBadge" Background="#163656" Padding="5,2" CornerRadius="6" MinWidth="23">
+                  <TextBlock Text="{Binding ResearchCount}" Foreground="{StaticResource V5AccentLightBrush}"
+                             FontSize="10" HorizontalAlignment="Center"/>
+                </Border>
+              </Grid>
+            </Button>
             <Button Tag="Important" Click="Label_Click" Style="{StaticResource V5NavButton}" ToolTip="Important"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="&#xE7BA;" FontFamily="{StaticResource V5IconFont}" Foreground="#FFAB4A" FontSize="17" VerticalAlignment="Center" Width="26"/><TextBlock Tag="NavCaption" Text="Important" Foreground="{StaticResource V5TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"/></StackPanel><Border Grid.Column="1" Tag="NavBadge" Background="#163656" Padding="5,2" CornerRadius="6" Margin="4,0,1,0" MinWidth="23"><TextBlock Text="{Binding ImportantCount}" HorizontalAlignment="Center" Foreground="{StaticResource V5AccentLightBrush}" FontSize="10"/></Border></Grid></Button>
             <Border Height="1" Margin="4,8,4,9" Background="{StaticResource V5OutlineBrush}"/>
             <TextBlock Text="SITE PRESETS" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
@@ -315,7 +328,7 @@
                   <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/><ComboBoxItem Content="Other"/>
                 </ComboBox>
                 <ComboBox x:Name="LabelFilter" Width="159" Style="{StaticResource V5Combo}" SelectedIndex="0" SelectionChanged="Filters_Changed">
-                  <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/><ComboBoxItem Content="Important"/>
+                  <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/><ComboBoxItem Content="Research"/><ComboBoxItem Content="Important"/>
                 </ComboBox>
                 <Button Content="Start queued downloads" Click="StartQueue_Click" Margin="0,12,0,0"
                         Style="{StaticResource V5ToolbarButton}" ToolTip="Start saved queued downloads in list order"/>
