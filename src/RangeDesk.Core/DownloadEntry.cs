@@ -19,7 +19,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private readonly ObservableCollection<string> _events = new();
     private readonly ObservableCollection<DownloadWorkerState> _workers = new();
 
-    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null)
+    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null, bool adaptive = false)
     {
         if (connections is not (1 or 2 or 4 or 8 or 16 or 32))
             throw new ArgumentOutOfRangeException(nameof(connections));
@@ -30,6 +30,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
             throw new ArgumentException("SHA-256 must contain 64 hexadecimal characters.", nameof(expectedSha256));
         RequestedConnections = connections;
         BandwidthKiBps = bandwidthKiBps;
+        Adaptive = adaptive;
         ExpectedSha256 = string.IsNullOrWhiteSpace(expectedSha256) ? null : expectedSha256.ToUpperInvariant();
         Id = Guid.NewGuid();
         Url = url;
@@ -42,6 +43,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         _events.Add($"{DateTime.Now:HH:mm:ss}  Added to downloads");
     }
 
+    public bool Adaptive { get; }
     public int RequestedConnections { get; }
     public int BandwidthKiBps { get; }
     public string? ExpectedSha256 { get; }
