@@ -423,7 +423,7 @@
                   <Border BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1"
                           CornerRadius="5" Background="{StaticResource V5ElevatedBrush}" Padding="9">
                     <Grid>
-                      <TextBlock Text="Worker 1  ·  direct stream" FontSize="11"/>
+                      <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active range workers: {0}'}" FontSize="11"/>
                       <TextBlock Text="{Binding SelectedDownload.SpeedLabel}" HorizontalAlignment="Right"
                           Foreground="{StaticResource V5AccentLightBrush}"/>
                     </Grid>
@@ -433,10 +433,10 @@
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="Transfer rules" FontWeight="SemiBold" Margin="0,0,0,9"/>
-                  <TextBlock Text="Connections: 1 per download" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="{Binding SelectedDownload.RequestedConnections, StringFormat='Requested workers: {0}'}" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
                   <TextBlock Text="Resume: validated HTTP ranges" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
                   <TextBlock Text="Checksum: not configured" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
-                  <TextBlock Text="16-connection engine: upcoming" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                  <TextBlock Text="Verified HTTP ranges and strong ETag required" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,14"/>
                   <StackPanel Orientation="Horizontal">
                     <Button Content="Open file" Click="OpenFile_Click" Padding="8,7" Style="{StaticResource V5ToolbarButton}"/>
                     <Button Content="Folder" Click="OpenFolder_Click" Padding="8,7" Style="{StaticResource V5ToolbarButton}"/>
@@ -448,7 +448,7 @@
               <StackPanel Margin="12">
                 <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active connections: {0}'}" FontWeight="SemiBold"/>
                 <TextBlock Text="{Binding SelectedDownload.SpeedLabel, StringFormat='Current speed: {0}'}" Margin="0,10,0,0"/>
-                <TextBlock Text="Connection count is measured, not the configured maximum. Parallel range workers are not yet enabled."
+                <TextBlock Text="Connection count is the current number of active streams; unsupported servers fall back to one direct stream."
                            Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
               </StackPanel>
             </TabItem>
@@ -514,11 +514,19 @@
                 </StackPanel>
               </TabItem>
               <TabItem Header="Advanced"><StackPanel Margin="8,17">
-                <TextBlock Text="Connections: 1 active stream (preview)" Margin="0,0,0,9"/>
-                <TextBlock Text="Resume uses the server's strong ETag and validated byte ranges when available."
+                <TextBlock Text="Maximum connections per download" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,8"/>
+                <ComboBox x:Name="ConnectionChoice" Style="{StaticResource V5Combo}" Width="180" HorizontalAlignment="Left" SelectedIndex="3" Margin="0,0,0,10">
+                  <ComboBoxItem Content="1 connection" Tag="1"/>
+                  <ComboBoxItem Content="2 connections" Tag="2"/>
+                  <ComboBoxItem Content="4 connections" Tag="4"/>
+                  <ComboBoxItem Content="8 connections" Tag="8"/>
+                  <ComboBoxItem Content="16 connections" Tag="16"/>
+                  <ComboBoxItem Content="32 connections" Tag="32"/>
+                </ComboBox>
+                <TextBlock Text="Uses multiple validated byte ranges only when the server supports HTTP 206 and a strong ETag; otherwise safely downloads with one connection. Your selected maximum is not a guarantee."
+                           TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,10"/>
+                <TextBlock Text="Resume uses per-segment files with strong ETag validation. Speed limits and scheduling remain separate features."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}"/>
-                <TextBlock Text="Parallel connections, bandwidth rules, and SHA-256 verification are scheduled for a tested engine update."
-                           TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,10,0,0"/>
               </StackPanel></TabItem>
               <TabItem Header="Rules (planned)" IsEnabled="False"/>
               <TabItem Header="Automation (planned)" IsEnabled="False"/>
@@ -536,9 +544,9 @@
         <StackPanel>
           <TextBlock Text="⚙   RangeDesk Settings" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/>
           <TextBlock Text="Independent, local-first Windows download manager."/>
-          <TextBlock Text="This first v5 preview runs two downloads concurrently, with one network connection per item."
+          <TextBlock Text="RangeDesk can run two downloads concurrently. Each download can request 1–32 range connections when the server safely supports them."
                      Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-          <TextBlock Text="Advanced rate limits, scheduling, browser capture and 16-connection range acceleration will be enabled only after implementation and tests."
+          <TextBlock Text="Automatic segment redistribution, shared bandwidth limits, scheduled queues, and browser capture are not yet ready for release."
                      Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,10,0,17"/>
           <Button Content="Close" Click="CloseSettings_Click" Style="{StaticResource V5PrimaryButton}" HorizontalAlignment="Right"/>
         </StackPanel>
