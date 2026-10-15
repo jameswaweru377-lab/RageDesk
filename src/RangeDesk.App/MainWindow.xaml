@@ -32,11 +32,8 @@
       <Setter Property="Padding" Value="10,12"/>
       <Setter Property="FontWeight" Value="Normal"/>
     </Style>
-    <Style TargetType="TabItem">
-      <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-      <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
-      <Setter Property="Padding" Value="14,8"/>
-    </Style>
+    <Style TargetType="TabItem" BasedOn="{StaticResource V5TabItem}"/>
+    <Style TargetType="ComboBoxItem" BasedOn="{StaticResource V5ComboItem}"/>
     <Style TargetType="ComboBox">
       <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
       <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
