@@ -269,48 +269,79 @@
         </Grid>
       </Border>
 
-      <!-- Download status tabs and compact actions, styled like the supplied reference. -->
-      <Grid Grid.Row="2" Margin="12,3,12,5">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="275"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+      <!-- Approved compact status controls. Good morning banner above is untouched. -->
+      <Grid Grid.Row="2" Margin="12,4,12,4">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="395"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock x:Name="ViewTitle" Text="Downloads" Visibility="Collapsed"/>
-          <Button x:Name="TabAll" Tag="all" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
-            <StackPanel Orientation="Horizontal"><TextBlock Text="All" Margin="0,0,5,0"/><TextBlock Text="{Binding DownloadsCount}"/></StackPanel>
+          <Button x:Name="TabAll" Tag="all" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}" Padding="9,6">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="#E8F2FF" FontSize="8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="All" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="{Binding DownloadsCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
           </Button>
-          <Button x:Name="TabDownloading" Tag="Downloading" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
-            <StackPanel Orientation="Horizontal"><TextBlock Text="Downloading" Margin="0,0,5,0"/><TextBlock Text="{Binding DownloadingCount}"/></StackPanel>
+          <Button x:Name="TabDownloading" Tag="Downloading" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}" Padding="9,6">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="#39ACFF" FontSize="8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="Downloading" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="{Binding DownloadingCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
           </Button>
-          <Button x:Name="TabPaused" Tag="Paused" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
-            <StackPanel Orientation="Horizontal"><TextBlock Text="Paused" Margin="0,0,5,0"/><TextBlock Text="{Binding PausedCount}"/></StackPanel>
+          <Button x:Name="TabPaused" Tag="Paused" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}" Padding="9,6">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="#FDBD58" FontSize="8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="Paused" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="{Binding PausedCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
           </Button>
-          <Button x:Name="TabQueued" Tag="Queued" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
-            <StackPanel Orientation="Horizontal"><TextBlock Text="Queued" Margin="0,0,5,0"/><TextBlock Text="{Binding PendingCount}"/></StackPanel>
+          <Button x:Name="TabQueued" Tag="Queued" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}" Padding="9,6">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="#B7A0FC" FontSize="8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="Queued" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="{Binding PendingCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
           </Button>
-          <Button x:Name="TabCompleted" Tag="Completed" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
-            <StackPanel Orientation="Horizontal"><TextBlock Text="Completed" Margin="0,0,5,0"/><TextBlock Text="{Binding CompletedCount}"/></StackPanel>
+          <Button x:Name="TabCompleted" Tag="Completed" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}" Padding="9,6">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="#4BE3B3" FontSize="8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="Completed" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="{Binding CompletedCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
+          </Button>
+          <Button x:Name="TabFailed" Tag="Failed" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}" Padding="9,6">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+              <TextBlock Text="●" Foreground="#FA8496" FontSize="8" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="Failed" FontSize="10" VerticalAlignment="Center" Margin="0,0,5,0"/>
+              <TextBlock Text="{Binding FailedCount}" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center"/>
+            </StackPanel>
           </Button>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-          <Button Click="Add_Click" Style="{StaticResource V5LightPrimaryButton}" Margin="0,0,7,0" ToolTip="Create a new download">
+          <Button Content="+ Add Download" Click="Add_Click" Style="{StaticResource V5LightPrimaryButton}"
+                  Padding="10,7" Margin="0,0,7,0" ToolTip="Create a new download"/>
+          <Button x:Name="MoreFiltersButton" Click="ToggleFilters_Click" Style="{StaticResource V5LightToolbarButton}"
+                  Padding="9,7" Margin="0,0,7,0" ToolTip="Status, categories and labels filters">
             <StackPanel Orientation="Horizontal">
-              <TextBlock Text="&#xE710;" FontFamily="{StaticResource V5IconFont}" Foreground="White" Margin="0,0,6,0"/>
-              <TextBlock Text="Add Download" Foreground="White"/>
+              <TextBlock Text="&#xE71C;" FontFamily="{StaticResource V5IconFont}" Margin="0,0,5,0"/>
+              <TextBlock Text="Filter"/>
             </StackPanel>
           </Button>
-          <Button Click="PasteLink_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Paste a URL into New Download">
-            <TextBlock Text="&#xE71B;" FontFamily="{StaticResource V5IconFont}" FontSize="14"/>
+          <ComboBox x:Name="SortChooser" Width="138" Height="31" Style="{StaticResource V5Combo}"
+                    SelectedIndex="0" SelectionChanged="SortChooser_Changed" Margin="0,0,7,0"
+                    ToolTip="Sort downloads">
+            <ComboBoxItem Content="Queue order"/>
+            <ComboBoxItem Content="Added (newest)"/>
+            <ComboBoxItem Content="Name A–Z"/>
+            <ComboBoxItem Content="Speed (highest)"/>
+          </ComboBox>
+          <Button x:Name="ListViewButton" Click="ListView_Click" Style="{StaticResource V5LightToolbarButton}"
+                  Padding="7,7" Margin="0,0,4,0" ToolTip="Table view">
+            <TextBlock Text="&#xE8EF;" FontFamily="{StaticResource V5IconFont}" Foreground="{StaticResource V5AccentLightBrush}"/>
           </Button>
-          <Button Click="Resume_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Resume selected">
-            <TextBlock Text="&#xE768;" FontFamily="{StaticResource V5IconFont}"/>
-          </Button>
-          <Button Click="Pause_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Pause selected">
-            <TextBlock Text="&#xE769;" FontFamily="{StaticResource V5IconFont}"/>
-          </Button>
-          <Button Click="OpenDownloadsFolder_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Open Downloads folder">
-            <TextBlock Text="&#xE8B7;" FontFamily="{StaticResource V5IconFont}"/>
-          </Button>
-          <Button x:Name="MoreFiltersButton" Click="ToggleFilters_Click" Style="{StaticResource V5LightToolbarButton}" ToolTip="More download filters">
-            <TextBlock Text="&#xE10C;" FontFamily="{StaticResource V5IconFont}" FontSize="16"/>
+          <Button x:Name="CardsViewButton" Click="CardsView_Click" Style="{StaticResource V5LightToolbarButton}"
+                  Padding="7,7" Margin="0" ToolTip="Card view">
+            <TextBlock Text="&#xE80A;" FontFamily="{StaticResource V5IconFont}"/>
           </Button>
           <Popup x:Name="ExtraFilters" PlacementTarget="{Binding ElementName=MoreFiltersButton}"
                  Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
@@ -330,6 +361,16 @@
                 <ComboBox x:Name="LabelFilter" Width="159" Style="{StaticResource V5Combo}" SelectedIndex="0" SelectionChanged="Filters_Changed">
                   <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/><ComboBoxItem Content="Research"/><ComboBoxItem Content="Important"/>
                 </ComboBox>
+                <StackPanel Orientation="Horizontal" Margin="0,9,0,0">
+                  <Button Content="Paste URL" Click="PasteLink_Click" Style="{StaticResource V5ToolbarButton}"
+                          Padding="6,6"/>
+                  <Button Content="Open folder" Click="OpenDownloadsFolder_Click" Style="{StaticResource V5ToolbarButton}"
+                          Padding="6,6"/>
+                </StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                  <Button Content="Resume" Click="Resume_Click" Style="{StaticResource V5ToolbarButton}" Padding="6,6"/>
+                  <Button Content="Pause" Click="Pause_Click" Style="{StaticResource V5ToolbarButton}" Padding="6,6"/>
+                </StackPanel>
                 <Button Content="Start queued downloads" Click="StartQueue_Click" Margin="0,12,0,0"
                         Style="{StaticResource V5ToolbarButton}" ToolTip="Start saved queued downloads in list order"/>
               </StackPanel>
