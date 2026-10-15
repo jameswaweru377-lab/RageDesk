@@ -1,0 +1,99 @@
+<UserControl x:Class="RangeDesk.App.Views.CompactDownloadsView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Foreground="#F1F7FF" Background="#071525" FontFamily="Segoe UI">
+  <UserControl.Resources>
+    <ResourceDictionary><ResourceDictionary.MergedDictionaries>
+      <ResourceDictionary Source="/RangeDesk.App;component/Themes/V5Theme.xaml"/>
+    </ResourceDictionary.MergedDictionaries></ResourceDictionary>
+  </UserControl.Resources>
+  <Grid>
+    <Grid.RowDefinitions><RowDefinition Height="36"/><RowDefinition Height="*" MinHeight="120"/><RowDefinition Height="220"/></Grid.RowDefinitions>
+    <Border Grid.Row="0" Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0,0,0,1" Padding="10,8">
+      <Grid><Grid.ColumnDefinitions>
+        <ColumnDefinition Width="2.8*"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="1.7*"/>
+        <ColumnDefinition Width="1.5*"/><ColumnDefinition Width="1.0*"/><ColumnDefinition Width="1.0*"/><ColumnDefinition Width="1.2*"/>
+      </Grid.ColumnDefinitions>
+        <TextBlock Text="NAME"/><TextBlock Grid.Column="1" Text="STATUS"/><TextBlock Grid.Column="2" Text="PROGRESS"/>
+        <TextBlock Grid.Column="3" Text="DOWNLOADED"/><TextBlock Grid.Column="4" Text="SPEED"/>
+        <TextBlock Grid.Column="5" Text="ETA"/><TextBlock Grid.Column="6" Text="CONNECTIONS"/>
+      </Grid>
+    </Border>
+    <ListBox Grid.Row="1" ItemsSource="{Binding VisibleRows}" SelectedItem="{Binding SelectedRow, Mode=TwoWay}"
+             Background="Transparent" Foreground="{StaticResource V5TextBrush}" BorderThickness="0"
+             ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Auto"
+             ScrollViewer.CanContentScroll="True" VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling">
+      <ListBox.ItemContainerStyle><Style TargetType="ListBoxItem">
+        <Setter Property="Padding" Value="0"/><Setter Property="Margin" Value="0,0,0,3"/>
+        <Setter Property="HorizontalContentAlignment" Value="Stretch"/><Setter Property="BorderThickness" Value="0"/>
+      </Style></ListBox.ItemContainerStyle>
+      <ListBox.ItemTemplate><DataTemplate>
+        <Border BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0,0,0,1" Padding="10,9"
+                CornerRadius="5" MinWidth="760">
+          <Border.Style><Style TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
+            <Style.Triggers>
+              <DataTrigger Binding="{Binding RelativeSource={RelativeSource AncestorType=ListBoxItem}, Path=IsSelected}" Value="True">
+                <Setter Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              </DataTrigger>
+            </Style.Triggers>
+          </Style></Border.Style>
+          <Grid><Grid.ColumnDefinitions>
+            <ColumnDefinition Width="2.8*"/><ColumnDefinition Width="1.1*"/><ColumnDefinition Width="1.7*"/>
+            <ColumnDefinition Width="1.5*"/><ColumnDefinition Width="1.0*"/><ColumnDefinition Width="1.0*"/><ColumnDefinition Width="1.2*"/>
+          </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" Margin="0,0,8,0">
+              <TextBlock Text="{Binding Name}" FontSize="12" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+              <TextBlock Text="{Binding Host}" FontSize="10" Foreground="{StaticResource V5MutedBrush}" TextTrimming="CharacterEllipsis"/>
+            </StackPanel>
+            <TextBlock Grid.Column="1" Text="{Binding StatusText}" Foreground="{StaticResource V5AccentLightBrush}" VerticalAlignment="Center"/>
+            <StackPanel Grid.Column="2" Margin="0,0,10,0" VerticalAlignment="Center">
+              <ProgressBar Maximum="100" Value="{Binding Percent, TargetNullValue=0}" Height="7" Foreground="{StaticResource V5AccentBrush}" Background="#203956"/>
+              <TextBlock Text="{Binding PercentText}" FontSize="10" Foreground="{StaticResource V5MutedBrush}" Margin="0,4,0,0"/>
+            </StackPanel>
+            <TextBlock Grid.Column="3" Text="{Binding ProgressText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            <TextBlock Grid.Column="4" Text="{Binding SpeedText}" Foreground="{StaticResource V5AccentLightBrush}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="5" Text="{Binding TimeLeftText}" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="6" Text="{Binding ConnectionsText}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+          </Grid>
+        </Border>
+      </DataTemplate></ListBox.ItemTemplate>
+    </ListBox>
+    <Border Grid.Row="2" Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+            BorderThickness="1" CornerRadius="7" Margin="0,9,0,0" Padding="12">
+      <Grid><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+        <StackPanel Orientation="Horizontal">
+          <TextBlock Text="{Binding SelectedRow.Name, TargetNullValue=Select a download}" FontSize="16" FontWeight="SemiBold"/>
+          <TextBlock Text="{Binding SelectedRow.StatusText}" Foreground="{StaticResource V5AccentLightBrush}" Margin="12,3"/>
+        </StackPanel>
+        <TabControl Grid.Row="1" Margin="0,8,0,0" Background="{StaticResource V5SurfaceBrush}" Foreground="{StaticResource V5TextBrush}" BorderThickness="0">
+          <TabItem Header="Overview">
+            <StackPanel Margin="5,12">
+              <ProgressBar Maximum="100" Value="{Binding SelectedRow.Percent, TargetNullValue=0}" Height="9" Foreground="{StaticResource V5AccentBrush}" Background="#203956"/>
+              <StackPanel Orientation="Horizontal" Margin="0,10,0,4">
+                <TextBlock Text="{Binding SelectedRow.ProgressText}"/>
+                <TextBlock Text="{Binding SelectedRow.SpeedText}" Margin="20,0,0,0" Foreground="{StaticResource V5AccentLightBrush}"/>
+                <TextBlock Text="{Binding SelectedRow.TimeLeftText}" Margin="20,0,0,0"/>
+              </StackPanel>
+              <TextBlock Text="{Binding SelectedRow.ActiveConnectionText}" Foreground="{StaticResource V5MutedBrush}"/>
+              <TextBlock Text="{Binding SelectedRow.RetryText}" Foreground="{StaticResource V5MutedBrush}"/>
+              <TextBlock Text="{Binding SelectedRow.HealthText}" Foreground="{StaticResource V5MutedBrush}"/>
+            </StackPanel>
+          </TabItem>
+          <TabItem Header="Connections">
+            <ListBox ItemsSource="{Binding SelectedRow.ConnectionRows}" Background="Transparent" Foreground="{StaticResource V5TextBrush}" BorderThickness="0" Margin="5">
+              <ListBox.ItemTemplate><DataTemplate><StackPanel Orientation="Horizontal" Margin="0,3">
+                <TextBlock Text="{Binding Name}" Width="95"/><TextBlock Text="{Binding State}" Width="115"/>
+                <ProgressBar Value="{Binding Percent}" Maximum="100" Height="7" Width="115" Foreground="{StaticResource V5AccentBrush}" Background="#203956"/>
+                <TextBlock Text="{Binding ReceivedText}" Margin="12,0"/>
+              </StackPanel></DataTemplate></ListBox.ItemTemplate>
+            </ListBox>
+          </TabItem>
+          <TabItem Header="Segments (planned)" IsEnabled="False"/>
+          <TabItem Header="Graph (planned)" IsEnabled="False"/>
+          <TabItem Header="Log (planned)" IsEnabled="False"/>
+        </TabControl>
+      </Grid>
+    </Border>
+  </Grid>
+</UserControl>
