@@ -317,6 +317,8 @@
                 <ComboBox x:Name="LabelFilter" Width="159" Style="{StaticResource V5Combo}" SelectedIndex="0" SelectionChanged="Filters_Changed">
                   <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/><ComboBoxItem Content="Important"/>
                 </ComboBox>
+                <Button Content="Start queued downloads" Click="StartQueue_Click" Margin="0,12,0,0"
+                        Style="{StaticResource V5ToolbarButton}" ToolTip="Start saved queued downloads in list order"/>
               </StackPanel>
             </Border>
           </Popup>
