@@ -135,7 +135,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http)
             {
                 donor.SplitRequested = 0;
                 long remaining = donor.To - donor.From + 1 - Interlocked.Read(ref donor.Downloaded);
-                if (remaining < 2 * MinimumPieceLength || piecesList.Count >= MaximumPieces) return;
+                if (remaining < 2 * MinimumPieceLength || piecesList.Count >= MaximumPieces || nextId >= MaximumPieces) return;
                 long originalEnd = donor.To;
                 long dividing = donor.From + donor.Downloaded + remaining / 2;
                 if (dividing <= donor.From + donor.Downloaded || dividing > originalEnd) return;
@@ -321,7 +321,9 @@ public sealed class AdaptiveRangeTransfer(HttpClient http)
             token.ThrowIfCancellationRequested();
             await Sha256Verification.VerifyAsync(assembling, entry.ExpectedSha256, token);
             File.Move(assembling, entry.Destination, false);
-            try { Directory.Delete(folder, true); } catch (IOException) { }
+            try { Directory.Delete(folder, true); }
+            catch (IOException) { }
+            catch (UnauthorizedAccessException) { }
             progress(saved.Length, saved.Length, 0, 0);
             workerProgress?.Invoke(verified.Select(p => new WorkerMetric(
                 p.Id, p.Downloaded, p.To - p.From + 1, 0, false)).ToArray());
