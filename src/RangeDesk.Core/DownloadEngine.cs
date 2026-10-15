@@ -119,8 +119,8 @@ public sealed class DownloadEngine : IDisposable
                     token);
                 if (completed)
                 {
-                    var length = new FileInfo(e.Destination).Length;
-                    Publish(e, DownloadStatus.Completed, length, length);
+                    var assembledLength = new FileInfo(e.Destination).Length;
+                    Publish(e, DownloadStatus.Completed, assembledLength, assembledLength);
                     return;
                 }
             }
