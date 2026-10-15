@@ -42,12 +42,12 @@ public sealed class DownloadEngine : IDisposable
             && u.Host.Length > 0;
     }
 
-    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1)
+    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0)
     {
         if (!IsAllowedUrl(url)) throw new ArgumentException("Enter a valid HTTP or HTTPS download URL without credentials.");
         if (string.IsNullOrWhiteSpace(destination) || !Path.IsPathFullyQualified(destination))
             throw new ArgumentException("Choose a complete local filename for the download.");
-        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections);
+        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections, bandwidthKiBps);
     }
 
     public bool Start(DownloadEntry entry)
@@ -110,10 +110,11 @@ public sealed class DownloadEngine : IDisposable
             if (File.Exists(e.Destination))
                 throw new IOException("The destination already exists. Choose a different filename; existing files are never overwritten.");
 
+            var limiter = new SharedBandwidthLimiter(e.BandwidthKiBps);
             if (e.RequestedConnections > 1)
             {
                 var parallel = new ParallelRangeTransfer(_http);
-                bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections,
+                bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections, limiter,
                     (bytes, total, speed, workers) =>
                         Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
                     token);
@@ -239,6 +240,7 @@ public sealed class DownloadEngine : IDisposable
                     if (expected is long max && received + count > max)
                         throw new InvalidDataException("The server sent more bytes than declared.");
                     await output.WriteAsync(buffer.AsMemory(0, count), token);
+                    await limiter.AccountAsync(count, token);
                     received += count;
                     Interlocked.Exchange(ref measuredReceived, received);
                 }
