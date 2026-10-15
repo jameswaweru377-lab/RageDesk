@@ -14,6 +14,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private double _bytesPerSecond;
     private int _connections;
     private string? _error;
+    private readonly List<double> _speedSamples = new(64);
 
     public DownloadEntry(string url, string destination, string category = "Other", string labels = "")
     {
@@ -39,6 +40,8 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public double BytesPerSecond => _bytesPerSecond;
     public int Connections => _connections;
     public string? Error => _error;
+    /// <summary>Most recent measured receive-rate samples, bytes per second, max 60.</summary>
+    public IReadOnlyList<double> SpeedSamples => _speedSamples;
     public double? Percent => _total is > 0 ? Math.Min(100, 100.0 * _received / _total.Value) : null;
     public bool IsIndeterminate => _total is null && _status == DownloadStatus.Downloading;
     public string ProgressLabel => Percent is double p ? $"{p:0.0}%" : "—";
@@ -73,6 +76,11 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         _bytesPerSecond = double.IsFinite(bytesPerSecond) ? Math.Max(0, bytesPerSecond) : 0;
         _connections = Math.Max(0, activeConnections);
         _error = error;
+        if (status == DownloadStatus.Downloading && double.IsFinite(bytesPerSecond) && bytesPerSecond >= 0)
+        {
+            _speedSamples.Add(bytesPerSecond);
+            if (_speedSamples.Count > 60) _speedSamples.RemoveAt(0);
+        }
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
     }
 
