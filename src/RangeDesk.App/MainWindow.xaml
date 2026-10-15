@@ -525,7 +525,17 @@
                 </ComboBox>
                 <TextBlock Text="Uses multiple validated byte ranges only when the server supports HTTP 206 and a strong ETag; otherwise safely downloads with one connection. Your selected maximum is not a guarantee."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,10"/>
-                <TextBlock Text="Resume uses per-segment files with strong ETag validation. Speed limits and scheduling remain separate features."
+                <TextBlock Text="Download speed limit" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
+                <ComboBox x:Name="BandwidthChoice" Style="{StaticResource V5Combo}" Width="180" HorizontalAlignment="Left"
+                          SelectedIndex="0" Margin="0,0,0,10">
+                  <ComboBoxItem Content="Unlimited" Tag="0"/>
+                  <ComboBoxItem Content="256 KiB/s" Tag="256"/>
+                  <ComboBoxItem Content="512 KiB/s" Tag="512"/>
+                  <ComboBoxItem Content="1 MiB/s" Tag="1024"/>
+                  <ComboBoxItem Content="4 MiB/s" Tag="4096"/>
+                  <ComboBoxItem Content="10 MiB/s" Tag="10240"/>
+                </ComboBox>
+                <TextBlock Text="The limit applies across all workers for this download. Resume keeps segment checkpoints; scheduled queues remain a separate feature."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}"/>
               </StackPanel></TabItem>
               <TabItem Header="Rules (planned)" IsEnabled="False"/>
