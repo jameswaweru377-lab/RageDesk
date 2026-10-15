@@ -18,8 +18,11 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private readonly List<double> _speedSamples = new(64);
     private readonly ObservableCollection<string> _events = new();
 
-    public DownloadEntry(string url, string destination, string category = "Other", string labels = "")
+    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1)
     {
+        if (connections is not (1 or 2 or 4 or 8 or 16 or 32))
+            throw new ArgumentOutOfRangeException(nameof(connections));
+        RequestedConnections = connections;
         Id = Guid.NewGuid();
         Url = url;
         Destination = destination;
@@ -30,6 +33,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         _events.Add($"{DateTime.Now:HH:mm:ss}  Added to downloads");
     }
 
+    public int RequestedConnections { get; }
     public Guid Id { get; }
     public string Url { get; }
     public string Destination { get; }
