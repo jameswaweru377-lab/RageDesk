@@ -93,7 +93,7 @@
       </DockPanel>
     </Border>
 
-    <!-- RIGHT WORKSPACE: the top downloads surface ONLY is light. Sidebar and
+    <!-- RIGHT WORKSPACE: the downloads surface uses navy theme. Sidebar and
          transfer inspector retain their existing dark layout unmodified. -->
     <Grid Grid.Column="1" Margin="15,12,15,12">
       <Grid.RowDefinitions>
@@ -106,12 +106,12 @@
       </Grid.RowDefinitions>
       <Border Grid.Row="0" Grid.RowSpan="4" Background="{StaticResource V5LightCanvas}" CornerRadius="11" Margin="0,0,0,0"/>
 
-      <!-- Light command/header with genuine local mode (no false cloud sync). -->
+      <!-- Navy command/header with genuine local mode (no false cloud sync). -->
       <Border Grid.Row="0" Background="{StaticResource V5LightSurface}" CornerRadius="10,10,0,0"
               BorderBrush="{StaticResource V5LightBorder}" BorderThickness="0,0,0,1" Padding="13,6">
         <Grid>
           <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="150"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-          <Border Background="#F3F7FD" BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
+          <Border Background="#122B48" BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
                   CornerRadius="7" Height="34" MaxWidth="540" HorizontalAlignment="Stretch">
             <Grid Margin="11,0">
               <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -121,14 +121,14 @@
                        TextChanged="Search_Changed" KeyDown="Search_KeyDown" ToolTip="Search downloads or paste a URL and press Enter"/>
               <TextBlock x:Name="SearchHint" Grid.Column="1" IsHitTestVisible="False" VerticalAlignment="Center"
                          Foreground="{StaticResource V5LightMuted}" FontSize="11" Text="Search downloads, files, or paste links..."/>
-              <Border Grid.Column="2" Background="#E7EEF9" CornerRadius="4" Padding="6,3" Margin="5,0,0,0"
+              <Border Grid.Column="2" Background="#1C3554" CornerRadius="4" Padding="6,3" Margin="5,0,0,0"
                       VerticalAlignment="Center"><TextBlock Text="Ctrl + L" Foreground="{StaticResource V5LightMuted}" FontSize="9"/></Border>
             </Grid>
           </Border>
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
-            <Border Background="#EFF6FD" CornerRadius="6" Padding="8,5" Margin="0,0,8,0">
+            <Border Background="#173453" CornerRadius="6" Padding="8,5" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal">
-                <TextBlock FontFamily="{StaticResource V5IconFont}" Text="&#xE753;" Foreground="#1684ED" Margin="0,0,5,0"/>
+                <TextBlock FontFamily="{StaticResource V5IconFont}" Text="&#xE753;" Foreground="#49AEFF" Margin="0,0,5,0"/>
                 <TextBlock Text="Local only" FontSize="10" Foreground="{StaticResource V5LightMuted}"/>
               </StackPanel>
             </Border>
@@ -141,21 +141,21 @@
 
       <!-- Greeting and metrics; vector scenery drawn locally, no online asset. -->
       <Border Grid.Row="1" Margin="12,9,12,7" CornerRadius="11" ClipToBounds="True"
-              BorderBrush="#C9DDF8" BorderThickness="1">
+              BorderBrush="#325A88" BorderThickness="1">
         <Border.Background>
           <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-            <GradientStop Color="#F1F8FF" Offset="0"/>
-            <GradientStop Color="#D3E8FF" Offset="0.58"/>
-            <GradientStop Color="#9ACDFC" Offset="1"/>
+            <GradientStop Color="#142947" Offset="0"/>
+            <GradientStop Color="#173E6D" Offset="0.58"/>
+            <GradientStop Color="#1B548A" Offset="1"/>
           </LinearGradientBrush>
         </Border.Background>
         <Grid>
           <Canvas Opacity="0.28" IsHitTestVisible="False" ClipToBounds="True">
             <Polygon Points="0,109 52,69 77,89 128,35 182,89 235,51 293,104 353,39 425,109 520,109"
-                     Fill="#8BB6EE"/>
-            <Polygon Points="0,109 80,83 118,98 188,60 251,109 355,67 420,107 560,109" Fill="#5D9FEC"/>
+                     Fill="#27619C"/>
+            <Polygon Points="0,109 80,83 118,98 188,60 251,109 355,67 420,107 560,109" Fill="#1D4679"/>
             <Polygon Points="0,110 43,98 57,77 74,100 135,108 181,87 210,109 300,109 480,108"
-                     Fill="#3185D6" Opacity="0.47"/>
+                     Fill="#2E72AF" Opacity="0.47"/>
             <Path Data="M0,112 C75,94 140,111 215,106 C320,98 380,105 520,110" Stroke="#0879DC" StrokeThickness="2"/>
           </Canvas>
           <Grid Margin="21,10,19,8">
@@ -169,8 +169,8 @@
             <StackPanel Grid.Column="0" VerticalAlignment="Center">
               <TextBlock Text="{Binding GreetingText}" FontWeight="Bold" FontSize="18"
                          Foreground="{StaticResource V5LightText}"/>
-              <TextBlock Text="{Binding ActiveSummaryLabel}" Foreground="#47618D" FontSize="11" Margin="0,5,0,0"/>
-              <TextBlock Text="YOUR DOWNLOADS" Foreground="#3475B7" FontSize="9"
+              <TextBlock Text="{Binding ActiveSummaryLabel}" Foreground="#B6CDE8" FontSize="11" Margin="0,5,0,0"/>
+              <TextBlock Text="YOUR DOWNLOADS" Foreground="#88B7EB" FontSize="9"
                          FontWeight="SemiBold" Margin="0,10,0,0"/>
             </StackPanel>
             <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="5,0">
@@ -254,7 +254,7 @@
           </Button>
           <Popup x:Name="ExtraFilters" PlacementTarget="{Binding ElementName=MoreFiltersButton}"
                  Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
-            <Border Background="White" BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
+            <Border Background="#102844" BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
                     CornerRadius="7" Padding="12" MinWidth="186">
               <StackPanel>
                 <TextBlock Text="Filters" Foreground="{StaticResource V5LightText}" FontWeight="SemiBold" Margin="0,0,0,9"/>
@@ -285,12 +285,12 @@
         RowHeight="55" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
         RowStyle="{StaticResource V5LightGridRow}" CellStyle="{StaticResource V5LightGridCell}"
         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
-        ScrollViewer.CanContentScroll="True" AlternatingRowBackground="#F9FBFE">
+        ScrollViewer.CanContentScroll="True" AlternatingRowBackground="#112741">
         <DataGrid.Resources>
-          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#E7F2FF"/>
-          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#E7F2FF"/>
-          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#142B50"/>
-          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#142B50"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#163B63"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#163B63"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#F0F6FF"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#F0F6FF"/>
         </DataGrid.Resources>
         <DataGrid.Columns>
           <DataGridTemplateColumn Header="" Width="32" MinWidth="32">
@@ -302,7 +302,7 @@
           <DataGridTemplateColumn Header="Name" Width="2.6*" MinWidth="195">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="32" Height="32" Background="#EEF4FC" CornerRadius="6" Margin="0,0,9,0">
+                <Border Width="32" Height="32" Background="#1D3A5B" CornerRadius="6" Margin="0,0,9,0">
                   <TextBlock Text="{Binding Name, Converter={StaticResource FileIcon}}" 
                              Foreground="{Binding Name, Converter={StaticResource FileIconColor}}"
                              FontFamily="{StaticResource V5IconFont}" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
@@ -323,7 +323,7 @@
                 <ProgressBar Grid.Column="0" Style="{StaticResource V5LightProgress}" Margin="0,0,7,0"
                              Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}"
                              IsIndeterminate="{Binding IsIndeterminate, Mode=OneWay}" Maximum="100" VerticalAlignment="Center"/>
-                <TextBlock Grid.Column="1" Text="{Binding ProgressLabel}" Foreground="#1681F4"
+                <TextBlock Grid.Column="1" Text="{Binding ProgressLabel}" Foreground="#49AEFF"
                            VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="10"/>
               </Grid>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
@@ -353,12 +353,12 @@
                 <Button Click="RowQuickAction_Click" Padding="6,4" Background="Transparent"
                         BorderThickness="0" ToolTip="Pause, resume or open completed download">
                   <TextBlock FontFamily="{StaticResource V5IconFont}" FontSize="12"
-                             Foreground="#3D5B88" Text="{Binding Status, Converter={StaticResource DownloadActionGlyph}}"/>
+                             Foreground="#9FC5F3" Text="{Binding Status, Converter={StaticResource DownloadActionGlyph}}"/>
                 </Button>
                 <Button Click="RowMore_Click" Padding="6,4" Background="Transparent"
                         BorderThickness="0" ToolTip="More actions">
                   <TextBlock Text="&#xE10C;" FontFamily="{StaticResource V5IconFont}" FontSize="13"
-                             Foreground="#3D5B88"/>
+                             Foreground="#9FC5F3"/>
                 </Button>
               </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
@@ -368,7 +368,7 @@
 
       <StackPanel x:Name="EmptyState" Grid.Row="3" HorizontalAlignment="Center" VerticalAlignment="Center"
                   IsHitTestVisible="False" Margin="24" MaxWidth="470">
-        <Border Width="66" Height="66" CornerRadius="18" Background="#E9F2FE" HorizontalAlignment="Center" Margin="0,0,0,17">
+        <Border Width="66" Height="66" CornerRadius="18" Background="#193D66" HorizontalAlignment="Center" Margin="0,0,0,17">
           <TextBlock Text="&#xE896;" FontFamily="{StaticResource V5IconFont}" FontSize="28" Foreground="#1686F4"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
