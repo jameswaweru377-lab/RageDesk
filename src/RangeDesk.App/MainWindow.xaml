@@ -545,8 +545,8 @@
     </Grid>
 
     <!-- Approved new-download modal, connected to real download requests -->
-    <Grid x:Name="AddOverlay" Grid.ColumnSpan="2" Panel.ZIndex="8" Background="#BB030B1A" Visibility="Collapsed">
-      <Border Width="435" MaxHeight="680" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,17,0"
+    <Grid x:Name="AddOverlay" Grid.Column="1" Panel.ZIndex="8" Background="Transparent" Visibility="Collapsed">
+      <Border Width="435" MaxHeight="635" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,86,13,0"
               Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
               BorderThickness="1" CornerRadius="10" Padding="18">
         <DockPanel LastChildFill="True">
@@ -574,7 +574,7 @@
                   <TextBlock Text="Labels (optional, comma-separated)" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
                   <TextBox x:Name="NewLabels" Style="{StaticResource V5Input}" Margin="0,0,0,12"
                            ToolTip="Example: Work, Important"/>
-                  <CheckBox x:Name="QueueOnly" Content="Add to queue without starting" Margin="0,0,0,12"/>
+                  <CheckBox x:Name="QueueOnly" Content="Add to queue without starting" Click="QueueOnly_Click" Margin="0,0,0,12"/>
                   <TextBlock Text="This preview stores downloads locally. Your existing destination files will never be replaced automatically."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                 </StackPanel>
@@ -604,8 +604,35 @@
                 <TextBlock Text="The limit applies across all workers for this download. Resume keeps segment checkpoints; scheduled queues remain a separate feature."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}"/>
               </StackPanel></TabItem>
-              <TabItem Header="Rules (planned)" IsEnabled="False"/>
-              <TabItem Header="Automation (planned)" IsEnabled="False"/>
+              <TabItem Header="Rules">
+                <StackPanel Margin="8,17">
+                  <TextBlock Text="Smart retry" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,8"/>
+                  <TextBlock Text="Up to 5 attempts for temporary HTTP failures, with server Retry-After respected (maximum 5 minutes)."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,17"/>
+                  <CheckBox x:Name="VerifyChecksum" Content="Verify SHA-256 before completion" Margin="0,0,0,9"/>
+                  <TextBlock Text="Expected SHA-256 (64 hexadecimal characters)"
+                             Foreground="{StaticResource V5MutedBrush}" FontSize="11" Margin="0,0,0,6"/>
+                  <TextBox x:Name="NewChecksum" Style="{StaticResource V5Input}"
+                           IsEnabled="{Binding IsChecked, ElementName=VerifyChecksum}" MaxLength="64"
+                           ToolTip="Optional known checksum supplied by the file publisher"/>
+                  <TextBlock Text="A mismatched file is not published as complete; partial data is retained."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" FontSize="10" Margin="0,10,0,0"/>
+                </StackPanel>
+              </TabItem>
+              <TabItem Header="Automation">
+                <StackPanel Margin="8,17">
+                  <TextBlock Text="Download behavior" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,11"/>
+                  <CheckBox x:Name="StartAutomatically" Content="Start automatically" IsChecked="True"
+                            Click="AutoStart_Click" Margin="0,0,0,15"/>
+                  <TextBlock Text="Post-download action" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
+                  <ComboBox x:Name="PostDownloadChoice" Style="{StaticResource V5Combo}" SelectedIndex="0"
+                            Width="210" HorizontalAlignment="Left">
+                    <ComboBoxItem Content="None (safe default)"/>
+                  </ComboBox>
+                  <TextBlock Text="No applications, scripts, or files will be executed automatically after downloading."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,13,0,0"/>
+                </StackPanel>
+              </TabItem>
             </TabControl>
             <TextBlock x:Name="FormError" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap" Margin="7,6,0,0"/>
           </StackPanel>
