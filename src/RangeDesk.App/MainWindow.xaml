@@ -730,27 +730,47 @@
     </Grid>
 
     <!-- Approved new-download modal, connected to real download requests -->
-    <Grid x:Name="AddOverlay" Grid.Column="1" Panel.ZIndex="8" Background="Transparent" Visibility="Collapsed">
-      <Border Width="435" MaxHeight="635" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,86,13,0"
+    <Grid x:Name="AddOverlay" Grid.Column="1" Margin="0,174,0,5" Panel.ZIndex="8" Background="Transparent" Visibility="Collapsed">
+      <Border Width="396" MaxHeight="530" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,10,0"
               Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
-              BorderThickness="1" CornerRadius="10" Padding="18">
+              BorderThickness="1" CornerRadius="10" Padding="13">
         <DockPanel LastChildFill="True">
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Cancel" Click="CloseAdd_Click" Style="{StaticResource V5ToolbarButton}"/>
             <Button Content="▶  Start Download" Click="StartDownload_Click" Style="{StaticResource V5PrimaryButton}"/>
           </StackPanel>
+          <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
-            <TextBlock Text="↓   New Download" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,14"/>
+            <Grid Margin="1,0,1,12">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <StackPanel Orientation="Horizontal">
+                <TextBlock Text="&#xE896;" FontFamily="{StaticResource V5IconFont}"
+                           Foreground="{StaticResource V5AccentLightBrush}" FontSize="20" Margin="0,0,9,0"/>
+                <TextBlock Text="Add Download" FontSize="17" FontWeight="SemiBold"/>
+              </StackPanel>
+              <Button Grid.Column="1" Content="×" Click="CloseAdd_Click" Background="Transparent"
+                      BorderThickness="0" Foreground="{StaticResource V5MutedBrush}"
+                      FontSize="17" Padding="5,0"/>
+            </Grid>
             <TabControl Background="{StaticResource V5ElevatedBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
               <TabItem Header="General">
                 <StackPanel Margin="7,18,7,7">
-                  <TextBlock Text="URL (HTTP or HTTPS)" Foreground="{StaticResource V5MutedBrush}"/>
-                  <TextBox x:Name="NewUrl" Style="{StaticResource V5Input}" Margin="0,7,0,15" TextChanged="Url_Changed"/>
-                  <TextBlock Text="Save to (complete file path)" Foreground="{StaticResource V5MutedBrush}"/>
+                  <TextBlock Text="Download URL" Foreground="{StaticResource V5MutedBrush}"/>
+                  <Grid Margin="0,7,0,12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="NewUrl" Style="{StaticResource V5Input}" TextChanged="Url_Changed"
+                             ToolTip="Paste a direct HTTP or HTTPS download link"/>
+                    <Button Grid.Column="1" Content="Paste" Click="PasteUrl_Click"
+                            Style="{StaticResource V5ToolbarButton}" Margin="7,0,0,0" Padding="8,6"/>
+                  </Grid>
+                  <TextBlock Text="Save to" Foreground="{StaticResource V5MutedBrush}"/>
                   <Grid Margin="0,7,0,15"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBox x:Name="NewDestination" Style="{StaticResource V5Input}"/>
                     <Button Grid.Column="1" Content="Browse…" Click="Browse_Click" Style="{StaticResource V5ToolbarButton}" Margin="8,0,0,0"/>
                   </Grid>
+                  <TextBlock Text="File name" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
+                  <TextBox x:Name="NewFileName" Style="{StaticResource V5Input}" TextChanged="FileName_Changed"
+                           Margin="0,0,0,12" ToolTip="Edit the destination file name"/>
                   <TextBlock Text="Category" Foreground="{StaticResource V5MutedBrush}"/>
                   <ComboBox x:Name="NewCategory" Style="{StaticResource V5Combo}" SelectedIndex="0" Margin="0,7,0,12">
                     <ComboBoxItem Content="Other"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
@@ -759,7 +779,7 @@
                   <TextBlock Text="Labels (optional, comma-separated)" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
                   <TextBox x:Name="NewLabels" Style="{StaticResource V5Input}" Margin="0,0,0,12"
                            ToolTip="Example: Work, Important"/>
-                  <CheckBox x:Name="QueueOnly" Content="Add to queue without starting" Click="QueueOnly_Click" Margin="0,0,0,12"/>
+                  <CheckBox x:Name="QueueOnly" Content="Add to queue without starting" Click="QueueOnly_Click" Margin="0,0,0,6"/>
                   <TextBlock Text="This preview stores downloads locally. Your existing destination files will never be replaced automatically."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                 </StackPanel>
@@ -824,6 +844,7 @@
             </TabControl>
             <TextBlock x:Name="FormError" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap" Margin="7,6,0,0"/>
           </StackPanel>
+          </ScrollViewer>
         </DockPanel>
       </Border>
     </Grid>
