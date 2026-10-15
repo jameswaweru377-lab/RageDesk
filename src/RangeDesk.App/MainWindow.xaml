@@ -481,6 +481,46 @@
         </DataGrid.Columns>
       </DataGrid>
 
+      <ScrollViewer x:Name="CardsPanel" Grid.Row="3" Visibility="Collapsed"
+                    Background="{StaticResource V5LightCanvas}" Margin="12,0,12,4"
+                    VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <ItemsControl ItemsSource="{Binding VisibleDownloads}">
+          <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+          <ItemsControl.ItemTemplate><DataTemplate>
+            <Button Click="DownloadCard_Click" Width="246" Height="124" Margin="0,0,8,8"
+                    Style="{StaticResource V5LightToolbarButton}" Padding="10,8"
+                    HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                    Background="{StaticResource V5SurfaceBrush}">
+              <Grid>
+                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid>
+                  <Grid.ColumnDefinitions><ColumnDefinition Width="28"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                  <TextBlock FontFamily="{StaticResource V5IconFont}" FontSize="21"
+                             Foreground="{Binding Name, Converter={StaticResource FileIconColor}}"
+                             Text="{Binding Name, Converter={StaticResource FileIcon}}"/>
+                  <StackPanel Grid.Column="1" Margin="5,0,0,0">
+                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" FontWeight="SemiBold" FontSize="12"/>
+                    <TextBlock Text="{Binding Host}" TextTrimming="CharacterEllipsis"
+                               FontSize="10" Foreground="{StaticResource V5MutedBrush}"/>
+                  </StackPanel>
+                </Grid>
+                <charts:SegmentedProgress Grid.Row="1" Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}"
+                                          SegmentCount="12" Height="8" Margin="0,12,0,7"/>
+                <Grid Grid.Row="2">
+                  <TextBlock Text="{Binding ProgressLabel}" FontSize="11" Foreground="{StaticResource V5AccentLightBrush}"/>
+                  <TextBlock Text="{Binding SpeedLabel}" FontSize="11" HorizontalAlignment="Right"/>
+                </Grid>
+                <Grid Grid.Row="3" Margin="0,6,0,0">
+                  <TextBlock Text="{Binding Status}" FontSize="10" Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
+                  <TextBlock Text="{Binding ConnectionFraction}" HorizontalAlignment="Right" FontSize="10"
+                             Foreground="{StaticResource V5MutedBrush}"/>
+                </Grid>
+              </Grid>
+            </Button>
+          </DataTemplate></ItemsControl.ItemTemplate>
+        </ItemsControl>
+      </ScrollViewer>
       <StackPanel x:Name="EmptyState" Grid.Row="3" HorizontalAlignment="Center" VerticalAlignment="Center"
                   IsHitTestVisible="False" Margin="24" MaxWidth="470">
         <Border Width="66" Height="66" CornerRadius="18" Background="#193D66" HorizontalAlignment="Center" Margin="0,0,0,17">
