@@ -307,6 +307,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (string.IsNullOrWhiteSpace(name)) name = "download.bin";
         NewDestination.Text = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", name);
+        // The initial "Other" is an automatic hint; never override a category
+        // the user deliberately selected in the New Download dialog.
+        if (NewCategory is not null && NewCategory.SelectedIndex == 0)
+        {
+            string guessed = DownloadCategory.Guess(name);
+            for (int i = 0; i < NewCategory.Items.Count; i++)
+                if (NewCategory.Items[i] is ComboBoxItem option
+                    && string.Equals(option.Content?.ToString(), guessed, StringComparison.OrdinalIgnoreCase))
+                {
+                    NewCategory.SelectedIndex = i;
+                    break;
+                }
+        }
     }
 
     private void Browse_Click(object sender, RoutedEventArgs e)
@@ -341,6 +354,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StatusMessage.Text = (queued ? "Added to queue: " : "Download started: ") + item.Name;
             NewUrl.Clear();
             NewDestination.Clear();
+            NewCategory.SelectedIndex = 0;
             NewLabels.Clear();
             QueueOnly.IsChecked = false;
         }
