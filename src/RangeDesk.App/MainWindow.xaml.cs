@@ -137,6 +137,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public int ImagesCount => CategoryCount("Images");
     public int WorkCount => LabelCount("Work");
     public int PersonalCount => LabelCount("Personal");
+    public int ResearchCount => LabelCount("Research");
     public int ImportantCount => LabelCount("Important");
     public int MicrosoftCount => SiteCount("Microsoft");
     public int GitHubCount => SiteCount("GitHub");
@@ -157,7 +158,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
-            nameof(WorkCount), nameof(PersonalCount), nameof(ImportantCount),
+            nameof(WorkCount), nameof(PersonalCount), nameof(ResearchCount), nameof(ImportantCount),
             nameof(MicrosoftCount), nameof(GitHubCount), nameof(GoogleDriveCount), nameof(YouTubeCount) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
