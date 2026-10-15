@@ -30,7 +30,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
     /// <returns>True when a verified segmented file was completed, false when the
     /// server is unsuitable and a normal download can safely be attempted.</returns>
     public async Task<bool> TryDownloadAsync(DownloadEntry entry, int connections,
-        Action<long, long, double, int> progress, CancellationToken token)
+        SharedBandwidthLimiter limiter, Action<long, long, double, int> progress, CancellationToken token)
     {
         if (connections < 2 || connections > MaximumConnections)
             throw new ArgumentOutOfRangeException(nameof(connections));
@@ -74,7 +74,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                 tag is null || tag.IsWeak || response.Content.Headers.ContentEncoding.Count > 0)
                 return false;
 
-            int actual = Math.Min(connections, (int)Math.Max(2, length / MinimumSegmentLength));
+            int actual = (int)Math.Min(connections, Math.Max(2L, length / MinimumSegmentLength));
             manifest = new Manifest(entry.Url, length, tag.ToString(), actual);
             Directory.CreateDirectory(directory);
             // Atomic manifest replacement; preserve existing segment data on errors.
@@ -161,6 +161,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                             int count = await input.ReadAsync(buffer.AsMemory(0, wanted), workerStop.Token);
                             if (count == 0) throw new EndOfStreamException($"Worker {i}: range ended early.");
                             await output.WriteAsync(buffer.AsMemory(0, count), workerStop.Token);
+                            await limiter.AccountAsync(count, workerStop.Token);
                             current += count;
                             Interlocked.Add(ref measured, count);
                         }
