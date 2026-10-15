@@ -115,6 +115,52 @@ public sealed class AdaptiveRangeTransferTests
         });
     }
 
+    [Fact]
+    public async Task UnsupportedAdaptiveServerProbesOnceAndUsesSafeDirectStream()
+    {
+        await WithFolder(async folder =>
+        {
+            int probes = 0, directs = 0;
+            using var handler = new RangeHandler((request, _) =>
+            {
+                if (request.Headers.Range is not null) Interlocked.Increment(ref probes);
+                else Interlocked.Increment(ref directs);
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(Content)
+                });
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create("https://example.test/no-ranges.bin",
+                Path.Combine(folder, "no-ranges.bin"), connections: 4, adaptive: true);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.Equal(1, probes);
+            Assert.Equal(1, directs);
+            Assert.Equal(Content, await File.ReadAllBytesAsync(entry.Destination));
+        });
+    }
+
+    [Fact]
+    public async Task InvalidChecksumDoesNotPublishAdaptiveFileOrDestroyPieces()
+    {
+        await WithFolder(async folder =>
+        {
+            using var handler = new RangeHandler((request, _) =>
+                Task.FromResult(Reply(request)));
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create("https://example.test/checksum.bin",
+                Path.Combine(folder, "checksum.bin"), connections: 4,
+                expectedSha256: new string('0', 64), adaptive: true);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Failed, entry.Status);
+            Assert.False(File.Exists(entry.Destination));
+            Assert.True(Directory.Exists(entry.Destination + ".rdadaptive"));
+        });
+    }
+
     private static HttpResponseMessage Reply(HttpRequestMessage request)
     {
         var range = request.Headers.Range!.Ranges.Single();
