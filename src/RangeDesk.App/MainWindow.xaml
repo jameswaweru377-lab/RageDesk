@@ -124,9 +124,13 @@
             <ComboBoxItem Content="Queued"/><ComboBoxItem Content="Completed"/><ComboBoxItem Content="Failed"/>
             <ComboBoxItem Content="Canceled"/>
           </ComboBox>
-          <ComboBox x:Name="CategoryFilter" Style="{StaticResource V5Combo}" Width="145" SelectedIndex="0" SelectionChanged="Filters_Changed">
+          <ComboBox x:Name="CategoryFilter" Style="{StaticResource V5Combo}" Width="145" SelectedIndex="0" SelectionChanged="Filters_Changed" Margin="0,0,7,0">
             <ComboBoxItem Content="All categories"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
             <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/><ComboBoxItem Content="Other"/>
+          </ComboBox>
+          <ComboBox x:Name="LabelFilter" Style="{StaticResource V5Combo}" Width="115" SelectedIndex="0" SelectionChanged="Filters_Changed">
+            <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/>
+            <ComboBoxItem Content="Important"/>
           </ComboBox>
         </StackPanel>
       </Grid>
@@ -138,7 +142,7 @@
         HeadersVisibility="Column" GridLinesVisibility="None"
         AutoGenerateColumns="False" IsReadOnly="True"
         EnableRowVirtualization="True" EnableColumnVirtualization="True"
-        RowHeight="52" CanUserAddRows="False" SelectionMode="Single"
+        RowHeight="52" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
         RowStyle="{StaticResource V5GridRow}" CellStyle="{StaticResource V5GridCell}"
         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
         ScrollViewer.CanContentScroll="True" AlternatingRowBackground="{StaticResource V5SurfaceBrush}">
@@ -149,6 +153,15 @@
           <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#F1F7FF"/>
         </DataGrid.Resources>
         <DataGrid.Columns>
+          <DataGridTemplateColumn Header="" Width="34" MinWidth="34">
+            <DataGridTemplateColumn.CellTemplate>
+              <DataTemplate>
+                <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center" Width="16" Height="16"
+                  IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=TwoWay}"
+                  ToolTip="Select download"/>
+              </DataTemplate>
+            </DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
           <DataGridTemplateColumn Header="NAME" Width="2.6*" MinWidth="185">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
