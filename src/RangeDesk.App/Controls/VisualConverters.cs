@@ -90,3 +90,54 @@ public sealed class StatusColorConverter : IValueConverter
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
 }
+
+public sealed class LightStatusBackgroundConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is DownloadStatus status ? status switch
+        {
+            DownloadStatus.Downloading => "#DEECFF",
+            DownloadStatus.Completed => "#DDF8EA",
+            DownloadStatus.Queued => "#FFF0D8",
+            DownloadStatus.Paused => "#EBE9FA",
+            DownloadStatus.Failed => "#FFE2E5",
+            DownloadStatus.Canceled => "#F1F1F5",
+            _ => "#F1F1F5"
+        } : "#F1F1F5";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+public sealed class LightStatusTextConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is DownloadStatus status ? status switch
+        {
+            DownloadStatus.Downloading => "#166CDB",
+            DownloadStatus.Completed => "#07875C",
+            DownloadStatus.Queued => "#B66C19",
+            DownloadStatus.Paused => "#7353B4",
+            DownloadStatus.Failed => "#B3394F",
+            DownloadStatus.Canceled => "#65708B",
+            _ => "#65708B"
+        } : "#65708B";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
+
+public sealed class DownloadActionGlyphConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+        => value is DownloadStatus status ? status switch
+        {
+            DownloadStatus.Completed => "\uE8B7", // Folder
+            DownloadStatus.Downloading => "\uE769", // Pause
+            DownloadStatus.Queued or DownloadStatus.Paused or DownloadStatus.Failed or DownloadStatus.Canceled => "\uE768", // Play
+            _ => "\uE768"
+        } : "\uE768";
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+        => throw new NotSupportedException();
+}
