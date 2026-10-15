@@ -244,13 +244,13 @@
 
   <!-- The separately scoped LIGHT downloads workspace. The navy sidebar and
        bottom transfer inspector deliberately retain the approved V5 styles. -->
-  <SolidColorBrush x:Key="V5LightCanvas" Color="#F4F8FF"/>
-  <SolidColorBrush x:Key="V5LightSurface" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="V5LightBorder" Color="#DDE8F7"/>
-  <SolidColorBrush x:Key="V5LightText" Color="#142B50"/>
-  <SolidColorBrush x:Key="V5LightMuted" Color="#7286A7"/>
-  <SolidColorBrush x:Key="V5LightSelected" Color="#E7F2FF"/>
-  <SolidColorBrush x:Key="V5LightBlue" Color="#127BFA"/>
+  <SolidColorBrush x:Key="V5LightCanvas" Color="#09192D"/>
+  <SolidColorBrush x:Key="V5LightSurface" Color="#0E2038"/>
+  <SolidColorBrush x:Key="V5LightBorder" Color="#203F61"/>
+  <SolidColorBrush x:Key="V5LightText" Color="#F0F6FF"/>
+  <SolidColorBrush x:Key="V5LightMuted" Color="#93B0CF"/>
+  <SolidColorBrush x:Key="V5LightSelected" Color="#163B63"/>
+  <SolidColorBrush x:Key="V5LightBlue" Color="#1188FC"/>
   <Style x:Key="V5LightToolbarButton" TargetType="{x:Type Button}">
     <Setter Property="Padding" Value="13,9"/>
     <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
@@ -284,7 +284,7 @@
   </Style>
   <Style x:Key="V5LightTabButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Background" Value="#EDF2FA"/>
+    <Setter Property="Background" Value="#132C4B"/>
     <Setter Property="Padding" Value="13,8"/>
     <Setter Property="Margin" Value="0,0,6,0"/>
   </Style>
@@ -292,7 +292,7 @@
     <Setter Property="Height" Value="55"/>
     <Setter Property="Background" Value="{StaticResource V5LightSurface}"/>
     <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
-    <Setter Property="BorderBrush" Value="#EAF0F9"/>
+    <Setter Property="BorderBrush" Value="#203854"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="SnapsToDevicePixels" Value="True"/>
     <Style.Triggers>
@@ -301,7 +301,7 @@
         <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
       </Trigger>
       <Trigger Property="IsMouseOver" Value="True">
-        <Setter Property="Background" Value="#EEF6FF"/>
+        <Setter Property="Background" Value="#183858"/>
       </Trigger>
     </Style.Triggers>
   </Style>
@@ -330,9 +330,9 @@
     </Setter>
   </Style>
   <Style x:Key="V5LightHeader" TargetType="{x:Type DataGridColumnHeader}">
-    <Setter Property="Background" Value="#F5F8FD"/>
+    <Setter Property="Background" Value="#10253F"/>
     <Setter Property="Foreground" Value="{StaticResource V5LightMuted}"/>
-    <Setter Property="BorderBrush" Value="#E6EDF8"/>
+    <Setter Property="BorderBrush" Value="#203854"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Height" Value="35"/>
@@ -346,7 +346,7 @@
   </Style>
   <Style x:Key="V5LightProgress" TargetType="{x:Type ProgressBar}">
     <Setter Property="Height" Value="7"/>
-    <Setter Property="Background" Value="#E1E9F5"/>
+    <Setter Property="Background" Value="#243E5E"/>
     <Setter Property="Foreground" Value="{StaticResource V5LightBlue}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Template">
