@@ -114,7 +114,7 @@
         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
         <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
           <TextBlock x:Name="ViewTitle" Text="Downloads" FontSize="25" FontWeight="Bold"/>
-          <TextBlock Text="{Binding Downloads.Count, StringFormat=  {0} items}" Foreground="{StaticResource V5AccentLightBrush}" Margin="12,9,0,0"/>
+          <TextBlock Text="{Binding Downloads.Count, StringFormat='{}{0} items'}" Foreground="{StaticResource V5AccentLightBrush}" Margin="12,9,0,0"/>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
           <ComboBox x:Name="StatusFilter" Width="140" SelectionChanged="Filters_Changed" SelectedIndex="0" Margin="0,0,7,0">
@@ -160,7 +160,7 @@
           <DataGridTextColumn Header="SPEED" Binding="{Binding SpeedLabel}" Width="0.95*"/>
           <DataGridTextColumn Header="ETA" Binding="{Binding EtaLabel}" Width="0.8*"/>
           <DataGridTextColumn Header="CONNECTIONS" Binding="{Binding Connections}" Width="0.95*"/>
-          <DataGridTextColumn Header="ADDED" Binding="{Binding AddedAt, StringFormat={}{0:MMM d HH:mm}}" Width="1.0*"/>
+          <DataGridTextColumn Header="ADDED" Binding="{Binding AddedAt, StringFormat='{}{0:MMM d HH:mm}'}" Width="1.0*"/>
         </DataGrid.Columns>
       </DataGrid>
 
@@ -189,9 +189,9 @@
                   <TextBlock Text="{Binding SelectedDownload.Error}" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1">
-                  <TextBlock Text="{Binding SelectedDownload.SpeedLabel, StringFormat=Speed: {0}}"/>
-                  <TextBlock Text="{Binding SelectedDownload.EtaLabel, StringFormat=Time remaining: {0}}" Margin="0,8,0,0"/>
-                  <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat=Active connections: {0}}" Margin="0,8,0,0"/>
+                  <TextBlock Text="{Binding SelectedDownload.SpeedLabel, StringFormat='Speed: {0}'}"/>
+                  <TextBlock Text="{Binding SelectedDownload.EtaLabel, StringFormat='Time remaining: {0}'}" Margin="0,8,0,0"/>
+                  <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active connections: {0}'}" Margin="0,8,0,0"/>
                   <TextBlock Text="{Binding SelectedDownload.Destination}" Foreground="{StaticResource V5MutedBrush}" TextTrimming="CharacterEllipsis" Margin="0,10,0,0"/>
                   <StackPanel Orientation="Horizontal" Margin="0,17,0,0">
                     <Button Content="Open file" Click="OpenFile_Click" Style="{StaticResource V5ToolbarButton}"/>
