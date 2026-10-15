@@ -58,7 +58,7 @@
           <StackPanel>
             <StackPanel Orientation="Horizontal" Margin="7,4,0,18">
               <Button x:Name="SidebarToggle" Content="☰" ToolTip="Collapse or expand navigation" Click="ToggleSidebar_Click" Style="{StaticResource V5NavButton}" FontSize="14" Padding="5" Margin="0,0,7,0"/>
-              <Border Background="{StaticResource V5AccentBrush}" CornerRadius="8" Width="33" Height="33">
+              <Border x:Name="SidebarBrandIcon" Background="{StaticResource V5AccentBrush}" CornerRadius="8" Width="33" Height="33">
                 <TextBlock Text="↓" FontWeight="Bold" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
               <TextBlock x:Name="SidebarBrand" Text="RangeDesk" Margin="9,0,0,0" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
@@ -77,9 +77,9 @@
             <Button Content="▧   Images" Tag="Images" Click="Category_Click" Style="{StaticResource V5NavButton}"/>
             <Border Height="1" Margin="4,8,4,9" Background="{StaticResource V5OutlineBrush}"/>
             <TextBlock Text="LABELS" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
-            <Button Content="●   Work (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
-            <Button Content="●   Personal (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
-            <Button Content="●   Important (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
+            <Button Content="●   Work" Tag="Work" Click="Label_Click" Style="{StaticResource V5NavButton}"/>
+            <Button Content="●   Personal" Tag="Personal" Click="Label_Click" Style="{StaticResource V5NavButton}"/>
+            <Button Content="●   Important" Tag="Important" Click="Label_Click" Style="{StaticResource V5NavButton}"/>
             <Border Height="1" Margin="4,8,4,9" Background="{StaticResource V5OutlineBrush}"/>
             <TextBlock Text="SITE PRESETS" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
             <Button Content="⊕   Site presets (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
@@ -258,6 +258,10 @@
                     <ComboBoxItem Content="Other"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
                     <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/>
                   </ComboBox>
+                  <TextBlock Text="Labels (optional, comma-separated)" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
+                  <TextBox x:Name="NewLabels" Style="{StaticResource V5Input}" Margin="0,0,0,12"
+                           ToolTip="Example: Work, Important"/>
+                  <CheckBox x:Name="QueueOnly" Content="Add to queue without starting" Margin="0,0,0,12"/>
                   <TextBlock Text="This preview stores downloads locally. Your existing destination files will never be replaced automatically."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,8,0,0"/>
                 </StackPanel>
