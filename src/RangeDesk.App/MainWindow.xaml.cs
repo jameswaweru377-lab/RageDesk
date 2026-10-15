@@ -34,7 +34,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
 
-    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null);
+    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false);
 
     public MainWindow()
     {
@@ -189,7 +189,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     var item = _engine.Create(record.Url, record.Destination,
                         record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1,
                         record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0,
-                        record.ExpectedSha256);
+                        record.ExpectedSha256, record.Adaptive);
                     if (File.Exists(item.Destination))
                         item.Report(DownloadStatus.Completed,
                             new FileInfo(item.Destination).Length, new FileInfo(item.Destination).Length);
@@ -212,7 +212,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_catalogFile)!);
-            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256));
+            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256, d.Adaptive));
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
@@ -637,7 +637,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     throw new ArgumentException("Enter the expected SHA-256 or disable verification.");
             }
             var item = _engine.Create(NewUrl.Text.Trim(), NewDestination.Text.Trim(), category,
-                NewLabels.Text.Trim(), connections, bandwidth, checksum);
+                NewLabels.Text.Trim(), connections, bandwidth, checksum,
+                AdaptiveWorkers.IsChecked == true);
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
             bool queued = QueueOnly.IsChecked == true;
@@ -657,6 +658,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StartAutomatically.IsChecked = true;
             VerifyChecksum.IsChecked = false;
             NewChecksum.Clear();
+            AdaptiveWorkers.IsChecked = false;
         }
         catch (Exception ex) { FormError.Text = ex.Message; }
     }
