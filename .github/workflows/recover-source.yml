@@ -2,7 +2,7 @@ name: Import archived RangeDesk v4 source
 
 on:
   push:
-    branches: [main]
+    branches: [main, "recover/rangedesk-v4"]
     paths: [".github/workflows/recover-source.yml"]
   workflow_dispatch:
 
