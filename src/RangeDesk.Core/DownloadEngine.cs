@@ -263,6 +263,7 @@ public sealed class DownloadEngine : IDisposable
             if (expected is long length && received != length)
                 throw new InvalidDataException($"Download ended early ({received} of {length} bytes). Partial data was preserved.");
             token.ThrowIfCancellationRequested();
+            await Sha256Verification.VerifyAsync(partial, e.ExpectedSha256, token);
             File.Move(partial, e.Destination, false);
             if (File.Exists(journal)) File.Delete(journal);
             Publish(e, DownloadStatus.Completed, received, expected ?? received);
