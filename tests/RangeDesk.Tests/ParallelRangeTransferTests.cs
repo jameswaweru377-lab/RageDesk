@@ -33,7 +33,11 @@ public sealed class ParallelRangeTransferTests
             Assert.Equal(SHA256.HashData(Source),
                 SHA256.HashData(await File.ReadAllBytesAsync(download.Destination)));
             Assert.False(Directory.Exists(download.Destination + ".rdsegments"));
-            Assert.True(ranges.Count >= workers);
+            // Small files deliberately use fewer network workers than requested:
+            // each assigned range needs enough bytes to justify its connection.
+            int expectedWorkers = Math.Min(workers,
+                (int)Math.Max(2, Source.LongLength / ParallelRangeTransfer.MinimumSegmentLength));
+            Assert.True(ranges.Count >= expectedWorkers);
             Assert.Equal(0, ranges.Count(r => r.From < 0 || r.To >= Source.Length || r.To < r.From));
         });
     }
