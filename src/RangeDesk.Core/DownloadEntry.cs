@@ -62,6 +62,36 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public long? Total => _total;
     public double BytesPerSecond => _bytesPerSecond;
     public int Connections => _connections;
+    // Derived from observed workers and received bytes, never demo data.
+    public int WorkerCount => _workers.Count;
+    public int IdleWorkers => Math.Max(0, WorkerCount - Connections);
+    public int ActiveSourceHosts => _status == DownloadStatus.Downloading && _connections > 0 ? 1 : 0;
+    public int ErrorCount => string.IsNullOrWhiteSpace(_error) ? 0 : 1;
+    public string AverageSpeedLabel
+    {
+        get
+        {
+            var samples = _speedSamples.Where(value => double.IsFinite(value) && value > 0).ToArray();
+            return samples.Length == 0 ? "—" : FormatSize(samples.Average()) + "/s";
+        }
+    }
+    public string ConnectionSummary => WorkerCount == 0
+        ? $"{Connections} active"
+        : $"{Connections} active · {IdleWorkers} idle";
+    public string ConnectionFraction => WorkerCount > 0
+        ? $"{Connections} / {WorkerCount}"
+        : $"{Connections} / {RequestedConnections}";
+    public string AddedLabel => AddedAt.ToLocalTime().ToString("MMM d HH:mm");
+    public string CompletionLabel => _total is long total
+        ? $"{FormatSize(_received)} / {FormatSize(total)} · {ProgressLabel}"
+        : $"{FormatSize(_received)} received";
+    public string RetryLabel => "Up to 5 attempts";
+    public string BandwidthRuleLabel => BandwidthKiBps == 0
+        ? "Unlimited"
+        : $"{BandwidthKiBps} KiB/s";
+    public string SourceHostLabel => _status == DownloadStatus.Downloading && Connections > 0
+        ? "1 source host" : "—";
+
     public string? Error => _error;
     /// <summary>Most recent measured receive-rate samples, bytes per second, max 60.</summary>
     public IReadOnlyList<double> SpeedSamples => _speedSamples;
@@ -78,6 +108,9 @@ public sealed class DownloadEntry : INotifyPropertyChanged
                 _workers.Add(new DownloadWorkerState(_workers.Count));
             _workers[metric.Index].Update(metric);
         }
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(WorkerCount)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(IdleWorkers)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ConnectionFraction)));
     }
     public double? Percent => _total is > 0 ? Math.Min(100, 100.0 * _received / _total.Value) : null;
     public bool IsIndeterminate => _total is null && _status == DownloadStatus.Downloading;
