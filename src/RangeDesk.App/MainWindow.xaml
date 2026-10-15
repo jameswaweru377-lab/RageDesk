@@ -49,38 +49,39 @@
     </Style>
   </Window.Resources>
   <Grid>
-    <Grid.ColumnDefinitions><ColumnDefinition Width="220"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+    <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarColumn" Width="224"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
     <!-- LEFT NAVIGATION: approved visual hierarchy -->
-    <Border Grid.Column="0" Background="{StaticResource V5SidebarBrush}" BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0,0,1,0">
-      <DockPanel Margin="13,20,10,15">
+    <Border x:Name="SidebarPanel" Grid.Column="0" Background="{StaticResource V5SidebarBrush}" BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0,0,1,0">
+      <DockPanel Margin="10,14,10,11">
         <Button DockPanel.Dock="Bottom" Content="⚙   Settings" Style="{StaticResource V5NavButton}" Click="Settings_Click"/>
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <ScrollViewer VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
-            <StackPanel Orientation="Horizontal" Margin="7,4,0,26">
+            <StackPanel Orientation="Horizontal" Margin="7,4,0,18">
+              <Button x:Name="SidebarToggle" Content="☰" ToolTip="Collapse or expand navigation" Click="ToggleSidebar_Click" Style="{StaticResource V5NavButton}" FontSize="14" Padding="5" Margin="0,0,7,0"/>
               <Border Background="{StaticResource V5AccentBrush}" CornerRadius="8" Width="33" Height="33">
                 <TextBlock Text="↓" FontWeight="Bold" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center"/>
               </Border>
-              <TextBlock Text="RangeDesk" Margin="12,0,0,0" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
+              <TextBlock x:Name="SidebarBrand" Text="RangeDesk" Margin="9,0,0,0" FontSize="22" FontWeight="Bold" VerticalAlignment="Center"/>
             </StackPanel>
             <Button Content="⇩   Downloads" Tag="all" Click="Navigation_Click" Style="{StaticResource V5NavButton}" Background="{StaticResource V5SelectedBrush}"/>
             <Button Content="✓   Completed" Tag="completed" Click="Navigation_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="☷   Queue" Tag="queue" Click="Navigation_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="◷   Scheduled (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
-            <Border Height="1" Margin="4,13,4,17" Background="{StaticResource V5OutlineBrush}"/>
-            <TextBlock Text="CATEGORIES" Margin="12,0,0,10" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
+            <Border Height="1" Margin="4,8,4,9" Background="{StaticResource V5OutlineBrush}"/>
+            <TextBlock Text="CATEGORIES" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
             <Button Content="▣   All Downloads" Tag="all" Click="Navigation_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="▣   Software" Tag="Software" Click="Category_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="▷   Videos" Tag="Videos" Click="Category_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="▤   Documents" Tag="Documents" Click="Category_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="▧   Archives" Tag="Archives" Click="Category_Click" Style="{StaticResource V5NavButton}"/>
             <Button Content="▧   Images" Tag="Images" Click="Category_Click" Style="{StaticResource V5NavButton}"/>
-            <Border Height="1" Margin="4,13,4,17" Background="{StaticResource V5OutlineBrush}"/>
-            <TextBlock Text="LABELS" Margin="12,0,0,10" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
+            <Border Height="1" Margin="4,8,4,9" Background="{StaticResource V5OutlineBrush}"/>
+            <TextBlock Text="LABELS" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
             <Button Content="●   Work (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
             <Button Content="●   Personal (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
             <Button Content="●   Important (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
-            <Border Height="1" Margin="4,13,4,17" Background="{StaticResource V5OutlineBrush}"/>
-            <TextBlock Text="SITE PRESETS" Margin="12,0,0,10" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
+            <Border Height="1" Margin="4,8,4,9" Background="{StaticResource V5OutlineBrush}"/>
+            <TextBlock Text="SITE PRESETS" Margin="12,0,0,5" Foreground="{StaticResource V5MutedBrush}" FontSize="10" FontWeight="SemiBold"/>
             <Button Content="⊕   Site presets (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
             <Button Content="⚙   Automation (planned)" IsEnabled="False" Style="{StaticResource V5NavButton}"/>
           </StackPanel>
@@ -91,7 +92,7 @@
     <!-- RIGHT WORKSPACE -->
     <Grid Grid.Column="1" Margin="15,16,15,14">
       <Grid.RowDefinitions>
-        <RowDefinition Height="55"/><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="298"/><RowDefinition Height="Auto"/>
+        <RowDefinition Height="55"/><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
 
       <Border Grid.Row="0" CornerRadius="8" BorderThickness="1" BorderBrush="{StaticResource V5OutlineBrush}"
@@ -117,12 +118,12 @@
           <TextBlock Text="{Binding Downloads.Count, StringFormat='{}{0} items'}" Foreground="{StaticResource V5AccentLightBrush}" Margin="12,9,0,0"/>
         </StackPanel>
         <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <ComboBox x:Name="StatusFilter" Width="140" SelectionChanged="Filters_Changed" SelectedIndex="0" Margin="0,0,7,0">
+          <ComboBox x:Name="StatusFilter" Style="{StaticResource V5Combo}" Width="140" SelectionChanged="Filters_Changed" SelectedIndex="0" Margin="0,0,7,0">
             <ComboBoxItem Content="All statuses"/><ComboBoxItem Content="Downloading"/><ComboBoxItem Content="Paused"/>
             <ComboBoxItem Content="Queued"/><ComboBoxItem Content="Completed"/><ComboBoxItem Content="Failed"/>
             <ComboBoxItem Content="Canceled"/>
           </ComboBox>
-          <ComboBox x:Name="CategoryFilter" Width="145" SelectedIndex="0" SelectionChanged="Filters_Changed">
+          <ComboBox x:Name="CategoryFilter" Style="{StaticResource V5Combo}" Width="145" SelectedIndex="0" SelectionChanged="Filters_Changed">
             <ComboBoxItem Content="All categories"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
             <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/><ComboBoxItem Content="Other"/>
           </ComboBox>
@@ -164,8 +165,20 @@
         </DataGrid.Columns>
       </DataGrid>
 
+      <StackPanel x:Name="EmptyState" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsHitTestVisible="False" Margin="24" MaxWidth="470" TextElement.Foreground="{StaticResource V5MutedBrush}">
+        <Border Width="66" Height="66" CornerRadius="18" Background="{StaticResource V5ElevatedBrush}"
+                HorizontalAlignment="Center" Margin="0,0,0,17">
+          <TextBlock Text="↓" FontSize="33" FontWeight="Bold" Foreground="{StaticResource V5AccentLightBrush}"
+                     HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        </Border>
+        <TextBlock Text="Ready for your next download" FontSize="20" FontWeight="SemiBold"
+                   Foreground="{StaticResource V5TextBrush}" HorizontalAlignment="Center"/>
+        <TextBlock Text="Add a direct HTTP or HTTPS link to get started. Your files, progress and download history stay on this device."
+                   TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0"/>
+      </StackPanel>
       <!-- Selected download inspector: no fictional connection graph -->
-      <Border Grid.Row="3" Background="{StaticResource V5SurfaceBrush}"
+      <Border x:Name="InspectorPanel" Grid.Row="3" Visibility="Collapsed" Height="277" Background="{StaticResource V5SurfaceBrush}"
               BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1" CornerRadius="9"
               Margin="0,11,0,0" Padding="15">
         <Grid>
@@ -174,7 +187,7 @@
             <TextBlock Text="{Binding SelectedDownload.Name, TargetNullValue=Select a download}" FontSize="17" FontWeight="SemiBold"/>
             <TextBlock Text="{Binding SelectedDownload.Status}" Margin="15,4,0,0" Foreground="{StaticResource V5AccentLightBrush}"/>
           </StackPanel>
-          <TabControl Grid.Row="1" Background="{StaticResource V5SurfaceBrush}" BorderThickness="0">
+          <TabControl Grid.Row="1" Background="{StaticResource V5SurfaceBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
             <TabItem Header="Overview">
               <Grid Margin="8,16,8,8">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="1.8*"/><ColumnDefinition Width="1.4*"/></Grid.ColumnDefinitions>
@@ -184,7 +197,7 @@
                     Background="#203956" Foreground="{StaticResource V5AccentLightBrush}"/>
                   <TextBlock Text="{Binding SelectedDownload.TransferredLabel}" Margin="0,7,0,18" Foreground="{StaticResource V5MutedBrush}"/>
                   <TextBlock Text="TRANSFER ACTIVITY" FontWeight="SemiBold"/>
-                  <TextBlock Text="Connection measurements shown below are taken from the current transfer." TextWrapping="Wrap"
+                  <TextBlock Text="Live transfer metrics reflect actual network activity; no simulated data." TextWrapping="Wrap"
                              Foreground="{StaticResource V5MutedBrush}" Margin="0,7,0,8"/>
                   <TextBlock Text="{Binding SelectedDownload.Error}" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap"/>
                 </StackPanel>
@@ -202,7 +215,7 @@
             </TabItem>
             <TabItem Header="Connections">
               <StackPanel Margin="10,15">
-                <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat=Active connections: {0}}" FontSize="15"/>
+                <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active connections: {0}'}" FontSize="15"/>
                 <TextBlock Text="The first v5 preview uses a verified single-stream transfer. Parallel range acceleration requires separate testing."
                            Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
               </StackPanel>
@@ -230,7 +243,7 @@
           </StackPanel>
           <StackPanel>
             <TextBlock Text="↓   New Download" FontSize="19" FontWeight="SemiBold" Margin="0,0,0,14"/>
-            <TabControl Background="{StaticResource V5ElevatedBrush}" BorderThickness="0">
+            <TabControl Background="{StaticResource V5ElevatedBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
               <TabItem Header="General">
                 <StackPanel Margin="7,18,7,7">
                   <TextBlock Text="URL (HTTP or HTTPS)" Foreground="{StaticResource V5MutedBrush}"/>
@@ -241,7 +254,7 @@
                     <Button Grid.Column="1" Content="Browse…" Click="Browse_Click" Style="{StaticResource V5ToolbarButton}" Margin="8,0,0,0"/>
                   </Grid>
                   <TextBlock Text="Category" Foreground="{StaticResource V5MutedBrush}"/>
-                  <ComboBox x:Name="NewCategory" SelectedIndex="0" Margin="0,7,0,12">
+                  <ComboBox x:Name="NewCategory" Style="{StaticResource V5Combo}" SelectedIndex="0" Margin="0,7,0,12">
                     <ComboBoxItem Content="Other"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
                     <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/>
                   </ComboBox>
