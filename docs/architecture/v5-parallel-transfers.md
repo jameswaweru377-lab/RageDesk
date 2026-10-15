@@ -24,3 +24,56 @@ Controlled .NET HttpMessageHandler fixtures test exact bytes for multiple worker
 - Real-device Windows 11 layout testing and external server benchmarks before stable release.
 
 Do not equate number of requested connections with a promised number of active connections or guaranteed faster throughput.
+
+
+## October 2026 reliability and UI implementation
+
+### Fixed-size vs. experimental adaptive transfer
+- Fixed-size segmented mode continues to use `<target>.rdsegments/` and its
+  legacy manifest. It is the default for backward compatibility.
+- Optional adaptive mode writes to `<target>.rdadaptive/` with a **different,
+  versioned layout**: piece IDs and non-overlapping byte intervals.
+- When idle workers have no pending work, they request a cooperative split from
+  the active piece with the largest remaining bytes. The donor acknowledges
+  after committing a received prefix, shortens its byte interval, atomically
+  updates the manifest and only then queues the new suffix for a helper worker.
+  Distinct piece files never have simultaneous writers to the same bytes.
+- Interrupted jobs resume missing suffixes of each piece. Manifest validation
+  rejects gaps, overlaps, impossible lengths, unexpected IDs, or a changed
+  URL / strong ETag; older v1 manifests are left untouched.
+- Adaptive mode remains **experimental and opt-in** until Windows-device
+  testing confirms correct behavior with public servers.
+
+### Server retry and integrity policy
+- HTTP 408, 429, 500, 502, 503 and 504 are eligible for finite automatic
+  retry, at most five attempts; respect server `Retry-After` up to five
+  minutes. HTTP 4xx permissions / invalid ranges and changed ETags are
+  not retried automatically.
+- Workers expose measured segment bytes, active states and individual
+  rolling speed estimates to the WPF inspector. No fake connection charts.
+- Optional caller-supplied SHA-256 is verified **before** publishing a
+  completed file. Mismatches retain private checkpoints for recovery.
+- Unsupported adaptive byte-range servers get one probe before reverting
+  to a direct single-stream transfer.
+
+### Download workflow / UX
+- The New Download card is anchored to the workspace right side in keeping
+  with the approved desktop reference, with General / Advanced / Rules /
+  Automation pages. The Rules page accepts a known SHA-256. Automation
+  currently implements only start immediately versus queue and a safe
+  post-download action of None; it does not run scripts or executables.
+- The queue can be started in saved order; items can be moved earlier/later
+  through the row menu. A two-slot semaphore bounds simultaneous downloads.
+- The left navigation includes compact real host-filter presets for
+  Microsoft, GitHub, Google Drive and YouTube, plus labels including
+  Research. They filter existing downloaded URLs; they do **not** access
+  browser history, site logins or media capture.
+
+### Further work
+- Recoverable read-level retry for indefinitely stalled connections,
+  with timeouts and carefully bounded resume attempts.
+- Benchmarks on real CDNs and large files, plus actual Windows 11 screenshot
+  acceptance under various DPI scaling.
+- Persistent scheduled queue times, optional user-defined site rules,
+  browser capture, permissions, and post-download automation are distinct
+  future milestones and are not represented as working controls.
