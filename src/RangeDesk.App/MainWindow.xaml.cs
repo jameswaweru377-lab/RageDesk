@@ -3,6 +3,9 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Text.Json;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
+using System.Windows.Media;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -20,6 +23,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string _navigation = "all";
     private string? _categoryNavigation;
     private DownloadEntry? _selected;
+    private string? _labelNavigation;
+    private bool _sidebarCollapsed;
+    private readonly Dictionary<Button, object> _sidebarLabels = new();
+    private readonly Dictionary<Guid, DownloadStatus> _lastStatuses = new();
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
+
 
     private sealed record SavedDownload(string Url, string Destination, string Category, string Labels);
 
@@ -28,10 +39,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         InitializeComponent();
         _engine = new DownloadEngine(SynchronizationContext.Current);
         VisibleDownloads = CollectionViewSource.GetDefaultView(Downloads);
-        VisibleDownloads.Filter = IsVisible;
+        VisibleDownloads.Filter = MatchesFilters;
         DataContext = this;
         LoadCatalog();
         Closing += (_, _) => _engine.Dispose();
+        SourceInitialized += (_, _) =>
+        {
+            int enabled = 1;
+            try { DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref enabled, sizeof(int)); }
+            catch (DllNotFoundException) { }
+        };
+        RefreshFilter();
     }
 
     public ObservableCollection<DownloadEntry> Downloads { get; } = new();
@@ -43,6 +61,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (ReferenceEquals(_selected, value)) return;
             _selected = value;
+            InspectorPanel.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedDownload)));
         }
     }
@@ -94,26 +113,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Track(DownloadEntry item)
     {
+        _lastStatuses[item.Id] = item.Status;
         Downloads.Add(item);
         item.PropertyChanged += (_, _) =>
         {
-            if (!Dispatcher.CheckAccess())
+            void Update()
             {
-                Dispatcher.BeginInvoke(() => VisibleDownloads.Refresh());
-                return;
+                // Keep the same rows and selection: filter only when state changes.
+                if (_lastStatuses.TryGetValue(item.Id, out var old) && old != item.Status)
+                {
+                    _lastStatuses[item.Id] = item.Status;
+                    RefreshFilter();
+                }
             }
-            VisibleDownloads.Refresh(); // keeps object identity and selection
+            if (Dispatcher.CheckAccess()) Update();
+            else Dispatcher.BeginInvoke((Action)Update);
         };
         if (SelectedDownload is null) SelectedDownload = item;
+        RefreshFilter();
     }
 
-    private bool IsVisible(object candidate)
+    private bool MatchesFilters(object candidate)
     {
         if (candidate is not DownloadEntry item) return false;
         if (_navigation == "completed" && item.Status != DownloadStatus.Completed) return false;
         if (_navigation == "queue" && item.Status is not
             (DownloadStatus.Queued or DownloadStatus.Paused or DownloadStatus.Canceled or DownloadStatus.Failed)) return false;
         if (_categoryNavigation is not null && item.Category != _categoryNavigation) return false;
+        if (_labelNavigation is not null &&
+            !item.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Contains(_labelNavigation, StringComparer.OrdinalIgnoreCase)) return false;
         if (GlobalSearch is not null && !string.IsNullOrWhiteSpace(GlobalSearch.Text))
         {
             string search = GlobalSearch.Text.Trim();
@@ -133,6 +162,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (VisibleDownloads is null) return;
         VisibleDownloads.Refresh();
+        if (EmptyState is not null)
+            EmptyState.Visibility = VisibleDownloads.Cast<object>().Any()
+                ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Navigation_Click(object sender, RoutedEventArgs e)
@@ -140,6 +172,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (sender is not Button button) return;
         _navigation = button.Tag as string ?? "all";
         _categoryNavigation = null;
+        _labelNavigation = null;
         ViewTitle.Text = _navigation == "completed" ? "Completed" :
             _navigation == "queue" ? "Queue" : "Downloads";
         RefreshFilter();
@@ -150,8 +183,56 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (sender is not Button button) return;
         _navigation = "all";
         _categoryNavigation = button.Tag as string;
+        _labelNavigation = null;
         ViewTitle.Text = _categoryNavigation ?? "Downloads";
         RefreshFilter();
+    }
+
+    private void Label_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button) return;
+        _navigation = "all";
+        _categoryNavigation = null;
+        _labelNavigation = button.Tag as string;
+        ViewTitle.Text = _labelNavigation is null ? "Downloads" : "Label: " + _labelNavigation;
+        RefreshFilter();
+    }
+
+    private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T found) yield return found;
+            foreach (var descendant in Descendants<T>(child)) yield return descendant;
+        }
+    }
+
+    private void ToggleSidebar_Click(object sender, RoutedEventArgs e)
+    {
+        _sidebarCollapsed = !_sidebarCollapsed;
+        if (_sidebarLabels.Count == 0)
+        {
+            foreach (var nav in Descendants<Button>(SidebarPanel).Where(b => b != SidebarToggle))
+                if (nav.Content is string content) _sidebarLabels[nav] = content;
+        }
+        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 61 : 224);
+        SidebarBrand.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        SidebarBrandIcon.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        foreach (var (button, value) in _sidebarLabels)
+        {
+            button.ToolTip = value;
+            var label = value.ToString() ?? "";
+            button.Content = _sidebarCollapsed ? label.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "•" : value;
+            button.HorizontalContentAlignment = _sidebarCollapsed
+                ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+        }
+        foreach (var label in Descendants<TextBlock>(SidebarPanel))
+        {
+            if (label.Text is "CATEGORIES" or "LABELS" or "SITE PRESETS")
+                label.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        }
+        SidebarToggle.ToolTip = _sidebarCollapsed ? "Expand navigation" : "Collapse navigation";
     }
 
     private void Search_Changed(object sender, TextChangedEventArgs e) => RefreshFilter();
@@ -194,18 +275,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             string category = (NewCategory.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Other";
-            var item = _engine.Create(NewUrl.Text.Trim(), NewDestination.Text.Trim(), category);
+            var item = _engine.Create(NewUrl.Text.Trim(), NewDestination.Text.Trim(), category,
+                NewLabels.Text.Trim());
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
             Track(item);
             SaveCatalog();
-            if (!_engine.Start(item))
+            bool queued = QueueOnly.IsChecked == true;
+            if (!queued && !_engine.Start(item))
                 throw new InvalidOperationException("Could not start this download.");
             SelectedDownload = item;
             AddOverlay.Visibility = Visibility.Collapsed;
-            StatusMessage.Text = "Download started: " + item.Name;
+            StatusMessage.Text = (queued ? "Added to queue: " : "Download started: ") + item.Name;
             NewUrl.Clear();
             NewDestination.Clear();
+            NewLabels.Clear();
+            QueueOnly.IsChecked = false;
         }
         catch (Exception ex) { FormError.Text = ex.Message; }
     }
