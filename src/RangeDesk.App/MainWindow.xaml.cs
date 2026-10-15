@@ -9,6 +9,7 @@ using System.Windows.Media;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
+using System.Windows.Input;
 using Microsoft.Win32;
 using RangeDesk.Core;
 
@@ -21,6 +22,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "catalog-v5.json");
     private string _navigation = "all";
+    private string _downloadTab = "all";
     private string? _categoryNavigation;
     private DownloadEntry? _selected;
     private string? _labelNavigation;
@@ -49,12 +51,83 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             catch (DllNotFoundException) { }
         };
         RefreshFilter();
+        RefreshDashboard();
     }
 
     public ObservableCollection<DownloadEntry> Downloads { get; } = new();
     public ICollectionView VisibleDownloads { get; }
     public int DownloadsCount => Downloads.Count;
     public int CompletedCount => Downloads.Count(d => d.Status == DownloadStatus.Completed);
+    public int DownloadingCount => Downloads.Count(d => d.Status == DownloadStatus.Downloading);
+    public int PausedCount => Downloads.Count(d => d.Status == DownloadStatus.Paused);
+    public int PendingCount => Downloads.Count(d => d.Status == DownloadStatus.Queued);
+
+    public string GreetingText => DateTime.Now.Hour switch
+    {
+        < 12 => "Good morning",
+        < 17 => "Good afternoon",
+        _ => "Good evening"
+    };
+
+    public string ActiveSummaryLabel => $"{DownloadingCount} active download{(DownloadingCount == 1 ? "" : "s")}  ·  {AggregateSpeedLabel}";
+    public string AggregateSpeedLabel => DownloadingCount == 0 ? "—" :
+        DownloadEntry.FormatSize(Downloads.Where(d => d.Status == DownloadStatus.Downloading)
+            .Sum(d => d.BytesPerSecond)) + "/s";
+
+    private IReadOnlyList<DownloadEntry> KnownPendingDownloads() =>
+        Downloads.Where(d => d.Status is not (DownloadStatus.Completed or DownloadStatus.Canceled or DownloadStatus.Failed)
+                             && d.Total is > 0).ToArray();
+
+    public string AggregateTotalSizeLabel
+    {
+        get
+        {
+            var known = KnownPendingDownloads();
+            return known.Count == 0 ? "—" : DownloadEntry.FormatSize(known.Sum(d => (double)d.Total!.Value));
+        }
+    }
+
+    public double AggregateProgressPercent
+    {
+        get
+        {
+            var known = KnownPendingDownloads();
+            double total = known.Sum(d => (double)d.Total!.Value);
+            if (total <= 0) return 0;
+            double received = known.Sum(d => (double)Math.Min(d.Received, d.Total!.Value));
+            return Math.Clamp(received / total * 100, 0, 100);
+        }
+    }
+
+    public string AggregateProgressLabel => KnownPendingDownloads().Count == 0
+        ? "—" : $"{AggregateProgressPercent:0}%";
+
+    public string AggregateEtaLabel
+    {
+        get
+        {
+            var active = Downloads.Where(d => d.Status == DownloadStatus.Downloading).ToArray();
+            if (active.Length == 0 || active.Any(d => d.Total is null)) return "—";
+            double speed = active.Sum(d => d.BytesPerSecond);
+            if (speed <= 0) return "—";
+            double remaining = active.Sum(d => Math.Max(0, d.Total!.Value - d.Received));
+            double seconds = remaining / speed;
+            if (!double.IsFinite(seconds) || seconds < 0 || seconds > TimeSpan.MaxValue.TotalSeconds) return "—";
+            var time = TimeSpan.FromSeconds(seconds);
+            return time.TotalHours >= 1 ? $"{(int)time.TotalHours}h {time.Minutes}m"
+                : time.TotalMinutes >= 1 ? $"{(int)time.TotalMinutes}m {time.Seconds}s"
+                : $"{time.Seconds}s";
+        }
+    }
+
+    private void RefreshDashboard()
+    {
+        foreach (var property in new[] {
+            nameof(GreetingText), nameof(ActiveSummaryLabel), nameof(AggregateSpeedLabel),
+            nameof(AggregateTotalSizeLabel), nameof(AggregateProgressPercent),
+            nameof(AggregateProgressLabel), nameof(AggregateEtaLabel) })
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
     public int QueueCount => Downloads.Count(d => d.Status != DownloadStatus.Completed);
     public int SoftwareCount => CategoryCount("Software");
     public int VideosCount => CategoryCount("Videos");
@@ -75,6 +148,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         foreach (var property in new[] {
             nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount),
+            nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
             nameof(WorkCount), nameof(PersonalCount), nameof(ImportantCount) })
@@ -142,11 +216,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _lastStatuses[item.Id] = item.Status;
         Downloads.Add(item);
         RefreshCounters();
+        RefreshDashboard();
         item.PropertyChanged += (_, _) =>
         {
             void Update()
             {
-                // Keep the same rows and selection: filter only when state changes.
+                // Update aggregate values while retaining the existing row objects.
+                // Filter only when state changes; per-byte filtering causes flicker.
+                RefreshDashboard();
                 if (_lastStatuses.TryGetValue(item.Id, out var old) && old != item.Status)
                 {
                     _lastStatuses[item.Id] = item.Status;
@@ -192,6 +269,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 return false;
             labelFilter = selectedLabel;
         }
+        if (!string.Equals(_downloadTab, "all", StringComparison.OrdinalIgnoreCase))
+        {
+            if (!Enum.TryParse<DownloadStatus>(_downloadTab, true, out var tabStatus)
+                || item.Status != tabStatus) return false;
+        }
         return DownloadListVisibility.Matches(item, _navigation, GlobalSearch?.Text,
             status, category, labelFilter);
     }
@@ -200,6 +282,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (VisibleDownloads is null) return;
         VisibleDownloads.Refresh();
+        UpdateTabAppearance();
         if (SidebarPanel is not null)
         {
             foreach (var button in Descendants<Button>(SidebarPanel))
@@ -223,6 +306,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (sender is not Button button) return;
         _navigation = button.Tag as string ?? "all";
+        _downloadTab = "all";
         _categoryNavigation = null;
         _labelNavigation = null;
         ViewTitle.Text = _navigation == "completed" ? "Completed" :
@@ -234,6 +318,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (sender is not Button button) return;
         _navigation = "all";
+        _downloadTab = "all";
         _categoryNavigation = button.Tag as string;
         _labelNavigation = null;
         ViewTitle.Text = _categoryNavigation ?? "Downloads";
@@ -244,6 +329,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (sender is not Button button) return;
         _navigation = "all";
+        _downloadTab = "all";
         _categoryNavigation = null;
         _labelNavigation = button.Tag as string;
         ViewTitle.Text = _labelNavigation is null ? "Downloads" : "Label: " + _labelNavigation;
@@ -284,7 +370,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void ShowSubmittedDownload(bool addToQueue)
     {
-        _navigation = addToQueue ? "queue" : "all";
+        _navigation = "all";
+        _downloadTab = addToQueue ? "Queued" : "all";
         _categoryNavigation = null;
         _labelNavigation = null;
         ViewTitle.Text = addToQueue ? "Queue" : "Downloads";
@@ -295,7 +382,118 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshFilter();
     }
 
-    private void Search_Changed(object sender, TextChangedEventArgs e) => RefreshFilter();
+    private void Search_Changed(object sender, TextChangedEventArgs e)
+    {
+        if (SearchHint is not null && GlobalSearch is not null)
+            SearchHint.Visibility = string.IsNullOrEmpty(GlobalSearch.Text)
+                ? Visibility.Visible : Visibility.Collapsed;
+        RefreshFilter();
+    }
+
+    private void Search_KeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Enter || GlobalSearch is null ||
+            !DownloadEngine.IsAllowedUrl(GlobalSearch.Text.Trim())) return;
+        Add_Click(sender, new RoutedEventArgs());
+        NewUrl.Text = GlobalSearch.Text.Trim();
+        GlobalSearch.Clear();
+        e.Handled = true;
+    }
+
+    private void DownloadTab_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button tab) return;
+        _downloadTab = tab.Tag as string ?? "all";
+        _navigation = "all";
+        _categoryNavigation = null;
+        _labelNavigation = null;
+        if (StatusFilter is not null) StatusFilter.SelectedIndex = 0;
+        RefreshFilter();
+    }
+
+    private void UpdateTabAppearance()
+    {
+        if (TabAll is null) return;
+        foreach (var tab in new[] { TabAll, TabDownloading, TabPaused, TabQueued, TabCompleted })
+        {
+            bool selected = (tab.Tag as string ?? "all").Equals(_downloadTab, StringComparison.OrdinalIgnoreCase);
+            tab.Background = (Brush)FindResource(selected ? "V5LightBlue" : "V5LightCanvas");
+            tab.Foreground = selected ? Brushes.White : (Brush)FindResource("V5LightText");
+        }
+    }
+
+    private void ToggleFilters_Click(object sender, RoutedEventArgs e) =>
+        ExtraFilters.IsOpen = !ExtraFilters.IsOpen;
+
+    private void PasteLink_Click(object sender, RoutedEventArgs e)
+    {
+        Add_Click(sender, e);
+        try
+        {
+            if (Clipboard.ContainsText())
+            {
+                var text = Clipboard.GetText().Trim();
+                if (DownloadEngine.IsAllowedUrl(text)) NewUrl.Text = text;
+            }
+        }
+        catch (System.Runtime.InteropServices.ExternalException) { /* Clipboard busy; manual entry still works. */ }
+    }
+
+    private void OpenDownloadsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        Directory.CreateDirectory(folder);
+        Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+    }
+
+    private void RowQuickAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: DownloadEntry entry }) return;
+        SelectedDownload = entry;
+        if (entry.Status == DownloadStatus.Completed)
+        {
+            OpenFolder_Click(sender, e);
+            return;
+        }
+        if (entry.Status == DownloadStatus.Downloading) _engine.Pause(entry);
+        else _engine.Start(entry);
+        e.Handled = true;
+    }
+
+    private void RowMore_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: DownloadEntry entry } button) return;
+        SelectedDownload = entry;
+        var menu = new ContextMenu { Background = Brushes.White, Foreground = (Brush)FindResource("V5LightText") };
+        var resume = new MenuItem { Header = "Resume", IsEnabled = entry.Status != DownloadStatus.Completed };
+        resume.Click += (_, _) => _engine.Start(entry);
+        var pause = new MenuItem { Header = "Pause", IsEnabled = entry.Status == DownloadStatus.Downloading };
+        pause.Click += (_, _) => _engine.Pause(entry);
+        var stop = new MenuItem { Header = "Stop", IsEnabled = entry.Status != DownloadStatus.Completed };
+        stop.Click += (_, _) => _engine.Cancel(entry);
+        var folder = new MenuItem { Header = "Open folder" };
+        folder.Click += (_, _) => OpenFolder_Click(button, new RoutedEventArgs());
+        menu.Items.Add(resume);
+        menu.Items.Add(pause);
+        menu.Items.Add(stop);
+        menu.Items.Add(new Separator());
+        menu.Items.Add(folder);
+        button.ContextMenu = menu;
+        menu.PlacementTarget = button;
+        menu.IsOpen = true;
+        e.Handled = true;
+    }
+
+    protected override void OnPreviewKeyDown(KeyEventArgs e)
+    {
+        if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control)
+        {
+            GlobalSearch.Focus();
+            GlobalSearch.SelectAll();
+            e.Handled = true;
+        }
+        base.OnPreviewKeyDown(e);
+    }
     private void Filters_Changed(object sender, SelectionChangedEventArgs e) => RefreshFilter();
 
     private void Add_Click(object sender, RoutedEventArgs e)
