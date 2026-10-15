@@ -1,0 +1,58 @@
+name: Import archived RangeDesk v4 source
+
+on:
+  push:
+    branches: [main]
+    paths: [".github/workflows/recover-source.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  recover:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Download and verify original source snapshot
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $ProgressPreference = 'SilentlyContinue'
+          $archive = Join-Path $env:RUNNER_TEMP 'RangeDesk-v4-source.zip'
+          $url = 'https://drive.google.com/uc?export=download&id=1g3MVkxs6eKpAcRwtya1tOFaG32R0UCft'
+          Invoke-WebRequest -Uri $url -OutFile $archive -MaximumRedirection 10
+          $actual = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          $expected = 'b1a2a9d94d7ad28ad50c13a0d234b3bb2a88023a71e1bd0dc6fefdadd063bf5b'
+          if ($actual -ne $expected) {
+            throw "The downloaded source archive failed its checksum. The Drive file may not be publicly downloadable. Expected $expected, got $actual. No code will be committed."
+          }
+          $destination = Join-Path $env:RUNNER_TEMP 'RangeDeskRecovered'
+          Expand-Archive -LiteralPath $archive -DestinationPath $destination -Force
+          foreach ($required in @('RangeDesk.slnx', 'global.json', 'src/RangeDesk.App/RangeDesk.App.csproj', 'src/RangeDesk.Core/Transfer/HttpTransfer.cs', 'tests/RangeDesk.Tests/RangeDesk.Tests.csproj')) {
+            if (!(Test-Path -LiteralPath (Join-Path $destination $required))) { throw "Source archive missing $required" }
+          }
+          Copy-Item -Path (Join-Path $destination '*') -Destination . -Recurse -Force
+          @'
+          work/
+          **/bin/
+          **/obj/
+          .vs/
+          *.user
+          *.suo
+          TestResults/
+          artifact/
+          **/*.pdb
+          *.msi
+          '@ | Set-Content -Path .gitignore -Encoding utf8
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B recover/rangedesk-v4
+          git add .gitignore README.md RangeDesk.slnx global.json src tests
+          git commit -m "chore: recover verified original RangeDesk v4 source"
+          git push --set-upstream origin recover/rangedesk-v4
+      - name: Next steps
+        shell: pwsh
+        run: Write-Host 'Recovered branch pushed. Windows CI will validate its WPF build and tests. Do not merge until it passes.'
