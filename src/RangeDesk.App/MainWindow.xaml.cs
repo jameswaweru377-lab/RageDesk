@@ -25,7 +25,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private DownloadEntry? _selected;
     private string? _labelNavigation;
     private bool _sidebarCollapsed;
-    private readonly Dictionary<Button, object> _sidebarLabels = new();
     private readonly Dictionary<Guid, DownloadStatus> _lastStatuses = new();
 
     [DllImport("dwmapi.dll")]
@@ -54,6 +53,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     public ObservableCollection<DownloadEntry> Downloads { get; } = new();
     public ICollectionView VisibleDownloads { get; }
+    public int DownloadsCount => Downloads.Count;
+    public int CompletedCount => Downloads.Count(d => d.Status == DownloadStatus.Completed);
+    public int QueueCount => Downloads.Count(d => d.Status != DownloadStatus.Completed);
+    public int SoftwareCount => CategoryCount("Software");
+    public int VideosCount => CategoryCount("Videos");
+    public int DocumentsCount => CategoryCount("Documents");
+    public int ArchivesCount => CategoryCount("Archives");
+    public int ImagesCount => CategoryCount("Images");
+    public int WorkCount => LabelCount("Work");
+    public int PersonalCount => LabelCount("Personal");
+    public int ImportantCount => LabelCount("Important");
+
+    private int CategoryCount(string name) => Downloads.Count(
+        d => string.Equals(d.Category, name, StringComparison.OrdinalIgnoreCase));
+    private int LabelCount(string name) => Downloads.Count(d =>
+        d.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+          .Contains(name, StringComparer.OrdinalIgnoreCase));
+
+    private void RefreshCounters()
+    {
+        foreach (var property in new[] {
+            nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount),
+            nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
+            nameof(ArchivesCount), nameof(ImagesCount),
+            nameof(WorkCount), nameof(PersonalCount), nameof(ImportantCount) })
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+    }
     public DownloadEntry? SelectedDownload
     {
         get => _selected;
@@ -115,6 +141,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _lastStatuses[item.Id] = item.Status;
         Downloads.Add(item);
+        RefreshCounters();
         item.PropertyChanged += (_, _) =>
         {
             void Update()
@@ -123,6 +150,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (_lastStatuses.TryGetValue(item.Id, out var old) && old != item.Status)
                 {
                     _lastStatuses[item.Id] = item.Status;
+                    RefreshCounters();
                     if (item.Status == DownloadStatus.Failed)
                         StatusMessage.Text = "Download failed: " + item.Name +
                             ". Select it to inspect the error and resume.";
@@ -164,6 +192,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (VisibleDownloads is null) return;
         VisibleDownloads.Refresh();
+        if (SidebarPanel is not null)
+        {
+            foreach (var button in Descendants<Button>(SidebarPanel))
+            {
+                if (button.Tag is not string tag || !button.IsEnabled) continue;
+                bool selected = (_categoryNavigation is null && _labelNavigation is null &&
+                                 tag == _navigation)
+                             || (_categoryNavigation is not null && tag == _categoryNavigation)
+                             || (_labelNavigation is not null && tag == _labelNavigation);
+                button.Background = selected
+                    ? (System.Windows.Media.Brush)FindResource("V5SelectedBrush")
+                    : System.Windows.Media.Brushes.Transparent;
+            }
+        }
         if (EmptyState is not null)
             EmptyState.Visibility = VisibleDownloads.Cast<object>().Any()
                 ? Visibility.Collapsed : Visibility.Visible;
@@ -213,27 +255,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ToggleSidebar_Click(object sender, RoutedEventArgs e)
     {
         _sidebarCollapsed = !_sidebarCollapsed;
-        if (_sidebarLabels.Count == 0)
-        {
-            foreach (var nav in Descendants<Button>(SidebarPanel).Where(b => b != SidebarToggle))
-                if (nav.Content is string content) _sidebarLabels[nav] = content;
-        }
-        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 61 : 224);
+        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 62 : 224);
         SidebarBrand.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SidebarBrandIcon.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
-        foreach (var (button, value) in _sidebarLabels)
+
+        foreach (var caption in Descendants<TextBlock>(SidebarPanel))
         {
-            button.ToolTip = value;
-            var label = value.ToString() ?? "";
-            button.Content = _sidebarCollapsed ? label.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "•" : value;
-            button.HorizontalContentAlignment = _sidebarCollapsed
-                ? HorizontalAlignment.Center : HorizontalAlignment.Left;
+            if (caption.Tag is string tag && tag == "NavCaption" ||
+                caption.Text is "CATEGORIES" or "LABELS" or "SITE PRESETS")
+                caption.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         }
-        foreach (var label in Descendants<TextBlock>(SidebarPanel))
-        {
-            if (label.Text is "CATEGORIES" or "LABELS" or "SITE PRESETS")
-                label.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
-        }
+        foreach (var badge in Descendants<Border>(SidebarPanel).Where(x => x.Tag as string == "NavBadge"))
+            badge.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+
         SidebarToggle.ToolTip = _sidebarCollapsed ? "Expand navigation" : "Collapse navigation";
     }
 
