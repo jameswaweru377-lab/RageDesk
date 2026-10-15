@@ -123,6 +123,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (_lastStatuses.TryGetValue(item.Id, out var old) && old != item.Status)
                 {
                     _lastStatuses[item.Id] = item.Status;
+                    if (item.Status == DownloadStatus.Failed)
+                        StatusMessage.Text = "Download failed: " + item.Name +
+                            ". Select it to inspect the error and resume.";
+                    else if (item.Status == DownloadStatus.Completed)
+                        StatusMessage.Text = "Download completed: " + item.Name;
                     RefreshFilter();
                 }
             }
@@ -136,26 +141,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool MatchesFilters(object candidate)
     {
         if (candidate is not DownloadEntry item) return false;
-        if (_navigation == "completed" && item.Status != DownloadStatus.Completed) return false;
-        if (_navigation == "queue" && item.Status is not
-            (DownloadStatus.Queued or DownloadStatus.Paused or DownloadStatus.Canceled or DownloadStatus.Failed)) return false;
-        if (_categoryNavigation is not null && item.Category != _categoryNavigation) return false;
-        if (_labelNavigation is not null &&
-            !item.Labels.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Contains(_labelNavigation, StringComparer.OrdinalIgnoreCase)) return false;
-        if (GlobalSearch is not null && !string.IsNullOrWhiteSpace(GlobalSearch.Text))
+        DownloadStatus? status = null;
+        if (StatusFilter?.SelectedItem is ComboBoxItem state
+            && state.Content is string label
+            && Enum.TryParse<DownloadStatus>(label, ignoreCase: true, out var selected))
+            status = selected;
+
+        string? category = _categoryNavigation;
+        if (CategoryFilter?.SelectedItem is ComboBoxItem categoryOption
+            && categoryOption.Content is string selection && selection != "All categories")
         {
-            string search = GlobalSearch.Text.Trim();
-            if (!item.Name.Contains(search, StringComparison.OrdinalIgnoreCase) &&
-                !item.Host.Contains(search, StringComparison.OrdinalIgnoreCase)) return false;
+            if (category is not null && !category.Equals(selection, StringComparison.OrdinalIgnoreCase))
+                return false;
+            category = selection;
         }
-        if (StatusFilter?.SelectedItem is ComboBoxItem state && state.Content is string label &&
-            label != "All statuses" && !item.Status.ToString().Equals(label, StringComparison.OrdinalIgnoreCase))
-            return false;
-        if (CategoryFilter?.SelectedItem is ComboBoxItem category && category.Content is string group &&
-            group != "All categories" && !item.Category.Equals(group, StringComparison.OrdinalIgnoreCase))
-            return false;
-        return true;
+
+        return DownloadListVisibility.Matches(item, _navigation, GlobalSearch?.Text,
+            status, category, _labelNavigation);
     }
 
     private void RefreshFilter()
@@ -235,6 +237,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SidebarToggle.ToolTip = _sidebarCollapsed ? "Expand navigation" : "Collapse navigation";
     }
 
+    /// <summary>
+    /// Show a submitted download where it stays visible through state changes.
+    /// </summary>
+    private void ShowSubmittedDownload(bool addToQueue)
+    {
+        _navigation = addToQueue ? "queue" : "all";
+        _categoryNavigation = null;
+        _labelNavigation = null;
+        ViewTitle.Text = addToQueue ? "Queue" : "Downloads";
+        if (StatusFilter is not null) StatusFilter.SelectedIndex = 0;
+        if (CategoryFilter is not null) CategoryFilter.SelectedIndex = 0;
+        if (GlobalSearch is not null) GlobalSearch.Clear();
+        RefreshFilter();
+    }
+
     private void Search_Changed(object sender, TextChangedEventArgs e) => RefreshFilter();
     private void Filters_Changed(object sender, SelectionChangedEventArgs e) => RefreshFilter();
 
@@ -279,9 +296,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 NewLabels.Text.Trim());
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
+            bool queued = QueueOnly.IsChecked == true;
+            ShowSubmittedDownload(queued);
             Track(item);
             SaveCatalog();
-            bool queued = QueueOnly.IsChecked == true;
             if (!queued && !_engine.Start(item))
                 throw new InvalidOperationException("Could not start this download.");
             SelectedDownload = item;
