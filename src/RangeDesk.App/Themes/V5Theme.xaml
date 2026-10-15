@@ -162,4 +162,83 @@
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Height" Value="7"/>
   </Style>
+
+  <!-- Windows 11/10 native vector glyph font: no online icon assets or extra dependency. -->
+  <FontFamily x:Key="V5IconFont">Segoe MDL2 Assets</FontFamily>
+
+  <!-- WPF system theme must NEVER recolor a selected row white. -->
+  <Style x:Key="V5GridCell" TargetType="{x:Type DataGridCell}">
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Padding" Value="8,3"/>
+    <Setter Property="VerticalContentAlignment" Value="Center"/>
+    <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type DataGridCell}">
+          <Border x:Name="CellBackground" Background="{TemplateBinding Background}"
+                  BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0"
+                  Padding="{TemplateBinding Padding}">
+            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsSelected" Value="True">
+              <Setter TargetName="CellBackground" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+            </Trigger>
+            <Trigger Property="IsKeyboardFocusWithin" Value="True">
+              <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="V5GridRow" TargetType="{x:Type DataGridRow}">
+    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="BorderThickness" Value="0,0,0,1"/>
+    <Setter Property="Height" Value="52"/>
+    <Setter Property="SnapsToDevicePixels" Value="True"/>
+    <Style.Triggers>
+      <Trigger Property="IsSelected" Value="True">
+        <Setter Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+        <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+      </Trigger>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
+      </Trigger>
+    </Style.Triggers>
+  </Style>
+  <Style x:Key="V5GridText" TargetType="{x:Type TextBlock}">
+    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
+    <Setter Property="VerticalAlignment" Value="Center"/>
+  </Style>
+  <Style x:Key="V5ProgressFixed" TargetType="{x:Type ProgressBar}">
+    <Setter Property="Height" Value="7"/>
+    <Setter Property="Background" Value="#1C3756"/>
+    <Setter Property="Foreground" Value="{StaticResource V5AccentLightBrush}"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ProgressBar}">
+          <Grid ClipToBounds="True">
+            <Border Background="{TemplateBinding Background}" CornerRadius="3"/>
+            <Grid x:Name="PART_Track" ClipToBounds="True">
+              <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                      CornerRadius="3" HorizontalAlignment="Left"/>
+            </Grid>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsIndeterminate" Value="True">
+              <Setter TargetName="PART_Indicator" Property="MinWidth" Value="24"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
 </ResourceDictionary>
