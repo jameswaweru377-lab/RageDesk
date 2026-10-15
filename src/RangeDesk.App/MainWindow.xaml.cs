@@ -33,7 +33,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
 
-    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0);
+    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null);
 
     public MainWindow()
     {
@@ -181,7 +181,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     var item = _engine.Create(record.Url, record.Destination,
                         record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1,
-                        record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0);
+                        record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0,
+                        record.ExpectedSha256);
                     if (File.Exists(item.Destination))
                         item.Report(DownloadStatus.Completed,
                             new FileInfo(item.Destination).Length, new FileInfo(item.Destination).Length);
@@ -204,7 +205,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_catalogFile)!);
-            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps));
+            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256));
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
@@ -505,6 +506,18 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
     private void CloseAdd_Click(object sender, RoutedEventArgs e) => AddOverlay.Visibility = Visibility.Collapsed;
 
+    private void AutoStart_Click(object sender, RoutedEventArgs e)
+    {
+        if (QueueOnly is not null && StartAutomatically is not null)
+            QueueOnly.IsChecked = StartAutomatically.IsChecked != true;
+    }
+
+    private void QueueOnly_Click(object sender, RoutedEventArgs e)
+    {
+        if (StartAutomatically is not null && QueueOnly is not null)
+            StartAutomatically.IsChecked = QueueOnly.IsChecked != true;
+    }
+
     private void Url_Changed(object sender, TextChangedEventArgs e)
     {
         if (NewUrl is null || NewDestination is null ||
@@ -553,8 +566,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             int bandwidth = BandwidthChoice?.SelectedItem is ComboBoxItem limit &&
                             int.TryParse(limit.Tag?.ToString(), out var capped)
                 ? capped : 0;
+            string? checksum = null;
+            if (VerifyChecksum.IsChecked == true)
+            {
+                checksum = NewChecksum.Text.Trim();
+                if (checksum.Length == 0)
+                    throw new ArgumentException("Enter the expected SHA-256 or disable verification.");
+            }
             var item = _engine.Create(NewUrl.Text.Trim(), NewDestination.Text.Trim(), category,
-                NewLabels.Text.Trim(), connections, bandwidth);
+                NewLabels.Text.Trim(), connections, bandwidth, checksum);
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
             bool queued = QueueOnly.IsChecked == true;
@@ -571,6 +591,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             NewCategory.SelectedIndex = 0;
             NewLabels.Clear();
             QueueOnly.IsChecked = false;
+            StartAutomatically.IsChecked = true;
+            VerifyChecksum.IsChecked = false;
+            NewChecksum.Clear();
         }
         catch (Exception ex) { FormError.Text = ex.Message; }
     }
