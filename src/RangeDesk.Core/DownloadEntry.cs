@@ -18,11 +18,14 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private readonly List<double> _speedSamples = new(64);
     private readonly ObservableCollection<string> _events = new();
 
-    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1)
+    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0)
     {
         if (connections is not (1 or 2 or 4 or 8 or 16 or 32))
             throw new ArgumentOutOfRangeException(nameof(connections));
+        if (bandwidthKiBps < 0 || bandwidthKiBps > 1024 * 1024)
+            throw new ArgumentOutOfRangeException(nameof(bandwidthKiBps));
         RequestedConnections = connections;
+        BandwidthKiBps = bandwidthKiBps;
         Id = Guid.NewGuid();
         Url = url;
         Destination = destination;
@@ -34,6 +37,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     }
 
     public int RequestedConnections { get; }
+    public int BandwidthKiBps { get; }
     public Guid Id { get; }
     public string Url { get; }
     public string Destination { get; }
