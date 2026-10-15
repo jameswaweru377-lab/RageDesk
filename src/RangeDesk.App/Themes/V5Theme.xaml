@@ -363,4 +363,12 @@
       </Setter.Value>
     </Setter>
   </Style>
+  <Style x:Key="V5MetricCard" TargetType="{x:Type Border}">
+    <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
+    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="CornerRadius" Value="5"/>
+    <Setter Property="Padding" Value="10,6"/>
+    <Setter Property="Margin" Value="0,0,6,0"/>
+  </Style>
 </ResourceDictionary>
