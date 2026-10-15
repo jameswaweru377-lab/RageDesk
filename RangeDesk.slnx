@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/RangeDesk.Core/RangeDesk.Core.csproj" />
+    <Project Path="src/RangeDesk.App/RangeDesk.App.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RangeDesk.Tests/RangeDesk.Tests.csproj" />
+  </Folder>
+</Solution>
