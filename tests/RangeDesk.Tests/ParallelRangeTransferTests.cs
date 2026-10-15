@@ -42,6 +42,42 @@ public sealed class ParallelRangeTransferTests
         });
     }
 
+    [Theory]
+    [InlineData(16)]
+    [InlineData(32)]
+    public async Task LargeFileActuallyUsesAllRequestedWorkers(int requested)
+    {
+        // Enough unique bytes for the minimum segment length * 32.
+        byte[] content = Enumerable.Range(0, 18_000_000)
+            .Select(i => (byte)((i * 31 + 7) % 253)).ToArray();
+        await InFolder(async folder =>
+        {
+            var segments = new ConcurrentBag<(long Start, long End)>();
+            using var handler = new RangeHandler(request =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                long start = range.From!.Value;
+                long end = range.To ?? content.LongLength - 1;
+                segments.Add((start, end));
+                var reply = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                reply.Headers.ETag = EntityTagHeaderValue.Parse("\"test-v32\"");
+                reply.Content = new ByteArrayContent(content[(int)start..((int)end + 1)]);
+                reply.Content.Headers.ContentRange = new ContentRangeHeaderValue(start, end, content.LongLength);
+                return reply;
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var item = engine.Create("https://example.test/large.iso",
+                Path.Combine(folder, "large.iso"), connections: requested);
+            Assert.True(engine.Start(item));
+            await Wait(item);
+            Assert.Equal(DownloadStatus.Completed, item.Status);
+            Assert.Equal(content.Length, new FileInfo(item.Destination).Length);
+            Assert.Equal(SHA256.HashData(content),
+                SHA256.HashData(await File.ReadAllBytesAsync(item.Destination)));
+            Assert.Equal(requested + 1, segments.Count); // one probe plus one request per worker
+        });
+    }
+
     [Fact]
     public async Task ExistingSegmentsResumeFromTheirOwnOffsetsAndCannotOverwriteOtherRanges()
     {
