@@ -420,23 +420,42 @@
                   <charts:SpeedGraph Source="{Binding SelectedDownload}" Height="98" Margin="0,0,0,12"/>
                   <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active workers: {0}'}"
                              Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
-                  <Border BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1"
-                          CornerRadius="5" Background="{StaticResource V5ElevatedBrush}" Padding="9">
-                    <Grid>
-                      <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active range workers: {0}'}" FontSize="11"/>
-                      <TextBlock Text="{Binding SelectedDownload.SpeedLabel}" HorizontalAlignment="Right"
-                          Foreground="{StaticResource V5AccentLightBrush}"/>
-                    </Grid>
-                  </Border>
-                  <TextBlock Text="Only active, measured network traffic is charted."
-                             FontSize="10" Foreground="{StaticResource V5MutedBrush}" Margin="0,7,0,0" TextWrapping="Wrap"/>
+                  <ScrollViewer MaxHeight="92" VerticalScrollBarVisibility="Auto"
+                                HorizontalScrollBarVisibility="Disabled">
+                    <ItemsControl ItemsSource="{Binding SelectedDownload.Workers}">
+                      <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                      <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                          <Border Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+                                  BorderThickness="1" CornerRadius="5" Margin="0,0,5,5" Padding="6,4"
+                                  ToolTip="{Binding BytesLabel}">
+                            <StackPanel>
+                              <Grid>
+                                <TextBlock Text="{Binding Title}" FontSize="10" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding SpeedLabel}" HorizontalAlignment="Right" FontSize="9"
+                                    Foreground="{StaticResource V5AccentLightBrush}"/>
+                              </Grid>
+                              <ProgressBar Height="4" Style="{StaticResource V5ProgressFixed}" Maximum="100"
+                                           Value="{Binding Percent, Mode=OneWay}" Margin="0,4,0,0"/>
+                            </StackPanel>
+                          </Border>
+                        </DataTemplate>
+                      </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                  </ScrollViewer>
+                  <TextBlock Text="Measured connection speeds (scroll for all workers)"
+                             FontSize="9" Foreground="{StaticResource V5MutedBrush}" Margin="0,2,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="2">
                   <TextBlock Text="Transfer rules" FontWeight="SemiBold" Margin="0,0,0,9"/>
                   <TextBlock Text="{Binding SelectedDownload.RequestedConnections, StringFormat='Requested workers: {0}'}" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
                   <TextBlock Text="Resume: validated HTTP ranges" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
-                  <TextBlock Text="Checksum: not configured" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
-                  <TextBlock Text="Verified HTTP ranges and strong ETag required" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                  <TextBlock Text="{Binding SelectedDownload.ChecksumLabel, StringFormat=Checksum: {0}}" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="Smart retry: up to 5 attempts" Foreground="{StaticResource V5MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,14"/>
+                  <TextBlock Text="{Binding SelectedDownload.BandwidthKiBps, StringFormat='Bandwidth cap: {0} KiB/s (0 = unlimited)'}"
+                             Foreground="{StaticResource V5MutedBrush}" FontSize="10" TextWrapping="Wrap" Margin="0,0,0,7"/>
+                  <TextBlock Text="Post-download: None" Foreground="{StaticResource V5MutedBrush}"
+                             FontSize="10" Margin="0,0,0,8"/>
                   <StackPanel Orientation="Horizontal">
                     <Button Content="Open file" Click="OpenFile_Click" Padding="8,7" Style="{StaticResource V5ToolbarButton}"/>
                     <Button Content="Folder" Click="OpenFolder_Click" Padding="8,7" Style="{StaticResource V5ToolbarButton}"/>
@@ -445,14 +464,61 @@
               </Grid>
             </TabItem>
             <TabItem Header="Connections">
-              <StackPanel Margin="12">
-                <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active connections: {0}'}" FontWeight="SemiBold"/>
-                <TextBlock Text="{Binding SelectedDownload.SpeedLabel, StringFormat='Current speed: {0}'}" Margin="0,10,0,0"/>
-                <TextBlock Text="Connection count is the current number of active streams; unsupported servers fall back to one direct stream."
-                           Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
-              </StackPanel>
+              <DockPanel Margin="10">
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8">
+                  <TextBlock Text="{Binding SelectedDownload.Connections, StringFormat='Active connections: {0}'}"
+                             FontWeight="SemiBold" Margin="0,0,14,0"/>
+                  <TextBlock Text="{Binding SelectedDownload.SpeedLabel, StringFormat='Speed: {0}'}"
+                             Foreground="{StaticResource V5AccentLightBrush}"/>
+                </StackPanel>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding SelectedDownload.Workers}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                      <Border Margin="0,0,7,7" Background="{StaticResource V5ElevatedBrush}"
+                              BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1"
+                              CornerRadius="5" Padding="9,6">
+                        <StackPanel>
+                          <Grid><TextBlock Text="{Binding Title}" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding SpeedLabel}" HorizontalAlignment="Right"
+                                       Foreground="{StaticResource V5AccentLightBrush}"/></Grid>
+                          <ProgressBar Style="{StaticResource V5ProgressFixed}" Maximum="100"
+                                       Value="{Binding Percent, Mode=OneWay}" Margin="0,8,0,4"/>
+                          <TextBlock Text="{Binding StateLabel}" Foreground="{StaticResource V5MutedBrush}" FontSize="10"/>
+                          <TextBlock Text="{Binding BytesLabel}" Foreground="{StaticResource V5MutedBrush}" FontSize="9"/>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate></ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
             </TabItem>
-            <TabItem Header="Segments (planned)" IsEnabled="False"/>
+            <TabItem Header="Segments">
+              <DockPanel Margin="10">
+                <TextBlock DockPanel.Dock="Top" Text="Verified independent byte ranges · blue bars show completed bytes"
+                           Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,10"/>
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <ItemsControl ItemsSource="{Binding SelectedDownload.Workers}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                      <Border Background="{StaticResource V5ElevatedBrush}"
+                              BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1"
+                              Padding="8" Margin="0,0,7,7" Width="115" CornerRadius="5">
+                        <StackPanel>
+                          <TextBlock Text="{Binding Title}" FontSize="11" FontWeight="SemiBold"/>
+                          <ProgressBar Style="{StaticResource V5ProgressFixed}" Maximum="100"
+                                       Value="{Binding Percent, Mode=OneWay}" Margin="0,7,0,5"/>
+                          <TextBlock Text="{Binding StateLabel}" FontSize="10"
+                                     Foreground="{StaticResource V5AccentLightBrush}"/>
+                          <TextBlock Text="{Binding BytesLabel}" FontSize="9"
+                                     Foreground="{StaticResource V5MutedBrush}"/>
+                        </StackPanel>
+                      </Border>
+                    </DataTemplate></ItemsControl.ItemTemplate>
+                  </ItemsControl>
+                </ScrollViewer>
+              </DockPanel>
+            </TabItem>
             <TabItem Header="Graph">
               <Grid Margin="8,12">
                 <charts:SpeedGraph Source="{Binding SelectedDownload}"/>
