@@ -150,7 +150,7 @@
           <DataGridTemplateColumn Header="PROGRESS" Width="1.4*">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <StackPanel>
-                <ProgressBar Value="{Binding Percent, TargetNullValue=0}" IsIndeterminate="{Binding IsIndeterminate}" Maximum="100" Height="6" Background="#203956" Foreground="{StaticResource V5AccentLightBrush}"/>
+                <ProgressBar Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}" IsIndeterminate="{Binding IsIndeterminate, Mode=OneWay}" Maximum="100" Height="6" Background="#203956" Foreground="{StaticResource V5AccentLightBrush}"/>
                 <TextBlock Text="{Binding ProgressLabel}" FontSize="10" Margin="0,3,0,0" Foreground="{StaticResource V5MutedBrush}"/>
               </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
@@ -190,8 +190,8 @@
               <Grid Margin="8,16,8,8">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="1.8*"/><ColumnDefinition Width="1.4*"/></Grid.ColumnDefinitions>
                 <StackPanel Margin="0,0,18,0">
-                  <ProgressBar Height="10" Maximum="100" Value="{Binding SelectedDownload.Percent, TargetNullValue=0}"
-                    IsIndeterminate="{Binding SelectedDownload.IsIndeterminate}"
+                  <ProgressBar Height="10" Maximum="100" Value="{Binding SelectedDownload.Percent, Mode=OneWay, TargetNullValue=0}"
+                    IsIndeterminate="{Binding SelectedDownload.IsIndeterminate, Mode=OneWay}"
                     Background="#203956" Foreground="{StaticResource V5AccentLightBrush}"/>
                   <TextBlock Text="{Binding SelectedDownload.TransferredLabel}" Margin="0,7,0,18" Foreground="{StaticResource V5MutedBrush}"/>
                   <TextBlock Text="TRANSFER ACTIVITY" FontWeight="SemiBold"/>
