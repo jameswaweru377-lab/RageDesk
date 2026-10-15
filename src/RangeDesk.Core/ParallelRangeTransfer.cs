@@ -30,7 +30,8 @@ public sealed class ParallelRangeTransfer(HttpClient http)
     /// <returns>True when a verified segmented file was completed, false when the
     /// server is unsuitable and a normal download can safely be attempted.</returns>
     public async Task<bool> TryDownloadAsync(DownloadEntry entry, int connections,
-        SharedBandwidthLimiter limiter, Action<long, long, double, int> progress, CancellationToken token)
+        SharedBandwidthLimiter limiter, Action<long, long, double, int> progress, CancellationToken token,
+        Action<IReadOnlyList<WorkerMetric>>? workerProgress = null)
     {
         if (connections < 2 || connections > MaximumConnections)
             throw new ArgumentOutOfRangeException(nameof(connections));
@@ -85,16 +86,27 @@ public sealed class ParallelRangeTransfer(HttpClient http)
 
         var state = manifest!;
         long received = 0;
+        var workerBytes = new long[state.Connections];
+        var workerActive = new int[state.Connections];
+        var segmentSizes = new long[state.Connections];
         for (int i = 0; i < state.Connections; i++)
         {
             var (first, last) = SegmentBounds(state.Length, state.Connections, i);
             var path = Path.Combine(directory, $"{i:D2}.part");
+            segmentSizes[i] = last - first + 1;
             if (!File.Exists(path)) continue;
             long available = new FileInfo(path).Length;
             if (available > last - first + 1)
                 throw new InvalidDataException($"Segment {i} exceeds its assigned byte range.");
             received += available;
+            workerBytes[i] = available;
         }
+
+        var initialWorkerBytes = (long[])workerBytes.Clone();
+        var workerRateEstimators = Enumerable.Range(0, state.Connections)
+            .Select(_ => new DownloadRateEstimator()).ToArray();
+        for (int i = 0; i < state.Connections; i++)
+            workerRateEstimators[i].Update(TimeSpan.Zero, 0);
 
         int active = 0;
         long measured = received;
@@ -113,6 +125,19 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                     long current = Interlocked.Read(ref measured);
                     double speed = rate.Update(watch.Elapsed, Math.Max(0, current - startingBytes));
                     progress(current, state.Length, speed, Volatile.Read(ref active));
+                    if (workerProgress is not null)
+                    {
+                        var snapshot = new WorkerMetric[state.Connections];
+                        for (int i = 0; i < snapshot.Length; i++)
+                        {
+                            long done = Interlocked.Read(ref workerBytes[i]);
+                            double workerRate = workerRateEstimators[i].Update(watch.Elapsed,
+                                Math.Max(0, done - initialWorkerBytes[i]));
+                            snapshot[i] = new WorkerMetric(i, done, segmentSizes[i], workerRate,
+                                Volatile.Read(ref workerActive[i]) == 1);
+                        }
+                        workerProgress(snapshot);
+                    }
                 }
             }
             catch (OperationCanceledException) when (timerStop.IsCancellationRequested) { }
@@ -130,6 +155,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                     long existing = File.Exists(path) ? new FileInfo(path).Length : 0;
                     if (existing == last - first + 1) return;
                     Interlocked.Increment(ref active);
+                    Interlocked.Exchange(ref workerActive[i], 1);
                     try
                     {
                         using var request = new HttpRequestMessage(HttpMethod.Get, entry.Url);
@@ -164,6 +190,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                             await limiter.AccountAsync(count, workerStop.Token);
                             current += count;
                             Interlocked.Add(ref measured, count);
+                            Interlocked.Add(ref workerBytes[i], count);
                         }
                         // Do not accept excess content beyond a declared range.
                         if (await input.ReadAsync(buffer.AsMemory(0, 1), workerStop.Token) != 0)
@@ -171,7 +198,11 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                         await output.FlushAsync(workerStop.Token);
                         output.Flush(true);
                     }
-                    finally { Interlocked.Decrement(ref active); }
+                    finally
+                    {
+                        Interlocked.Exchange(ref workerActive[i], 0);
+                        Interlocked.Decrement(ref active);
+                    }
                 }
                 catch
                 {
@@ -180,6 +211,10 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                 }
             }).ToArray();
             await Task.WhenAll(tasks);
+            if (workerProgress is not null)
+                workerProgress(Enumerable.Range(0, state.Connections)
+                    .Select(i => new WorkerMetric(i, Interlocked.Read(ref workerBytes[i]),
+                        segmentSizes[i], 0, false)).ToArray());
 
             // Re-validate every segment before assembling. Never publish partial
             // or mismatched output as the final destination.
