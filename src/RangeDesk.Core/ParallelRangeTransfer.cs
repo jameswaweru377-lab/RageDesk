@@ -63,10 +63,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
         else
         {
             // HTTP 206 probe: never infer range support from Accept-Ranges alone.
-            using var request = new HttpRequestMessage(HttpMethod.Get, entry.Url);
-            request.Headers.Range = new RangeHeaderValue(0, 0);
-            request.Headers.AcceptEncoding.ParseAdd("identity");
-            using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+            using var response = await SendRangeWithRetryAsync(entry.Url, 0, 0, null, token);
             var range = response.Content.Headers.ContentRange;
             var tag = response.Headers.ETag;
             if (response.StatusCode != HttpStatusCode.PartialContent ||
@@ -158,12 +155,8 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                     Interlocked.Exchange(ref workerActive[i], 1);
                     try
                     {
-                        using var request = new HttpRequestMessage(HttpMethod.Get, entry.Url);
-                        request.Headers.Range = new RangeHeaderValue(first + existing, last);
-                        request.Headers.TryAddWithoutValidation("If-Range", state.ETag);
-                        request.Headers.AcceptEncoding.ParseAdd("identity");
-                        using var response = await http.SendAsync(request,
-                            HttpCompletionOption.ResponseHeadersRead, workerStop.Token);
+                        using var response = await SendRangeWithRetryAsync(entry.Url,
+                            first + existing, last, state.ETag, workerStop.Token);
                         var range = response.Content.Headers.ContentRange;
                         if (response.StatusCode != HttpStatusCode.PartialContent ||
                             range is null || !range.HasLength ||
@@ -255,4 +248,40 @@ public sealed class ParallelRangeTransfer(HttpClient http)
             await timer;
         }
     }
+    private async Task<HttpResponseMessage> SendRangeWithRetryAsync(
+        string url, long from, long to, string? validator, CancellationToken token)
+    {
+        for (int attempt = 1; attempt <= HttpRetryPolicy.MaximumAttempts; attempt++)
+        {
+            token.ThrowIfCancellationRequested();
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.AcceptEncoding.ParseAdd("identity");
+            request.Headers.Range = new RangeHeaderValue(from, to);
+            if (validator is not null)
+                request.Headers.TryAddWithoutValidation("If-Range", validator);
+
+            HttpResponseMessage response;
+            try
+            {
+                response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+            }
+            catch (HttpRequestException) when (attempt < HttpRetryPolicy.MaximumAttempts)
+            {
+                await Task.Delay(HttpRetryPolicy.Delay(attempt, null), token);
+                continue;
+            }
+
+            if (HttpRetryPolicy.IsTemporary(response.StatusCode) &&
+                attempt < HttpRetryPolicy.MaximumAttempts)
+            {
+                var delay = HttpRetryPolicy.Delay(attempt, response.Headers.RetryAfter);
+                response.Dispose();
+                await Task.Delay(delay, token);
+                continue;
+            }
+            return response;
+        }
+        throw new HttpRequestException("The download exhausted its bounded retry attempts.");
+    }
+
 }
