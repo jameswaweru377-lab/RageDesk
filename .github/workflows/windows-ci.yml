@@ -1,8 +1,10 @@
 name: RangeDesk Windows build and tests
 
+# Feature branches build on their PR; main builds on push. Avoid duplicate
+# expensive Windows jobs for the same commit.
 on:
   push:
-    branches: [main, "recover/**", "feature/**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
