@@ -117,7 +117,13 @@ public sealed class DownloadEngine : IDisposable
                 bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections, limiter,
                     (bytes, total, speed, workers) =>
                         Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
-                    token);
+                    token,
+                    metrics =>
+                    {
+                        void Update() => e.ReportWorkers(metrics);
+                        if (_ui is not null) _ui.Post(_ => Update(), null);
+                        else Update();
+                    });
                 if (completed)
                 {
                     var assembledLength = new FileInfo(e.Destination).Length;
