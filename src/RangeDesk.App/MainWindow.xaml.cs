@@ -33,7 +33,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
 
-    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1);
+    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0);
 
     public MainWindow()
     {
@@ -180,7 +180,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 try
                 {
                     var item = _engine.Create(record.Url, record.Destination,
-                        record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1);
+                        record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1,
+                        record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0);
                     if (File.Exists(item.Destination))
                         item.Report(DownloadStatus.Completed,
                             new FileInfo(item.Destination).Length, new FileInfo(item.Destination).Length);
@@ -203,7 +204,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_catalogFile)!);
-            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections));
+            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps));
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
@@ -549,8 +550,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             int connections = ConnectionChoice?.SelectedItem is ComboBoxItem option &&
                               int.TryParse(option.Tag?.ToString(), out var parsed)
                 ? parsed : 8;
+            int bandwidth = BandwidthChoice?.SelectedItem is ComboBoxItem limit &&
+                            int.TryParse(limit.Tag?.ToString(), out var capped)
+                ? capped : 0;
             var item = _engine.Create(NewUrl.Text.Trim(), NewDestination.Text.Trim(), category,
-                NewLabels.Text.Trim(), connections);
+                NewLabels.Text.Trim(), connections, bandwidth);
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
             bool queued = QueueOnly.IsChecked == true;
