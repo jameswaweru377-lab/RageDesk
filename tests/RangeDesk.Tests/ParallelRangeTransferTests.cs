@@ -193,6 +193,61 @@ public sealed class ParallelRangeTransferTests
         Assert.Equal(total, expected);
     }
 
+    [Fact]
+    public async Task Temporary429Then206RetriesAndProducesExactOutput()
+    {
+        await InFolder(async folder =>
+        {
+            var requestCount = new ConcurrentDictionary<string, int>();
+            using var handler = new RangeHandler(request =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                var key = $"{range.From}-{range.To}";
+                int n = requestCount.AddOrUpdate(key, 1, (_, old) => old + 1);
+                if (n == 1)
+                {
+                    var busy = new HttpResponseMessage(HttpStatusCode.TooManyRequests);
+                    busy.Headers.RetryAfter = new RetryConditionHeaderValue(TimeSpan.Zero);
+                    return busy;
+                }
+                return ValidResponse(request);
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create("https://example.test/retry.iso",
+                Path.Combine(folder, "retry.iso"), connections: 4);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.All(requestCount.Values, n => Assert.Equal(2, n));
+            Assert.Equal(Source, await File.ReadAllBytesAsync(entry.Destination));
+        });
+    }
+
+    [Fact]
+    public async Task WorkerMetricsReflectTheActualRangeCounts()
+    {
+        await InFolder(async folder =>
+        {
+            using var handler = new RangeHandler(request => ValidResponse(request));
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create("https://example.test/metrics.iso",
+                Path.Combine(folder, "metrics.iso"), connections: 4);
+            entry.ReportWorkers(new[] { new WorkerMetric(0, 12, 100, 22, true) });
+            Assert.Single(entry.Workers);
+            Assert.Equal(12, entry.Workers[0].Received);
+            Assert.Equal(12.0, entry.Workers[0].Percent);
+            Assert.Equal("Downloading", entry.Workers[0].StateLabel);
+            entry.ReportWorkers(new[] { new WorkerMetric(0, 100, 100, 0, false) });
+            Assert.Equal("Completed", entry.Workers[0].StateLabel);
+            Assert.Equal(100, entry.Workers[0].Percent);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.Equal(4, entry.Workers.Count);
+            Assert.All(entry.Workers, w => Assert.Equal(100, w.Percent));
+        });
+    }
+
     private static HttpResponseMessage ValidResponse(HttpRequestMessage request,
         ConcurrentBag<(long From, long To)>? recorded = null)
     {
