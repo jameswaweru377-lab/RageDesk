@@ -6,6 +6,9 @@
         Background="{StaticResource V5CanvasBrush}" Foreground="{StaticResource V5TextBrush}"
         FontFamily="Segoe UI" FontSize="12">
   <Window.Resources>
+    <charts:LightStatusBackgroundConverter x:Key="LightStatusBackground"/>
+    <charts:LightStatusTextConverter x:Key="LightStatusText"/>
+    <charts:DownloadActionGlyphConverter x:Key="DownloadActionGlyph"/>
     <charts:FileIconConverter x:Key="FileIcon"/>
     <charts:FileIconColorConverter x:Key="FileIconColor"/>
     <charts:StatusColorConverter x:Key="StatusColor"/>
@@ -90,134 +93,292 @@
       </DockPanel>
     </Border>
 
-    <!-- RIGHT WORKSPACE -->
-    <Grid Grid.Column="1" Margin="15,16,15,14">
+    <!-- RIGHT WORKSPACE: the top downloads surface ONLY is light. Sidebar and
+         transfer inspector retain their existing dark layout unmodified. -->
+    <Grid Grid.Column="1" Margin="15,12,15,12">
       <Grid.RowDefinitions>
-        <RowDefinition Height="55"/><RowDefinition Height="56"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/>
+        <RowDefinition Height="48"/>
+        <RowDefinition Height="122"/>
+        <RowDefinition Height="57"/>
+        <RowDefinition Height="*" MinHeight="75"/>
+        <RowDefinition Height="Auto"/>
+        <RowDefinition Height="Auto"/>
       </Grid.RowDefinitions>
+      <Border Grid.Row="0" Grid.RowSpan="4" Background="{StaticResource V5LightCanvas}" CornerRadius="11" Margin="0,0,0,0"/>
 
-      <Border Grid.Row="0" CornerRadius="8" BorderThickness="1" BorderBrush="{StaticResource V5OutlineBrush}"
-              Background="{StaticResource V5SurfaceBrush}" Padding="11,8" Margin="0,0,0,7">
-        <DockPanel LastChildFill="True">
-          <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
-            <Button Click="Add_Click" Style="{StaticResource V5PrimaryButton}"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE710;" FontFamily="{StaticResource V5IconFont}" Margin="0,0,7,0" VerticalAlignment="Center"/><TextBlock Text="Add Download" VerticalAlignment="Center"/></StackPanel></Button>
-            <Button Click="Resume_Click" Style="{StaticResource V5ToolbarButton}"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE768;" FontFamily="{StaticResource V5IconFont}" Margin="0,0,7,0" VerticalAlignment="Center"/><TextBlock Text="Resume" VerticalAlignment="Center"/></StackPanel></Button>
-            <Button Click="Pause_Click" Style="{StaticResource V5ToolbarButton}"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE769;" FontFamily="{StaticResource V5IconFont}" Margin="0,0,7,0" VerticalAlignment="Center"/><TextBlock Text="Pause" VerticalAlignment="Center"/></StackPanel></Button>
-            <Button Click="Cancel_Click" Style="{StaticResource V5ToolbarButton}"><StackPanel Orientation="Horizontal"><TextBlock Text="&#xE71A;" FontFamily="{StaticResource V5IconFont}" Margin="0,0,7,0" VerticalAlignment="Center"/><TextBlock Text="Stop" VerticalAlignment="Center"/></StackPanel></Button>
-            <Button Click="Settings_Click" ToolTip="Settings" Style="{StaticResource V5ToolbarButton}"><TextBlock Text="&#xE713;" FontFamily="{StaticResource V5IconFont}" FontSize="15"/></Button>
+      <!-- Light command/header with genuine local mode (no false cloud sync). -->
+      <Border Grid.Row="0" Background="{StaticResource V5LightSurface}" CornerRadius="10,10,0,0"
+              BorderBrush="{StaticResource V5LightBorder}" BorderThickness="0,0,0,1" Padding="13,6">
+        <Grid>
+          <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="150"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Border Background="#F3F7FD" BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
+                  CornerRadius="7" Height="34" MaxWidth="540" HorizontalAlignment="Stretch">
+            <Grid Margin="11,0">
+              <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <TextBlock Text="&#xE721;" FontFamily="{StaticResource V5IconFont}" Foreground="{StaticResource V5LightMuted}" VerticalAlignment="Center" FontSize="13"/>
+              <TextBox x:Name="GlobalSearch" Grid.Column="1" Background="Transparent" Foreground="{StaticResource V5LightText}"
+                       BorderThickness="0" VerticalContentAlignment="Center" FontSize="12"
+                       TextChanged="Search_Changed" KeyDown="Search_KeyDown" ToolTip="Search downloads or paste a URL and press Enter"/>
+              <TextBlock x:Name="SearchHint" Grid.Column="1" IsHitTestVisible="False" VerticalAlignment="Center"
+                         Foreground="{StaticResource V5LightMuted}" FontSize="11" Text="Search downloads, files, or paste links..."/>
+              <Border Grid.Column="2" Background="#E7EEF9" CornerRadius="4" Padding="6,3" Margin="5,0,0,0"
+                      VerticalAlignment="Center"><TextBlock Text="Ctrl + L" Foreground="{StaticResource V5LightMuted}" FontSize="9"/></Border>
+            </Grid>
+          </Border>
+          <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
+            <Border Background="#EFF6FD" CornerRadius="6" Padding="8,5" Margin="0,0,8,0">
+              <StackPanel Orientation="Horizontal">
+                <TextBlock FontFamily="{StaticResource V5IconFont}" Text="&#xE753;" Foreground="#1684ED" Margin="0,0,5,0"/>
+                <TextBlock Text="Local only" FontSize="10" Foreground="{StaticResource V5LightMuted}"/>
+              </StackPanel>
+            </Border>
+            <Button Style="{StaticResource V5LightToolbarButton}" Click="Settings_Click" ToolTip="Settings" Padding="9,6">
+              <TextBlock Text="&#xE713;" FontFamily="{StaticResource V5IconFont}" Foreground="{StaticResource V5LightText}" FontSize="15"/>
+            </Button>
           </StackPanel>
-          <TextBox x:Name="GlobalSearch" VerticalAlignment="Center" MinWidth="180"
-                   TextChanged="Search_Changed" ToolTip="Search by filename or source"
-                   Style="{StaticResource V5Input}" Margin="0,0,15,0"/>
-        </DockPanel>
+        </Grid>
       </Border>
 
-      <Grid Grid.Row="1" Margin="5,6,5,11">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-          <TextBlock x:Name="ViewTitle" Text="Downloads" FontSize="25" FontWeight="Bold"/>
-          <TextBlock Text="{Binding Downloads.Count, StringFormat='{}{0} items'}" Foreground="{StaticResource V5AccentLightBrush}" Margin="12,9,0,0"/>
+      <!-- Greeting and metrics; vector scenery drawn locally, no online asset. -->
+      <Border Grid.Row="1" Margin="12,9,12,7" CornerRadius="11" ClipToBounds="True"
+              BorderBrush="#C9DDF8" BorderThickness="1">
+        <Border.Background>
+          <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+            <GradientStop Color="#F1F8FF" Offset="0"/>
+            <GradientStop Color="#D3E8FF" Offset="0.58"/>
+            <GradientStop Color="#9ACDFC" Offset="1"/>
+          </LinearGradientBrush>
+        </Border.Background>
+        <Grid>
+          <Canvas Opacity="0.28" IsHitTestVisible="False" ClipToBounds="True">
+            <Polygon Points="0,109 52,69 77,89 128,35 182,89 235,51 293,104 353,39 425,109 520,109"
+                     Fill="#8BB6EE"/>
+            <Polygon Points="0,109 80,83 118,98 188,60 251,109 355,67 420,107 560,109" Fill="#5D9FEC"/>
+            <Polygon Points="0,110 43,98 57,77 74,100 135,108 181,87 210,109 300,109 480,108"
+                     Fill="#3185D6" Opacity="0.47"/>
+            <Path Data="M0,112 C75,94 140,111 215,106 C320,98 380,105 520,110" Stroke="#0879DC" StrokeThickness="2"/>
+          </Canvas>
+          <Grid Margin="21,10,19,8">
+            <Grid.ColumnDefinitions>
+              <ColumnDefinition Width="2.1*" MinWidth="150"/>
+              <ColumnDefinition Width="1.05*" MinWidth="105"/>
+              <ColumnDefinition Width="1.0*" MinWidth="100"/>
+              <ColumnDefinition Width="1.25*" MinWidth="130"/>
+              <ColumnDefinition Width="1.08*" MinWidth="100"/>
+            </Grid.ColumnDefinitions>
+            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+              <TextBlock Text="{Binding GreetingText}" FontWeight="Bold" FontSize="18"
+                         Foreground="{StaticResource V5LightText}"/>
+              <TextBlock Text="{Binding ActiveSummaryLabel}" Foreground="#47618D" FontSize="11" Margin="0,5,0,0"/>
+              <TextBlock Text="YOUR DOWNLOADS" Foreground="#3475B7" FontSize="9"
+                         FontWeight="SemiBold" Margin="0,10,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="5,0">
+              <TextBlock Text="&#xE9D9;" Foreground="#107AF6" FontFamily="{StaticResource V5IconFont}" FontSize="20" Margin="0,0,8,0"/>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding AggregateSpeedLabel}" Foreground="{StaticResource V5LightText}" FontSize="13" FontWeight="Bold"/>
+                <TextBlock Text="Current speed" Foreground="{StaticResource V5LightMuted}" FontSize="10"/>
+              </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="4,0">
+              <TextBlock Text="&#xEDA2;" Foreground="#107AF6" FontFamily="{StaticResource V5IconFont}" FontSize="19" Margin="0,0,7,0"/>
+              <StackPanel>
+                <TextBlock Text="{Binding AggregateTotalSizeLabel}" Foreground="{StaticResource V5LightText}" FontWeight="Bold" FontSize="13"/>
+                <TextBlock Text="Total size" Foreground="{StaticResource V5LightMuted}" FontSize="10"/>
+              </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center" HorizontalAlignment="Center">
+              <Grid Width="57" Height="57">
+                <charts:ProgressRing Value="{Binding AggregateProgressPercent, Mode=OneWay}"/>
+                <TextBlock Text="{Binding AggregateProgressLabel}" Foreground="{StaticResource V5LightText}"
+                           FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+              </Grid>
+              <StackPanel VerticalAlignment="Center" Margin="9,0,0,0">
+                <TextBlock Text="{Binding AggregateProgressLabel}" Foreground="{StaticResource V5LightText}" FontWeight="Bold"/>
+                <TextBlock Text="Overall progress" Foreground="{StaticResource V5LightMuted}" FontSize="10"/>
+              </StackPanel>
+            </StackPanel>
+            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="6,0,0,0">
+              <TextBlock Text="&#xE9D2;" Foreground="#137CF9" FontFamily="{StaticResource V5IconFont}" FontSize="21" Margin="0,0,7,0"/>
+              <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding AggregateEtaLabel}" Foreground="{StaticResource V5LightText}" FontWeight="Bold" FontSize="13"/>
+                <TextBlock Text="Estimated time left" Foreground="{StaticResource V5LightMuted}" FontSize="10"/>
+              </StackPanel>
+            </StackPanel>
+          </Grid>
+        </Grid>
+      </Border>
+
+      <!-- Download status tabs and compact actions, styled like the supplied reference. -->
+      <Grid Grid.Row="2" Margin="12,3,12,5">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="275"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+        <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+          <TextBlock x:Name="ViewTitle" Text="Downloads" Visibility="Collapsed"/>
+          <Button x:Name="TabAll" Tag="all" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="All" Margin="0,0,5,0"/><TextBlock Text="{Binding DownloadsCount}"/></StackPanel>
+          </Button>
+          <Button x:Name="TabDownloading" Tag="Downloading" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="Downloading" Margin="0,0,5,0"/><TextBlock Text="{Binding DownloadingCount}"/></StackPanel>
+          </Button>
+          <Button x:Name="TabPaused" Tag="Paused" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="Paused" Margin="0,0,5,0"/><TextBlock Text="{Binding PausedCount}"/></StackPanel>
+          </Button>
+          <Button x:Name="TabQueued" Tag="Queued" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="Queued" Margin="0,0,5,0"/><TextBlock Text="{Binding PendingCount}"/></StackPanel>
+          </Button>
+          <Button x:Name="TabCompleted" Tag="Completed" Click="DownloadTab_Click" Style="{StaticResource V5LightTabButton}">
+            <StackPanel Orientation="Horizontal"><TextBlock Text="Completed" Margin="0,0,5,0"/><TextBlock Text="{Binding CompletedCount}"/></StackPanel>
+          </Button>
         </StackPanel>
-        <StackPanel Grid.Column="1" Orientation="Horizontal">
-          <ComboBox x:Name="StatusFilter" Style="{StaticResource V5Combo}" Width="140" SelectionChanged="Filters_Changed" SelectedIndex="0" Margin="0,0,7,0">
-            <ComboBoxItem Content="All statuses"/><ComboBoxItem Content="Downloading"/><ComboBoxItem Content="Paused"/>
-            <ComboBoxItem Content="Queued"/><ComboBoxItem Content="Completed"/><ComboBoxItem Content="Failed"/>
-            <ComboBoxItem Content="Canceled"/>
-          </ComboBox>
-          <ComboBox x:Name="CategoryFilter" Style="{StaticResource V5Combo}" Width="145" SelectedIndex="0" SelectionChanged="Filters_Changed" Margin="0,0,7,0">
-            <ComboBoxItem Content="All categories"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
-            <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/><ComboBoxItem Content="Other"/>
-          </ComboBox>
-          <ComboBox x:Name="LabelFilter" Style="{StaticResource V5Combo}" Width="115" SelectedIndex="0" SelectionChanged="Filters_Changed">
-            <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/>
-            <ComboBoxItem Content="Important"/>
-          </ComboBox>
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+          <Button Click="Add_Click" Style="{StaticResource V5LightPrimaryButton}" Margin="0,0,7,0" ToolTip="Create a new download">
+            <StackPanel Orientation="Horizontal">
+              <TextBlock Text="&#xE710;" FontFamily="{StaticResource V5IconFont}" Foreground="White" Margin="0,0,6,0"/>
+              <TextBlock Text="Add Download" Foreground="White"/>
+            </StackPanel>
+          </Button>
+          <Button Click="PasteLink_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Paste a URL into New Download">
+            <TextBlock Text="&#xE71B;" FontFamily="{StaticResource V5IconFont}" FontSize="14"/>
+          </Button>
+          <Button Click="Resume_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Resume selected">
+            <TextBlock Text="&#xE768;" FontFamily="{StaticResource V5IconFont}"/>
+          </Button>
+          <Button Click="Pause_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Pause selected">
+            <TextBlock Text="&#xE769;" FontFamily="{StaticResource V5IconFont}"/>
+          </Button>
+          <Button Click="OpenDownloadsFolder_Click" Style="{StaticResource V5LightToolbarButton}" Margin="0,0,6,0" ToolTip="Open Downloads folder">
+            <TextBlock Text="&#xE8B7;" FontFamily="{StaticResource V5IconFont}"/>
+          </Button>
+          <Button x:Name="MoreFiltersButton" Click="ToggleFilters_Click" Style="{StaticResource V5LightToolbarButton}" ToolTip="More download filters">
+            <TextBlock Text="&#xE10C;" FontFamily="{StaticResource V5IconFont}" FontSize="16"/>
+          </Button>
+          <Popup x:Name="ExtraFilters" PlacementTarget="{Binding ElementName=MoreFiltersButton}"
+                 Placement="Bottom" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+            <Border Background="White" BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
+                    CornerRadius="7" Padding="12" MinWidth="186">
+              <StackPanel>
+                <TextBlock Text="Filters" Foreground="{StaticResource V5LightText}" FontWeight="SemiBold" Margin="0,0,0,9"/>
+                <ComboBox x:Name="StatusFilter" Width="159" Style="{StaticResource V5Combo}" SelectionChanged="Filters_Changed" SelectedIndex="0" Margin="0,0,0,7">
+                  <ComboBoxItem Content="All statuses"/><ComboBoxItem Content="Downloading"/><ComboBoxItem Content="Paused"/>
+                  <ComboBoxItem Content="Queued"/><ComboBoxItem Content="Completed"/><ComboBoxItem Content="Failed"/>
+                  <ComboBoxItem Content="Canceled"/>
+                </ComboBox>
+                <ComboBox x:Name="CategoryFilter" Width="159" Style="{StaticResource V5Combo}" SelectedIndex="0" SelectionChanged="Filters_Changed" Margin="0,0,0,7">
+                  <ComboBoxItem Content="All categories"/><ComboBoxItem Content="Software"/><ComboBoxItem Content="Videos"/>
+                  <ComboBoxItem Content="Documents"/><ComboBoxItem Content="Archives"/><ComboBoxItem Content="Images"/><ComboBoxItem Content="Other"/>
+                </ComboBox>
+                <ComboBox x:Name="LabelFilter" Width="159" Style="{StaticResource V5Combo}" SelectedIndex="0" SelectionChanged="Filters_Changed">
+                  <ComboBoxItem Content="All labels"/><ComboBoxItem Content="Work"/><ComboBoxItem Content="Personal"/><ComboBoxItem Content="Important"/>
+                </ComboBox>
+              </StackPanel>
+            </Border>
+          </Popup>
         </StackPanel>
       </Grid>
 
-      <DataGrid x:Name="DownloadsGrid" Grid.Row="2"
+      <DataGrid x:Name="DownloadsGrid" Grid.Row="3" Margin="12,0,12,5" 
         ItemsSource="{Binding VisibleDownloads}" SelectedItem="{Binding SelectedDownload, Mode=TwoWay}"
-        Background="{StaticResource V5CanvasBrush}" Foreground="{StaticResource V5TextBrush}"
-        BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1"
-        HeadersVisibility="Column" GridLinesVisibility="None"
-        AutoGenerateColumns="False" IsReadOnly="True"
-        EnableRowVirtualization="True" EnableColumnVirtualization="True"
-        RowHeight="52" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
-        RowStyle="{StaticResource V5GridRow}" CellStyle="{StaticResource V5GridCell}"
+        Background="{StaticResource V5LightSurface}" Foreground="{StaticResource V5LightText}"
+        BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
+        HeadersVisibility="Column" GridLinesVisibility="None" ColumnHeaderStyle="{StaticResource V5LightHeader}"
+        AutoGenerateColumns="False" IsReadOnly="True" EnableRowVirtualization="True" EnableColumnVirtualization="True"
+        RowHeight="55" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
+        RowStyle="{StaticResource V5LightGridRow}" CellStyle="{StaticResource V5LightGridCell}"
         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
-        ScrollViewer.CanContentScroll="True" AlternatingRowBackground="{StaticResource V5SurfaceBrush}">
+        ScrollViewer.CanContentScroll="True" AlternatingRowBackground="#F9FBFE">
         <DataGrid.Resources>
-          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#123963"/>
-          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#123963"/>
-          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#F1F7FF"/>
-          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#F1F7FF"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#E7F2FF"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#E7F2FF"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#142B50"/>
+          <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#142B50"/>
         </DataGrid.Resources>
         <DataGrid.Columns>
-          <DataGridTemplateColumn Header="" Width="34" MinWidth="34">
-            <DataGridTemplateColumn.CellTemplate>
-              <DataTemplate>
-                <CheckBox HorizontalAlignment="Center" VerticalAlignment="Center" Width="16" Height="16"
-                  IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=TwoWay}"
-                  ToolTip="Select download"/>
-              </DataTemplate>
-            </DataGridTemplateColumn.CellTemplate>
+          <DataGridTemplateColumn Header="" Width="32" MinWidth="32">
+            <DataGridTemplateColumn.CellTemplate><DataTemplate>
+              <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=TwoWay}"
+                        HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Select download"/>
+            </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Header="NAME" Width="2.6*" MinWidth="185">
+          <DataGridTemplateColumn Header="Name" Width="2.6*" MinWidth="195">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="31" Height="31" CornerRadius="5" Background="{StaticResource V5ElevatedBrush}" Margin="0,0,9,0">
-                  <TextBlock Text="{Binding Name, Converter={StaticResource FileIcon}}"
+                <Border Width="32" Height="32" Background="#EEF4FC" CornerRadius="6" Margin="0,0,9,0">
+                  <TextBlock Text="{Binding Name, Converter={StaticResource FileIcon}}" 
                              Foreground="{Binding Name, Converter={StaticResource FileIconColor}}"
-                             FontFamily="{StaticResource V5IconFont}" FontSize="19"
-                             HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                             FontFamily="{StaticResource V5IconFont}" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
                 <StackPanel VerticalAlignment="Center" MinWidth="0">
-                  <TextBlock Text="{Binding Name}" Foreground="{StaticResource V5TextBrush}"
-                             FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
-                  <TextBlock Text="{Binding Host}" Foreground="{StaticResource V5MutedBrush}"
-                             FontSize="10" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                  <TextBlock Text="{Binding Name}" Foreground="{StaticResource V5LightText}"
+                             FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="325"/>
+                  <TextBlock Text="{Binding Host}" Foreground="{StaticResource V5LightMuted}" FontSize="10"
+                             TextTrimming="CharacterEllipsis" MaxWidth="325"/>
                 </StackPanel>
               </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Header="STATUS" Width="1*" MinWidth="95">
+          <DataGridTemplateColumn Header="Progress" Width="1.6*" MinWidth="140">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
-              <Border Background="{Binding Status, Converter={StaticResource StatusColor}}" Padding="8,4"
-                      HorizontalAlignment="Left" CornerRadius="5">
-                <TextBlock Text="{Binding Status}" Foreground="White" FontSize="11" FontWeight="SemiBold"/>
+              <Grid>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="47"/></Grid.ColumnDefinitions>
+                <ProgressBar Grid.Column="0" Style="{StaticResource V5LightProgress}" Margin="0,0,7,0"
+                             Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}"
+                             IsIndeterminate="{Binding IsIndeterminate, Mode=OneWay}" Maximum="100" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="1" Text="{Binding ProgressLabel}" Foreground="#1681F4"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="10"/>
+              </Grid>
+            </DataTemplate></DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTextColumn Header="Size" Binding="{Binding TransferredLabel}"
+                ElementStyle="{StaticResource V5LightGridText}" Width="1.4*" MinWidth="122"/>
+          <DataGridTextColumn Header="Speed" Binding="{Binding SpeedLabel}"
+                ElementStyle="{StaticResource V5LightGridText}" Width="1.0*" MinWidth="74"/>
+          <DataGridTextColumn Header="ETA" Binding="{Binding EtaLabel}"
+                ElementStyle="{StaticResource V5LightGridText}" Width=".85*" MinWidth="68"/>
+          <DataGridTemplateColumn Header="Status" Width="1.1*" MinWidth="104">
+            <DataGridTemplateColumn.CellTemplate><DataTemplate>
+              <Border Background="{Binding Status, Converter={StaticResource LightStatusBackground}}"
+                      HorizontalAlignment="Left" CornerRadius="6" Padding="8,5">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="●" FontSize="10" Margin="0,0,6,0" 
+                             Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
+                  <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold"
+                             Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
+                </StackPanel>
               </Border>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Header="PROGRESS" Width="1.4*" MinWidth="108">
+          <DataGridTemplateColumn Header="" Width="79" MinWidth="79">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
-              <StackPanel>
-                <ProgressBar Style="{StaticResource V5ProgressFixed}" Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}" IsIndeterminate="{Binding IsIndeterminate, Mode=OneWay}" Maximum="100" Height="6" Background="#203956" Foreground="{StaticResource V5AccentLightBrush}"/>
-                <TextBlock Text="{Binding ProgressLabel}" FontSize="10" Margin="0,3,0,0" Foreground="{StaticResource V5MutedBrush}"/>
+              <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Click="RowQuickAction_Click" Padding="6,4" Background="Transparent"
+                        BorderThickness="0" ToolTip="Pause, resume or open completed download">
+                  <TextBlock FontFamily="{StaticResource V5IconFont}" FontSize="12"
+                             Foreground="#3D5B88" Text="{Binding Status, Converter={StaticResource DownloadActionGlyph}}"/>
+                </Button>
+                <Button Click="RowMore_Click" Padding="6,4" Background="Transparent"
+                        BorderThickness="0" ToolTip="More actions">
+                  <TextBlock Text="&#xE10C;" FontFamily="{StaticResource V5IconFont}" FontSize="13"
+                             Foreground="#3D5B88"/>
+                </Button>
               </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTextColumn Header="SIZE" Binding="{Binding TransferredLabel}" ElementStyle="{StaticResource V5GridText}" Width="1.4*" MinWidth="105"/>
-          <DataGridTextColumn Header="SPEED" Binding="{Binding SpeedLabel}" ElementStyle="{StaticResource V5GridText}" Width="0.95*" MinWidth="82"/>
-          <DataGridTextColumn Header="ETA" Binding="{Binding EtaLabel}" ElementStyle="{StaticResource V5GridText}" Width="0.8*" MinWidth="66"/>
-          <DataGridTextColumn Header="CONNECTIONS" Binding="{Binding Connections}" ElementStyle="{StaticResource V5GridText}" Width="0.95*" MinWidth="80"/>
-          <DataGridTextColumn Header="ADDED" Binding="{Binding AddedAt, StringFormat='{}{0:MMM d HH:mm}'}" ElementStyle="{StaticResource V5GridText}" Width="1.0*" MinWidth="95"/>
         </DataGrid.Columns>
       </DataGrid>
 
-      <StackPanel x:Name="EmptyState" Grid.Row="2" HorizontalAlignment="Center" VerticalAlignment="Center"
-                  IsHitTestVisible="False" Margin="24" MaxWidth="470" TextElement.Foreground="{StaticResource V5MutedBrush}">
-        <Border Width="66" Height="66" CornerRadius="18" Background="{StaticResource V5ElevatedBrush}"
-                HorizontalAlignment="Center" Margin="0,0,0,17">
-          <TextBlock Text="↓" FontSize="33" FontWeight="Bold" Foreground="{StaticResource V5AccentLightBrush}"
+      <StackPanel x:Name="EmptyState" Grid.Row="3" HorizontalAlignment="Center" VerticalAlignment="Center"
+                  IsHitTestVisible="False" Margin="24" MaxWidth="470">
+        <Border Width="66" Height="66" CornerRadius="18" Background="#E9F2FE" HorizontalAlignment="Center" Margin="0,0,0,17">
+          <TextBlock Text="&#xE896;" FontFamily="{StaticResource V5IconFont}" FontSize="28" Foreground="#1686F4"
                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
-        <TextBlock Text="Ready for your next download" FontSize="20" FontWeight="SemiBold"
-                   Foreground="{StaticResource V5TextBrush}" HorizontalAlignment="Center"/>
-        <TextBlock Text="Add a direct HTTP or HTTPS link to get started. Your files, progress and download history stay on this device."
-                   TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0"/>
+        <TextBlock Text="Ready for your next download" FontSize="19" FontWeight="SemiBold"
+                   Foreground="{StaticResource V5LightText}" HorizontalAlignment="Center"/>
+        <TextBlock Text="Add a direct HTTP or HTTPS link to get started. Your files and download history stay on this device."
+                   Foreground="{StaticResource V5LightMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0"/>
       </StackPanel>
       <!-- Selected download inspector: no fictional connection graph -->
-      <Border x:Name="InspectorPanel" Grid.Row="3" Visibility="Collapsed" Height="322" Background="{StaticResource V5SurfaceBrush}"
+      <Border x:Name="InspectorPanel" Grid.Row="4" Visibility="Collapsed" Height="322" Background="{StaticResource V5SurfaceBrush}"
               BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1" CornerRadius="9"
               Margin="0,11,0,0" Padding="15">
         <Grid>
@@ -313,7 +474,7 @@
         </Grid>
       </Border>
 
-      <TextBlock Grid.Row="4" x:Name="StatusMessage" Foreground="{StaticResource V5MutedBrush}" Margin="3,8,0,0"
+      <TextBlock Grid.Row="5" x:Name="StatusMessage" Foreground="{StaticResource V5MutedBrush}" Margin="3,8,0,0"
                  Text="Ready. Local-first downloads • RangeDesk v5 preview"/>
     </Grid>
 
