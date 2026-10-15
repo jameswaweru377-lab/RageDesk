@@ -184,8 +184,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             category = selection;
         }
 
+        string? labelFilter = _labelNavigation;
+        if (LabelFilter?.SelectedItem is ComboBoxItem labelOption &&
+            labelOption.Content is string selectedLabel && selectedLabel != "All labels")
+        {
+            if (labelFilter is not null && !labelFilter.Equals(selectedLabel, StringComparison.OrdinalIgnoreCase))
+                return false;
+            labelFilter = selectedLabel;
+        }
         return DownloadListVisibility.Matches(item, _navigation, GlobalSearch?.Text,
-            status, category, _labelNavigation);
+            status, category, labelFilter);
     }
 
     private void RefreshFilter()
@@ -282,6 +290,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         ViewTitle.Text = addToQueue ? "Queue" : "Downloads";
         if (StatusFilter is not null) StatusFilter.SelectedIndex = 0;
         if (CategoryFilter is not null) CategoryFilter.SelectedIndex = 0;
+        if (LabelFilter is not null) LabelFilter.SelectedIndex = 0;
         if (GlobalSearch is not null) GlobalSearch.Clear();
         RefreshFilter();
     }
@@ -361,23 +370,30 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex) { FormError.Text = ex.Message; }
     }
 
+    private IReadOnlyList<DownloadEntry> ActionSelection()
+    {
+        if (DownloadsGrid?.SelectedItems is { Count: > 0 })
+            return DownloadsGrid.SelectedItems.OfType<DownloadEntry>().ToArray();
+        return SelectedDownload is null ? Array.Empty<DownloadEntry>() : [SelectedDownload];
+    }
+
     private void Pause_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedDownload is { } selected) _engine.Pause(selected);
+        foreach (var item in ActionSelection()) _engine.Pause(item);
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedDownload is { } selected) _engine.Cancel(selected);
+        foreach (var item in ActionSelection()) _engine.Cancel(item);
     }
 
     private void Resume_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedDownload is { } selected)
-        {
-            if (!_engine.Start(selected))
-                StatusMessage.Text = "Download is already running or has completed.";
-        }
+        int started = 0;
+        foreach (var item in ActionSelection())
+            if (_engine.Start(item)) started++;
+        if (started == 0) StatusMessage.Text = "No selected downloads could be started.";
+        else StatusMessage.Text = $"{started} download(s) started.";
     }
 
     private void OpenFile_Click(object sender, RoutedEventArgs e)
