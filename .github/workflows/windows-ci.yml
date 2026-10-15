@@ -1,0 +1,46 @@
+name: RangeDesk Windows build and tests
+
+on:
+  push:
+    branches: [main, "recover/**", "feature/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+      - name: Set up .NET SDK pinned by global.json
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+      - name: Restore solution
+        run: dotnet restore RangeDesk.slnx
+      - name: Run Windows tests
+        run: dotnet test RangeDesk.slnx --configuration Release --no-restore --logger "trx;LogFileName=RangeDesk.trx"
+      - name: Publish portable Windows build
+        run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
+      - name: Zip portable build
+        shell: pwsh
+        run: Compress-Archive -Path artifact/RangeDesk/* -DestinationPath artifact/RangeDesk-Preview-win-x64.zip -Force
+      - name: Upload portable EXE preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-Preview-win-x64
+          path: artifact/RangeDesk-Preview-win-x64.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-Test-Reports
+          path: "**/TestResults/*.trx"
+          if-no-files-found: ignore
+          retention-days: 7
