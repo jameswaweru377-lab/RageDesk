@@ -289,7 +289,7 @@
     <Setter Property="Margin" Value="0,0,6,0"/>
   </Style>
   <Style x:Key="V5LightGridRow" TargetType="{x:Type DataGridRow}">
-    <Setter Property="Height" Value="55"/>
+    <Setter Property="Height" Value="44"/>
     <Setter Property="Background" Value="{StaticResource V5LightSurface}"/>
     <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
     <Setter Property="BorderBrush" Value="#203854"/>
@@ -335,7 +335,7 @@
     <Setter Property="BorderBrush" Value="#203854"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="FontSize" Value="11"/>
-    <Setter Property="Height" Value="35"/>
+    <Setter Property="Height" Value="30"/>
     <Setter Property="FontWeight" Value="Normal"/>
     <Setter Property="Padding" Value="8,7"/>
   </Style>
