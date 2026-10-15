@@ -96,14 +96,14 @@ public sealed class LightStatusBackgroundConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         => value is DownloadStatus status ? status switch
         {
-            DownloadStatus.Downloading => "#DEECFF",
-            DownloadStatus.Completed => "#DDF8EA",
-            DownloadStatus.Queued => "#FFF0D8",
-            DownloadStatus.Paused => "#EBE9FA",
-            DownloadStatus.Failed => "#FFE2E5",
-            DownloadStatus.Canceled => "#F1F1F5",
-            _ => "#F1F1F5"
-        } : "#F1F1F5";
+            DownloadStatus.Downloading => "#173E71",
+            DownloadStatus.Completed => "#124D43",
+            DownloadStatus.Queued => "#593F20",
+            DownloadStatus.Paused => "#392F64",
+            DownloadStatus.Failed => "#653141",
+            DownloadStatus.Canceled => "#263B57",
+            _ => "#263B57"
+        } : "#263B57";
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
@@ -114,14 +114,14 @@ public sealed class LightStatusTextConverter : IValueConverter
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
         => value is DownloadStatus status ? status switch
         {
-            DownloadStatus.Downloading => "#166CDB",
-            DownloadStatus.Completed => "#07875C",
-            DownloadStatus.Queued => "#B66C19",
-            DownloadStatus.Paused => "#7353B4",
-            DownloadStatus.Failed => "#B3394F",
-            DownloadStatus.Canceled => "#65708B",
-            _ => "#65708B"
-        } : "#65708B";
+            DownloadStatus.Downloading => "#79B9FF",
+            DownloadStatus.Completed => "#6EE9B3",
+            DownloadStatus.Queued => "#FFD08A",
+            DownloadStatus.Paused => "#C6ABFF",
+            DownloadStatus.Failed => "#FF9BB0",
+            DownloadStatus.Canceled => "#B2C6E6",
+            _ => "#B2C6E6"
+        } : "#B2C6E6";
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
         => throw new NotSupportedException();
