@@ -236,6 +236,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
             if (new FileInfo(assembling).Length != state.Length)
                 throw new InvalidDataException("Assembled file length differs from the validated source.");
             token.ThrowIfCancellationRequested();
+            await Sha256Verification.VerifyAsync(assembling, entry.ExpectedSha256, token);
             File.Move(assembling, entry.Destination, false);
             // Deleting the journal is best effort after verified final rename.
             try { Directory.Delete(directory, recursive: true); } catch (IOException) { }
