@@ -445,11 +445,57 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void UpdateTabAppearance()
     {
         if (TabAll is null) return;
-        foreach (var tab in new[] { TabAll, TabDownloading, TabPaused, TabQueued, TabCompleted })
+        foreach (var tab in new[] { TabAll, TabDownloading, TabPaused, TabQueued, TabCompleted, TabFailed })
         {
             bool selected = (tab.Tag as string ?? "all").Equals(_downloadTab, StringComparison.OrdinalIgnoreCase);
             tab.Background = (Brush)FindResource(selected ? "V5LightBlue" : "V5LightCanvas");
             tab.Foreground = selected ? Brushes.White : (Brush)FindResource("V5LightText");
+        }
+    }
+
+    private bool _cardsView;
+    private void ListView_Click(object sender, RoutedEventArgs e) => SetViewMode(false);
+    private void CardsView_Click(object sender, RoutedEventArgs e) => SetViewMode(true);
+
+    private void SetViewMode(bool cards)
+    {
+        _cardsView = cards;
+        if (CardsPanel is not null) CardsPanel.Visibility = cards ? Visibility.Visible : Visibility.Collapsed;
+        if (DownloadsGrid is not null) DownloadsGrid.Visibility = cards ? Visibility.Collapsed : Visibility.Visible;
+        if (ListViewButton is not null)
+            ListViewButton.Background = (Brush)FindResource(cards ? "V5LightSurface" : "V5SelectedBrush");
+        if (CardsViewButton is not null)
+            CardsViewButton.Background = (Brush)FindResource(cards ? "V5SelectedBrush" : "V5LightSurface");
+    }
+
+    private void DownloadCard_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { DataContext: DownloadEntry entry }) return;
+        SelectedDownload = entry;
+        DownloadsGrid.SelectedItem = entry;
+    }
+
+    private void SortChooser_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (VisibleDownloads is null || !VisibleDownloads.CanSort || SortChooser is null) return;
+        using (VisibleDownloads.DeferRefresh())
+        {
+            VisibleDownloads.SortDescriptions.Clear();
+            switch (SortChooser.SelectedIndex)
+            {
+                case 1:
+                    VisibleDownloads.SortDescriptions.Add(
+                        new SortDescription(nameof(DownloadEntry.AddedAt), ListSortDirection.Descending));
+                    break;
+                case 2:
+                    VisibleDownloads.SortDescriptions.Add(
+                        new SortDescription(nameof(DownloadEntry.Name), ListSortDirection.Ascending));
+                    break;
+                case 3:
+                    VisibleDownloads.SortDescriptions.Add(
+                        new SortDescription(nameof(DownloadEntry.BytesPerSecond), ListSortDirection.Descending));
+                    break;
+            }
         }
     }
 
