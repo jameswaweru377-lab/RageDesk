@@ -638,6 +638,9 @@
                   <ComboBoxItem Content="16 connections" Tag="16"/>
                   <ComboBoxItem Content="32 connections" Tag="32"/>
                 </ComboBox>
+                <CheckBox x:Name="AdaptiveWorkers" IsChecked="False"
+                          Content="Adaptive slow-worker redistribution (experimental)" Margin="0,0,0,10"
+                          ToolTip="Dynamically divides slow remaining ranges so idle workers can assist. Opt in only after testing."/>
                 <TextBlock Text="Uses multiple validated byte ranges only when the server supports HTTP 206 and a strong ETag; otherwise safely downloads with one connection. Your selected maximum is not a guarantee."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,10"/>
                 <TextBlock Text="Download speed limit" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
