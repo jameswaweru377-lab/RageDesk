@@ -26,6 +26,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _categoryNavigation;
     private DownloadEntry? _selected;
     private string? _labelNavigation;
+    private string? _siteNavigation;
     private bool _sidebarCollapsed;
     private readonly Dictionary<Guid, DownloadStatus> _lastStatuses = new();
 
@@ -137,6 +138,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public int WorkCount => LabelCount("Work");
     public int PersonalCount => LabelCount("Personal");
     public int ImportantCount => LabelCount("Important");
+    public int MicrosoftCount => SiteCount("Microsoft");
+    public int GitHubCount => SiteCount("GitHub");
+    public int GoogleDriveCount => SiteCount("Google Drive");
+    public int YouTubeCount => SiteCount("YouTube");
+    private int SiteCount(string site) => Downloads.Count(d => SitePresets.Matches(d.Host, site));
 
     private int CategoryCount(string name) => Downloads.Count(
         d => string.Equals(d.Category, name, StringComparison.OrdinalIgnoreCase));
@@ -151,7 +157,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
-            nameof(WorkCount), nameof(PersonalCount), nameof(ImportantCount) })
+            nameof(WorkCount), nameof(PersonalCount), nameof(ImportantCount),
+            nameof(MicrosoftCount), nameof(GitHubCount), nameof(GoogleDriveCount), nameof(YouTubeCount) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
     public DownloadEntry? SelectedDownload
@@ -276,6 +283,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (!Enum.TryParse<DownloadStatus>(_downloadTab, true, out var tabStatus)
                 || item.Status != tabStatus) return false;
         }
+        if (_siteNavigation is not null && !SitePresets.Matches(item.Host, _siteNavigation))
+            return false;
         return DownloadListVisibility.Matches(item, _navigation, GlobalSearch?.Text,
             status, category, labelFilter);
     }
@@ -291,9 +300,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 if (button.Tag is not string tag || !button.IsEnabled) continue;
                 bool selected = (_categoryNavigation is null && _labelNavigation is null &&
-                                 tag == _navigation)
+                                 _siteNavigation is null && tag == _navigation)
                              || (_categoryNavigation is not null && tag == _categoryNavigation)
-                             || (_labelNavigation is not null && tag == _labelNavigation);
+                             || (_labelNavigation is not null && tag == _labelNavigation)
+                             || (_siteNavigation is not null && tag == _siteNavigation);
                 button.Background = selected
                     ? (System.Windows.Media.Brush)FindResource("V5SelectedBrush")
                     : System.Windows.Media.Brushes.Transparent;
@@ -311,6 +321,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _downloadTab = "all";
         _categoryNavigation = null;
         _labelNavigation = null;
+        _siteNavigation = null;
         ViewTitle.Text = _navigation == "completed" ? "Completed" :
             _navigation == "queue" ? "Queue" : "Downloads";
         RefreshFilter();
@@ -323,6 +334,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _downloadTab = "all";
         _categoryNavigation = button.Tag as string;
         _labelNavigation = null;
+        _siteNavigation = null;
         ViewTitle.Text = _categoryNavigation ?? "Downloads";
         RefreshFilter();
     }
@@ -334,7 +346,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _downloadTab = "all";
         _categoryNavigation = null;
         _labelNavigation = button.Tag as string;
+        _siteNavigation = null;
         ViewTitle.Text = _labelNavigation is null ? "Downloads" : "Label: " + _labelNavigation;
+        RefreshFilter();
+    }
+
+    private void SitePreset_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button button) return;
+        _siteNavigation = button.Tag as string;
+        _navigation = "all";
+        _downloadTab = "all";
+        _categoryNavigation = null;
+        _labelNavigation = null;
+        ViewTitle.Text = _siteNavigation ?? "Downloads";
         RefreshFilter();
     }
 
@@ -376,6 +401,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _downloadTab = addToQueue ? "Queued" : "all";
         _categoryNavigation = null;
         _labelNavigation = null;
+        _siteNavigation = null;
         ViewTitle.Text = addToQueue ? "Queue" : "Downloads";
         if (StatusFilter is not null) StatusFilter.SelectedIndex = 0;
         if (CategoryFilter is not null) CategoryFilter.SelectedIndex = 0;
@@ -409,6 +435,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _navigation = "all";
         _categoryNavigation = null;
         _labelNavigation = null;
+        _siteNavigation = null;
         if (StatusFilter is not null) StatusFilter.SelectedIndex = 0;
         RefreshFilter();
     }
