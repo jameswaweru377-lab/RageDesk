@@ -1,0 +1,193 @@
+using System.Collections.Concurrent;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using System.Text.Json;
+using RangeDesk.Core;
+using Xunit;
+
+namespace RangeDesk.Tests;
+
+public sealed class ParallelRangeTransferTests
+{
+    private static readonly byte[] Source = Enumerable.Range(0, 3_400_000)
+        .Select(i => (byte)((i * 73 + 17) % 251)).ToArray();
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    public async Task ParallelTransferAssemblesExactBytesAndRemovesSegmentJournal(int workers)
+    {
+        await InFolder(async folder =>
+        {
+            var ranges = new ConcurrentBag<(long From, long To)>();
+            using var handler = new RangeHandler(request => ValidResponse(request, ranges));
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var download = engine.Create("https://example.test/archive.iso",
+                Path.Combine(folder, "archive.iso"), connections: workers);
+            Assert.True(engine.Start(download));
+            await Wait(download);
+            Assert.Equal(DownloadStatus.Completed, download.Status);
+            Assert.Equal(Source.Length, download.Received);
+            Assert.Equal(SHA256.HashData(Source),
+                SHA256.HashData(await File.ReadAllBytesAsync(download.Destination)));
+            Assert.False(Directory.Exists(download.Destination + ".rdsegments"));
+            Assert.True(ranges.Count >= workers);
+            Assert.Equal(0, ranges.Count(r => r.From < 0 || r.To >= Source.Length || r.To < r.From));
+        });
+    }
+
+    [Fact]
+    public async Task ExistingSegmentsResumeFromTheirOwnOffsetsAndCannotOverwriteOtherRanges()
+    {
+        await InFolder(async folder =>
+        {
+            string destination = Path.Combine(folder, "resumed.zip");
+            string url = "https://example.test/resumed.zip";
+            string stateDir = destination + ".rdsegments";
+            Directory.CreateDirectory(stateDir);
+            await File.WriteAllTextAsync(Path.Combine(stateDir, "manifest.json"),
+                JsonSerializer.Serialize(new
+                {
+                    Url = url, Length = (long)Source.Length,
+                    ETag = "\"stable-v1\"", Connections = 4
+                }));
+            var (start0, end0) = ParallelRangeTransfer.SegmentBounds(Source.Length, 4, 0);
+            var (start1, end1) = ParallelRangeTransfer.SegmentBounds(Source.Length, 4, 1);
+            await File.WriteAllBytesAsync(Path.Combine(stateDir, "00.part"),
+                Source[(int)start0..((int)end0 + 1)]);
+            await File.WriteAllBytesAsync(Path.Combine(stateDir, "01.part"),
+                Source[(int)start1..((int)start1 + 9000)]);
+            var requests = new ConcurrentBag<long>();
+            using var handler = new RangeHandler(request =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                requests.Add(range.From!.Value);
+                Assert.Equal("\"stable-v1\"", request.Headers.IfRange?.EntityTag?.ToString());
+                return ValidResponse(request);
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var download = engine.Create(url, destination, connections: 4);
+            engine.Start(download);
+            await Wait(download);
+            Assert.Equal(DownloadStatus.Completed, download.Status);
+            Assert.Contains(start1 + 9000, requests);
+            Assert.DoesNotContain(start0, requests); // the already complete first part is untouched
+            Assert.Equal(Source, await File.ReadAllBytesAsync(destination));
+            Assert.False(Directory.Exists(stateDir));
+        });
+    }
+
+    [Fact]
+    public async Task StrongValidatorMismatchDoesNotPublishIncompleteFile()
+    {
+        await InFolder(async folder =>
+        {
+            using var handler = new RangeHandler(request =>
+            {
+                var response = ValidResponse(request);
+                var range = request.Headers.Range!.Ranges.Single();
+                if (range.From != 0) response.Headers.ETag = EntityTagHeaderValue.Parse("\"changed-v2\"");
+                return response;
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var download = engine.Create("https://example.test/file.iso",
+                Path.Combine(folder, "failed.iso"), connections: 4);
+            engine.Start(download);
+            await Wait(download);
+            Assert.Equal(DownloadStatus.Failed, download.Status);
+            Assert.False(File.Exists(download.Destination));
+            Assert.True(Directory.Exists(download.Destination + ".rdsegments"));
+        });
+    }
+
+    [Fact]
+    public async Task MissingValidatorSafelyFallsBackToDirectStream()
+    {
+        await InFolder(async folder =>
+        {
+            int probes = 0, direct = 0;
+            using var handler = new RangeHandler(request =>
+            {
+                if (request.Headers.Range is not null)
+                {
+                    Interlocked.Increment(ref probes);
+                    var response = ValidResponse(request);
+                    response.Headers.ETag = null;
+                    return response;
+                }
+                Interlocked.Increment(ref direct);
+                return new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(Source) };
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var download = engine.Create("https://example.test/unverifiable.bin",
+                Path.Combine(folder, "unverifiable.bin"), connections: 8);
+            engine.Start(download);
+            await Wait(download);
+            Assert.Equal(DownloadStatus.Completed, download.Status);
+            Assert.Equal(1, probes);
+            Assert.Equal(1, direct);
+            Assert.Equal(Source, await File.ReadAllBytesAsync(download.Destination));
+            Assert.False(Directory.Exists(download.Destination + ".rdsegments"));
+        });
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(4)]
+    [InlineData(8)]
+    [InlineData(16)]
+    [InlineData(32)]
+    public void FixedSegmentBoundsCoverFileExactlyWithoutOverlap(int connections)
+    {
+        const long total = 39_123_231;
+        long expected = 0;
+        for (int i = 0; i < connections; i++)
+        {
+            var (first, last) = ParallelRangeTransfer.SegmentBounds(total, connections, i);
+            Assert.Equal(expected, first);
+            Assert.True(last >= first);
+            expected = last + 1;
+        }
+        Assert.Equal(total, expected);
+    }
+
+    private static HttpResponseMessage ValidResponse(HttpRequestMessage request,
+        ConcurrentBag<(long From, long To)>? recorded = null)
+    {
+        var range = request.Headers.Range!.Ranges.Single();
+        long first = range.From!.Value;
+        long last = range.To ?? Source.LongLength - 1;
+        recorded?.Add((first, last));
+        var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
+        response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v1\"");
+        response.Content = new ByteArrayContent(Source[(int)first..((int)last + 1)]);
+        response.Content.Headers.ContentRange = new ContentRangeHeaderValue(first, last, Source.Length);
+        return response;
+    }
+
+    private static async Task Wait(DownloadEntry entry)
+    {
+        for (int i = 0; i < 250; i++)
+        {
+            if (entry.Status is DownloadStatus.Completed or DownloadStatus.Failed) return;
+            await Task.Delay(40);
+        }
+        throw new TimeoutException("Segment transfer did not complete.");
+    }
+
+    private static async Task InFolder(Func<string, Task> action)
+    {
+        string folder = Path.Combine(Path.GetTempPath(), "RangeDeskParallel-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(folder);
+        try { await action(folder); }
+        finally { Directory.Delete(folder, true); }
+    }
+
+    private sealed class RangeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken token)
+            => Task.FromResult(respond(request));
+    }
+}
