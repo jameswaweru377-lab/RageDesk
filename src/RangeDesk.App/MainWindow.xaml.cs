@@ -62,6 +62,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public int DownloadingCount => Downloads.Count(d => d.Status == DownloadStatus.Downloading);
     public int PausedCount => Downloads.Count(d => d.Status == DownloadStatus.Paused);
     public int PendingCount => Downloads.Count(d => d.Status == DownloadStatus.Queued);
+    public int FailedCount => Downloads.Count(d => d.Status == DownloadStatus.Failed);
 
     public string GreetingText => DateTime.Now.Hour switch
     {
@@ -155,7 +156,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         foreach (var property in new[] {
             nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount),
-            nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount),
+            nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount), nameof(FailedCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
             nameof(WorkCount), nameof(PersonalCount), nameof(ResearchCount), nameof(ImportantCount),
@@ -377,7 +378,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ToggleSidebar_Click(object sender, RoutedEventArgs e)
     {
         _sidebarCollapsed = !_sidebarCollapsed;
-        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 62 : 224);
+        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 55 : 202);
         SidebarBrand.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SidebarBrandIcon.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
 
