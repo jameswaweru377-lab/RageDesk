@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using System.Collections.ObjectModel;
 using System.Runtime.CompilerServices;
 
 namespace RangeDesk.Core;
@@ -15,6 +16,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private int _connections;
     private string? _error;
     private readonly List<double> _speedSamples = new(64);
+    private readonly ObservableCollection<string> _events = new();
 
     public DownloadEntry(string url, string destination, string category = "Other", string labels = "")
     {
@@ -24,6 +26,8 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         Category = category;
         Labels = labels;
         AddedAt = DateTimeOffset.Now;
+        Events = new ReadOnlyObservableCollection<string>(_events);
+        _events.Add($"{DateTime.Now:HH:mm:ss}  Added to downloads");
     }
 
     public Guid Id { get; }
@@ -42,6 +46,8 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public string? Error => _error;
     /// <summary>Most recent measured receive-rate samples, bytes per second, max 60.</summary>
     public IReadOnlyList<double> SpeedSamples => _speedSamples;
+    /// <summary>Locally held state changes only; never includes signed URLs, tokens or headers.</summary>
+    public ReadOnlyObservableCollection<string> Events { get; private set; } = null!;
     public double? Percent => _total is > 0 ? Math.Min(100, 100.0 * _received / _total.Value) : null;
     public bool IsIndeterminate => _total is null && _status == DownloadStatus.Downloading;
     public string ProgressLabel => Percent is double p ? $"{p:0.0}%" : "—";
@@ -70,6 +76,11 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public void Report(DownloadStatus status, long received, long? total,
         double bytesPerSecond = 0, int activeConnections = 0, string? error = null)
     {
+        if (_status != status)
+        {
+            _events.Add($"{DateTime.Now:HH:mm:ss}  {status}");
+            if (_events.Count > 100) _events.RemoveAt(0);
+        }
         _status = status;
         _received = Math.Max(0, received);
         _total = total;
