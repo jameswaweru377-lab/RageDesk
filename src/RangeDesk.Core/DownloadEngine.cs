@@ -183,10 +183,32 @@ public sealed class DownloadEngine : IDisposable
                 if (received > 0) output.Seek(received, SeekOrigin.Begin);
                 await using var input = await response.Content.ReadAsStreamAsync(token);
                 byte[] buffer = new byte[131072];
-                long reported = received;
-                var watch = Stopwatch.StartNew();
-                var lastSample = watch.Elapsed;
-                double rate = 0;
+                // Network receive rate is independent of checkpoint flushes.
+                // A 500 ms timer samples even during stalled reads, while an
+                // 8 second rolling window smooths normal TCP bursts.
+                long measuredReceived = received;
+                using var telemetryStop = new CancellationTokenSource();
+                var estimator = new DownloadRateEstimator();
+                long startingBytes = received;
+                var telemetryWatch = Stopwatch.StartNew();
+                estimator.Update(TimeSpan.Zero, 0);
+                var telemetry = Task.Run(async () =>
+                {
+                    using var ticks = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
+                    try
+                    {
+                        while (await ticks.WaitForNextTickAsync(telemetryStop.Token))
+                        {
+                            var observed = Math.Max(0, Interlocked.Read(ref measuredReceived) - startingBytes);
+                            double rollingRate = estimator.Update(telemetryWatch.Elapsed, observed);
+                            Publish(e, DownloadStatus.Downloading,
+                                Interlocked.Read(ref measuredReceived), expected, rollingRate, 1);
+                        }
+                    }
+                    catch (OperationCanceledException) when (telemetryStop.IsCancellationRequested) { }
+                });
+                try
+                {
                 while (true)
                 {
                     int count = await input.ReadAsync(buffer, token);
@@ -195,17 +217,16 @@ public sealed class DownloadEngine : IDisposable
                         throw new InvalidDataException("The server sent more bytes than declared.");
                     await output.WriteAsync(buffer.AsMemory(0, count), token);
                     received += count;
-                    if ((watch.Elapsed - lastSample).TotalMilliseconds >= 400)
-                    {
-                        double interval = Math.Max(0.001, (watch.Elapsed - lastSample).TotalSeconds);
-                        rate = (received - reported) / interval;
-                        reported = received;
-                        lastSample = watch.Elapsed;
-                        Publish(e, DownloadStatus.Downloading, received, expected, rate, 1);
-                    }
+                    Interlocked.Exchange(ref measuredReceived, received);
                 }
                 await output.FlushAsync(token);
                 output.Flush(flushToDisk: true);
+                }
+                finally
+                {
+                    telemetryStop.Cancel();
+                    await telemetry;
+                }
             }
 
             if (expected is long length && received != length)
