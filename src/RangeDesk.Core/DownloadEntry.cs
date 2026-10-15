@@ -19,14 +19,18 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private readonly ObservableCollection<string> _events = new();
     private readonly ObservableCollection<DownloadWorkerState> _workers = new();
 
-    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0)
+    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null)
     {
         if (connections is not (1 or 2 or 4 or 8 or 16 or 32))
             throw new ArgumentOutOfRangeException(nameof(connections));
         if (bandwidthKiBps < 0 || bandwidthKiBps > 1024 * 1024)
             throw new ArgumentOutOfRangeException(nameof(bandwidthKiBps));
+        if (expectedSha256 is { Length: > 0 } &&
+            (expectedSha256.Length != 64 || expectedSha256.Any(c => !Uri.IsHexDigit(c))))
+            throw new ArgumentException("SHA-256 must contain 64 hexadecimal characters.", nameof(expectedSha256));
         RequestedConnections = connections;
         BandwidthKiBps = bandwidthKiBps;
+        ExpectedSha256 = string.IsNullOrWhiteSpace(expectedSha256) ? null : expectedSha256.ToUpperInvariant();
         Id = Guid.NewGuid();
         Url = url;
         Destination = destination;
@@ -40,6 +44,9 @@ public sealed class DownloadEntry : INotifyPropertyChanged
 
     public int RequestedConnections { get; }
     public int BandwidthKiBps { get; }
+    public string? ExpectedSha256 { get; }
+    public string ChecksumLabel => ExpectedSha256 is null ? "Not configured" :
+        Status == DownloadStatus.Completed ? "SHA-256 verified" : "SHA-256 required";
     public Guid Id { get; }
     public string Url { get; }
     public string Destination { get; }
