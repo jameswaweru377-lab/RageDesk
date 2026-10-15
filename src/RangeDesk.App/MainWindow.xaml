@@ -765,7 +765,7 @@
                   </Grid>
                   <TextBlock Text="Save to" Foreground="{StaticResource V5MutedBrush}"/>
                   <Grid Margin="0,7,0,15"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                    <TextBox x:Name="NewDestination" Style="{StaticResource V5Input}"/>
+                    <TextBox x:Name="NewDestination" Style="{StaticResource V5Input}" TextChanged="Destination_Changed"/>
                     <Button Grid.Column="1" Content="Browse…" Click="Browse_Click" Style="{StaticResource V5ToolbarButton}" Margin="8,0,0,0"/>
                   </Grid>
                   <TextBlock Text="File name" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
