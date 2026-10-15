@@ -7,9 +7,8 @@ using System.Text.Json;
 namespace RangeDesk.Core;
 
 /// <summary>
-/// Independent HTTP/HTTPS transfer implementation for the first v5 preview.
-/// One actual connection per active item. Parallel range scheduling is not yet enabled.
-/// Incompatible partials are restarted safely rather than appended.
+/// Independent HTTP/HTTPS transfer implementation with validated optional parallel
+/// segments, single-stream fallback, and protected local partial files.
 /// </summary>
 public sealed class DownloadEngine : IDisposable
 {
@@ -17,6 +16,8 @@ public sealed class DownloadEngine : IDisposable
     private readonly SemaphoreSlim _slots = new(2, 2);
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _active = new();
     private readonly ConcurrentDictionary<Guid, DownloadStatus> _stopIntent = new();
+    private readonly ConcurrentDictionary<string, Guid> _claimedPaths =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly SynchronizationContext? _ui;
 
     private sealed record PartialMetadata(string Url, long? TotalBytes, string? StrongETag);
@@ -27,7 +28,8 @@ public sealed class DownloadEngine : IDisposable
         {
             AutomaticDecompression = DecompressionMethods.None,
             AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5
+            MaxAutomaticRedirections = 5,
+            MaxConnectionsPerServer = 40
         });
         _http.Timeout = Timeout.InfiniteTimeSpan;
     }
@@ -40,20 +42,26 @@ public sealed class DownloadEngine : IDisposable
             && u.Host.Length > 0;
     }
 
-    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "")
+    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1)
     {
         if (!IsAllowedUrl(url)) throw new ArgumentException("Enter a valid HTTP or HTTPS download URL without credentials.");
         if (string.IsNullOrWhiteSpace(destination) || !Path.IsPathFullyQualified(destination))
             throw new ArgumentException("Choose a complete local filename for the download.");
-        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels);
+        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections);
     }
 
     public bool Start(DownloadEntry entry)
     {
         if (entry.Status is DownloadStatus.Downloading or DownloadStatus.Completed) return false;
         var cts = new CancellationTokenSource();
+        if (!_claimedPaths.TryAdd(entry.Destination, entry.Id))
+        {
+            cts.Dispose();
+            return false; // never allow two writers for the same path
+        }
         if (!_active.TryAdd(entry.Id, cts))
         {
+            _claimedPaths.TryRemove(entry.Destination, out _);
             cts.Dispose();
             return false;
         }
@@ -101,6 +109,21 @@ public sealed class DownloadEngine : IDisposable
 
             if (File.Exists(e.Destination))
                 throw new IOException("The destination already exists. Choose a different filename; existing files are never overwritten.");
+
+            if (e.RequestedConnections > 1)
+            {
+                var parallel = new ParallelRangeTransfer(_http);
+                bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections,
+                    (bytes, total, speed, workers) =>
+                        Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
+                    token);
+                if (completed)
+                {
+                    var length = new FileInfo(e.Destination).Length;
+                    Publish(e, DownloadStatus.Completed, length, length);
+                    return;
+                }
+            }
 
             string? validator = null;
             if (File.Exists(partial) && File.Exists(journal))
@@ -249,6 +272,7 @@ public sealed class DownloadEngine : IDisposable
         {
             if (slotTaken) _slots.Release();
             _active.TryRemove(e.Id, out _);
+            _claimedPaths.TryRemove(e.Destination, out _);
             _stopIntent.TryRemove(e.Id, out _);
             cts.Dispose();
         }
