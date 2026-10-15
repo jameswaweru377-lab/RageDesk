@@ -338,13 +338,14 @@
         </StackPanel>
       </Grid>
 
-      <DataGrid x:Name="DownloadsGrid" Grid.Row="3" Margin="12,0,12,5" 
+      <!-- Compact approved list: real status, segmented progress, measured workers. -->
+      <DataGrid x:Name="DownloadsGrid" Grid.Row="3" Margin="12,0,12,4"
         ItemsSource="{Binding VisibleDownloads}" SelectedItem="{Binding SelectedDownload, Mode=TwoWay}"
         Background="{StaticResource V5LightSurface}" Foreground="{StaticResource V5LightText}"
         BorderBrush="{StaticResource V5LightBorder}" BorderThickness="1"
         HeadersVisibility="Column" GridLinesVisibility="None" ColumnHeaderStyle="{StaticResource V5LightHeader}"
         AutoGenerateColumns="False" IsReadOnly="True" EnableRowVirtualization="True" EnableColumnVirtualization="True"
-        RowHeight="55" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
+        RowHeight="44" CanUserAddRows="False" SelectionMode="Extended" SelectionUnit="FullRow"
         RowStyle="{StaticResource V5LightGridRow}" CellStyle="{StaticResource V5LightGridCell}"
         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"
         ScrollViewer.CanContentScroll="True" AlternatingRowBackground="#112741">
@@ -355,71 +356,82 @@
           <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#F0F6FF"/>
         </DataGrid.Resources>
         <DataGrid.Columns>
-          <DataGridTemplateColumn Header="" Width="32" MinWidth="32">
+          <DataGridTemplateColumn Header="" Width="29" MinWidth="29">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <CheckBox IsChecked="{Binding IsSelected, RelativeSource={RelativeSource AncestorType=DataGridRow}, Mode=TwoWay}"
                         HorizontalAlignment="Center" VerticalAlignment="Center" ToolTip="Select download"/>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Header="Name" Width="2.6*" MinWidth="195">
+          <DataGridTemplateColumn Header="Name" Width="2.25*" MinWidth="175">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                <Border Width="32" Height="32" Background="#1D3A5B" CornerRadius="6" Margin="0,0,9,0">
-                  <TextBlock Text="{Binding Name, Converter={StaticResource FileIcon}}" 
+                <Border Width="28" Height="28" Background="#1D3A5B" CornerRadius="5" Margin="0,0,7,0">
+                  <TextBlock Text="{Binding Name, Converter={StaticResource FileIcon}}"
                              Foreground="{Binding Name, Converter={StaticResource FileIconColor}}"
-                             FontFamily="{StaticResource V5IconFont}" FontSize="19" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                             FontFamily="{StaticResource V5IconFont}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
-                <StackPanel VerticalAlignment="Center" MinWidth="0">
+                <StackPanel VerticalAlignment="Center">
                   <TextBlock Text="{Binding Name}" Foreground="{StaticResource V5LightText}"
-                             FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="325"/>
-                  <TextBlock Text="{Binding Host}" Foreground="{StaticResource V5LightMuted}" FontSize="10"
-                             TextTrimming="CharacterEllipsis" MaxWidth="325"/>
+                             FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="245"/>
+                  <TextBlock Text="{Binding Host}" Foreground="{StaticResource V5LightMuted}" FontSize="9"
+                             TextTrimming="CharacterEllipsis" MaxWidth="245"/>
                 </StackPanel>
               </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Header="Progress" Width="1.6*" MinWidth="140">
+          <DataGridTemplateColumn Header="Status" Width="1.03*" MinWidth="98">
+            <DataGridTemplateColumn.CellTemplate><DataTemplate>
+              <Border Background="{Binding Status, Converter={StaticResource LightStatusBackground}}"
+                      HorizontalAlignment="Left" CornerRadius="8" Padding="6,3">
+                <StackPanel Orientation="Horizontal">
+                  <TextBlock Text="●" FontSize="9" Margin="0,0,5,0"
+                             Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
+                  <TextBlock Text="{Binding Status}" FontSize="10"
+                             Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
+                </StackPanel>
+              </Border>
+            </DataTemplate></DataGridTemplateColumn.CellTemplate>
+          </DataGridTemplateColumn>
+          <DataGridTemplateColumn Header="Progress" Width="1.45*" MinWidth="123">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="47"/></Grid.ColumnDefinitions>
-                <ProgressBar Grid.Column="0" Style="{StaticResource V5LightProgress}" Margin="0,0,7,0"
-                             Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}"
-                             IsIndeterminate="{Binding IsIndeterminate, Mode=OneWay}" Maximum="100" VerticalAlignment="Center"/>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="38"/></Grid.ColumnDefinitions>
+                <charts:SegmentedProgress Grid.Column="0" Value="{Binding Percent, Mode=OneWay, TargetNullValue=0}"
+                                          SegmentCount="12" Height="8" Margin="0,0,5,0" VerticalAlignment="Center"/>
                 <TextBlock Grid.Column="1" Text="{Binding ProgressLabel}" Foreground="#49AEFF"
                            VerticalAlignment="Center" HorizontalAlignment="Right" FontSize="10"/>
               </Grid>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
           <DataGridTextColumn Header="Size" Binding="{Binding TransferredLabel}"
-                ElementStyle="{StaticResource V5LightGridText}" Width="1.4*" MinWidth="122"/>
+                ElementStyle="{StaticResource V5LightGridText}" Width="1.35*" MinWidth="130"/>
           <DataGridTextColumn Header="Speed" Binding="{Binding SpeedLabel}"
-                ElementStyle="{StaticResource V5LightGridText}" Width="1.0*" MinWidth="74"/>
+                ElementStyle="{StaticResource V5LightGridText}" Width=".88*" MinWidth="72"/>
           <DataGridTextColumn Header="ETA" Binding="{Binding EtaLabel}"
-                ElementStyle="{StaticResource V5LightGridText}" Width=".85*" MinWidth="68"/>
-          <DataGridTemplateColumn Header="Status" Width="1.1*" MinWidth="104">
+                ElementStyle="{StaticResource V5LightGridText}" Width=".8*" MinWidth="68"/>
+          <DataGridTemplateColumn Header="Connections" Width=".95*" MinWidth="86">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
-              <Border Background="{Binding Status, Converter={StaticResource LightStatusBackground}}"
-                      HorizontalAlignment="Left" CornerRadius="6" Padding="8,5">
-                <StackPanel Orientation="Horizontal">
-                  <TextBlock Text="●" FontSize="10" Margin="0,0,6,0" 
-                             Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
-                  <TextBlock Text="{Binding Status}" FontSize="10" FontWeight="SemiBold"
-                             Foreground="{Binding Status, Converter={StaticResource LightStatusText}}"/>
-                </StackPanel>
-              </Border>
+              <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <TextBlock Text="▥" Foreground="{StaticResource V5SuccessBrush}" FontSize="12" Margin="0,0,5,0"/>
+                <TextBlock Text="{Binding ConnectionFraction}" Foreground="{StaticResource V5TextBrush}" FontSize="10"/>
+              </StackPanel>
             </DataTemplate></DataGridTemplateColumn.CellTemplate>
           </DataGridTemplateColumn>
-          <DataGridTemplateColumn Header="" Width="79" MinWidth="79">
+          <DataGridTextColumn Header="Added" Binding="{Binding AddedLabel}"
+                ElementStyle="{StaticResource V5LightGridText}" Width=".98*" MinWidth="94"/>
+          <DataGridTextColumn Header="Label" Binding="{Binding Labels}"
+                ElementStyle="{StaticResource V5LightGridText}" Width=".85*" MinWidth="69"/>
+          <DataGridTemplateColumn Header="" Width="66" MinWidth="66">
             <DataGridTemplateColumn.CellTemplate><DataTemplate>
               <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                <Button Click="RowQuickAction_Click" Padding="6,4" Background="Transparent"
+                <Button Click="RowQuickAction_Click" Padding="5,3" Background="Transparent"
                         BorderThickness="0" ToolTip="Pause, resume or open completed download">
-                  <TextBlock FontFamily="{StaticResource V5IconFont}" FontSize="12"
+                  <TextBlock FontFamily="{StaticResource V5IconFont}" FontSize="11"
                              Foreground="#9FC5F3" Text="{Binding Status, Converter={StaticResource DownloadActionGlyph}}"/>
                 </Button>
-                <Button Click="RowMore_Click" Padding="6,4" Background="Transparent"
+                <Button Click="RowMore_Click" Padding="5,3" Background="Transparent"
                         BorderThickness="0" ToolTip="More actions">
-                  <TextBlock Text="&#xE10C;" FontFamily="{StaticResource V5IconFont}" FontSize="13"
+                  <TextBlock Text="&#xE10C;" FontFamily="{StaticResource V5IconFont}" FontSize="12"
                              Foreground="#9FC5F3"/>
                 </Button>
               </StackPanel>
