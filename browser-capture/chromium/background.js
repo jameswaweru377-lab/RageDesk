@@ -86,7 +86,8 @@ function allowedVideoHandoff(message, sender) {
     // Accept recognized direct video paths, or extensionless endpoints that
     // the video element explicitly declared as a known video MIME type.
     const suffix = /\.[a-z0-9]+$/i.exec(path)?.[0] || "";
-    return DIRECT_VIDEO.test(path) ||
+    return (HLS_SUFFIX.test(path) && message.format === "HLS") ||
+      DIRECT_VIDEO.test(path) ||
       (!suffix && VIDEO_FORMATS.has(message.format));
   } catch { return false; }
 }
