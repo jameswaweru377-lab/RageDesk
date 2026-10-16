@@ -14,6 +14,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private long? _total;
     private double _bytesPerSecond;
     private int _connections;
+    private int _effectiveBandwidthKiBps;
     private string? _error;
     private readonly List<double> _speedSamples = new(64);
     private readonly ObservableCollection<string> _events = new();
@@ -31,6 +32,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         PostDownloadAction = PostDownloadActionPolicy.Validate(postDownloadAction);
         RequestedConnections = connections;
         BandwidthKiBps = bandwidthKiBps;
+        _effectiveBandwidthKiBps = bandwidthKiBps;
         Adaptive = adaptive;
         ExpectedSha256 = string.IsNullOrWhiteSpace(expectedSha256) ? null : expectedSha256.ToUpperInvariant();
         Id = Guid.NewGuid();
@@ -48,6 +50,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public bool Adaptive { get; }
     public int RequestedConnections { get; }
     public int BandwidthKiBps { get; }
+    public int EffectiveBandwidthKiBps => _effectiveBandwidthKiBps;
     public string? ExpectedSha256 { get; }
     public string ChecksumLabel => ExpectedSha256 is null ? "Not configured" :
         Status == DownloadStatus.Completed ? "SHA-256 verified" : "SHA-256 required";
@@ -88,9 +91,19 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         ? $"{FormatSize(_received)} / {FormatSize(total)} · {ProgressLabel}"
         : $"{FormatSize(_received)} received";
     public string RetryLabel => "Up to 5 attempts";
-    public string BandwidthRuleLabel => BandwidthKiBps == 0
-        ? "Unlimited"
-        : $"{BandwidthKiBps} KiB/s";
+    public string BandwidthRuleLabel => EffectiveBandwidthKiBps == 0
+        ? "Unlimited" : $"{EffectiveBandwidthKiBps} KiB/s" +
+            (EffectiveBandwidthKiBps != BandwidthKiBps ? " (calendar)" : "");
+
+    public void ReportAppliedBandwidthLimit(int limitKiBps)
+    {
+        if (limitKiBps < 0 || limitKiBps > 1048576)
+            throw new ArgumentOutOfRangeException(nameof(limitKiBps));
+        if (_effectiveBandwidthKiBps == limitKiBps) return;
+        _effectiveBandwidthKiBps = limitKiBps;
+        PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(BandwidthRuleLabel)));
+        PropertyChanged?.Invoke(this,new PropertyChangedEventArgs(nameof(EffectiveBandwidthKiBps)));
+    }
     public string SourceHostLabel => _status == DownloadStatus.Downloading && Connections > 0
         ? "1 source host" : "—";
 

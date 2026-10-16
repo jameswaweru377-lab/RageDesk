@@ -39,6 +39,32 @@ public sealed class SharedBandwidthLimiterTests
     }
 
     [Fact]
+    public async Task LiveCalendarCanThrottleAndRestoreUnlimitedRate()
+    {
+        var limiter = new SharedBandwidthLimiter(0);
+        Assert.Equal(0, limiter.LimitKiBps);
+        await limiter.SetLimitAsync(256, CancellationToken.None);
+        Assert.Equal(256, limiter.LimitKiBps);
+        var timer=Stopwatch.StartNew();
+        await limiter.AccountAsync(64 * 1024, CancellationToken.None);
+        Assert.True(timer.ElapsedMilliseconds >= 150);
+        await limiter.SetLimitAsync(0, CancellationToken.None);
+        Assert.Equal(0, limiter.LimitKiBps);
+        Assert.Equal(0, limiter.ChargedBytes);
+        await limiter.AccountAsync(1024 * 1024, CancellationToken.None);
+        Assert.Equal(0, limiter.ChargedBytes);
+    }
+
+    [Fact]
+    public async Task InvalidLiveCapDoesNotChangeTheCurrentLimit()
+    {
+        var limiter=new SharedBandwidthLimiter(128);
+        await Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
+            await limiter.SetLimitAsync(-2, CancellationToken.None));
+        Assert.Equal(128,limiter.LimitKiBps);
+    }
+
+    [Fact]
     public void NegativeBudgetIsRejected() =>
         Assert.Throws<ArgumentOutOfRangeException>(() => new SharedBandwidthLimiter(-1));
 }
