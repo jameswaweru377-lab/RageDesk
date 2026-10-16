@@ -716,7 +716,8 @@
               BorderThickness="1" CornerRadius="10" Padding="13">
         <DockPanel LastChildFill="True">
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
-            <Button Content="Cancel" Click="CloseAdd_Click" Style="{StaticResource V5ToolbarButton}"/>
+            <Button Content="Open folder" Click="OpenDownloadsFolder_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,7,0"/>
+            <Button Content="Cancel" Click="CloseAdd_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,7,0"/>
             <Button x:Name="AddStartButton" Content="▶  Start Download" Click="StartDownload_Click" Style="{StaticResource V5PrimaryButton}"/>
           </StackPanel>
           <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">

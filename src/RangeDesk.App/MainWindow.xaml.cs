@@ -291,6 +291,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                             media.Report(DownloadStatus.Failed, 0, null,
                                 error: "The media transfer was interrupted. Select its quality in Chrome again.");
                             media.UpdateMediaStage("Interrupted · reselect quality in Chrome");
+                            BrowserMediaJobState.TryUpdate(record.MediaJobId, "failed",
+                                "Previous RangeDesk media download was interrupted.");
                         }
                         Track(media);
                         continue;
@@ -1503,12 +1505,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (_pendingBrowserMediaRequest is BrowserMediaRequest request)
         {
-            if (MediaFormatChoice.SelectedItem is not OptionalMediaExtractor.Format selected)
+            if (MediaFormatChoice.SelectedItem is not OptionalMediaExtractor.Format browserSelected)
             {
                 FormError.Text = "Wait for the selected quality to finish verification.";
                 return;
             }
-            await StartBrowserMediaFromPopupAsync(request, selected);
+            await StartBrowserMediaFromPopupAsync(request, browserSelected);
             return;
         }
         if (_mediaOperation is not null)
