@@ -102,44 +102,98 @@ function allowedVideoHandoff(message, sender) {
   } catch { return false; }
 }
 
-function allowedPageAction(message, sender) {
-  if (!message || typeof message.url !== "string" ||
-      message.url.length > 4096 || sender?.id !== api.runtime.id ||
-      !Number.isInteger(sender?.tab?.id)) return false;
+// Chrome's frame URL can lag document.URL following YouTube History API
+// navigation. Authenticate the content-script sender before accepting a current
+// top-level tab URL or the tightly restricted YouTube SPA fallback. Never accept
+// a different origin, embedded credentials or a URL supplied by page JavaScript.
+function safePageUrl(raw) {
+  if (typeof raw !== "string" || raw.length > 4096) return null;
   try {
-    const incoming = new URL(message.url);
-    const actual = new URL(sender.url);
-    incoming.hash = "";
-    actual.hash = "";
-    return incoming.href === actual.href &&
-      ["http:", "https:"].includes(incoming.protocol) &&
-      !incoming.username && !incoming.password;
-  } catch { return false; }
+    const result = new URL(raw);
+    if (!["http:", "https:"].includes(result.protocol) ||
+        result.username || result.password) return null;
+    result.hash = "";
+    return result;
+  } catch { return null; }
+}
+
+function isYouTubeVideoPage(url) {
+  if (url.protocol !== "https:" ||
+      !["youtube.com", "www.youtube.com", "m.youtube.com",
+        "www.youtube-nocookie.com", "youtube-nocookie.com"].includes(url.hostname))
+    return false;
+  if (url.pathname === "/watch") return url.searchParams.has("v") &&
+    /^[A-Za-z0-9_-]{11}$/.test(url.searchParams.get("v"));
+  return /^\/(?:shorts|live|embed)\/[A-Za-z0-9_-]{11}\/?$/.test(url.pathname);
+}
+
+function allowedPageAction(message, sender) {
+  if (!message || sender?.id !== api.runtime.id ||
+      !Number.isInteger(sender?.tab?.id)) return false;
+  const incoming = safePageUrl(message.url);
+  const frame = safePageUrl(sender.url);
+  if (!incoming || !frame || incoming.origin !== frame.origin) return false;
+  // sender.origin is browser-provided and must agree when available.
+  if (typeof sender.origin === "string" &&
+      sender.origin !== incoming.origin) return false;
+  if (incoming.href === frame.href) return true;
+
+  // Frame-specific identity remains mandatory for embedded third-party players.
+  // The top-level tab URL, when present, is browser supplied and can be newer
+  // than sender.url when a site uses history.pushState/replaceState.
+  if (sender.frameId === 0) {
+    const currentTab = safePageUrl(sender.tab.url);
+    if (currentTab && incoming.href === currentTab.href) return true;
+    if (currentTab && currentTab.href !== incoming.href) return false;
+  }
+
+  // Restricted fallback when Chrome lacks a fresh tab URL or an iframe has
+  // changed its YouTube video via same-origin SPA navigation. This needs the
+  // browser-provided origin, a real known video route and a valid frame ID.
+  // It never authorizes arbitrary same-origin paths or cross-site requests.
+  return Number.isInteger(sender.frameId) &&
+    sender.origin === incoming.origin &&
+    isYouTubeVideoPage(incoming) &&
+    isYouTubeVideoPage(frame);
 }
 
 api.runtime.onMessage.addListener((message, sender, reply) => {
   if (message?.action === "rangedesk_media_probe" ||
       message?.action === "rangedesk_media_download") {
     if (!allowedPageAction(message, sender)) {
-      reply({ accepted: false, message: "Not an allowed video page." });
+      reply({ accepted: false, errorCode: "PAGE_IDENTITY_MISMATCH",
+        message: "The video page changed or its frame could not be verified. Refresh this video and retry." });
       return false;
     }
     if (message.action === "rangedesk_media_download") {
       if (message.rightsConfirmed !== true ||
           typeof message.formatId !== "string" ||
-          !/^[A-Za-z0-9_.-]{1,64}$/.test(message.formatId)) {
+          !/^[A-Za-z0-9_.-]{1,64}$/.test(message.formatId) ||
+          (message.fileStem !== undefined &&
+            (typeof message.fileStem !== "string" ||
+             message.fileStem.length < 1 || message.fileStem.length > 80 ||
+             !/^[\\p{L}\\p{N} _-]+$/u.test(message.fileStem))) ||
+          !["default", "videos"].includes(message.saveLocation ?? "default") ||
+          (message.queueOnly !== undefined && typeof message.queueOnly !== "boolean")) {
         reply({ accepted: false, message: "Select a valid quality and confirm permission." });
         return false;
       }
       void api.runtime.sendNativeMessage(HOST, {
         action: "media_download", url: message.url,
-        formatId: message.formatId, rightsConfirmed: true
+        formatId: message.formatId, rightsConfirmed: true,
+        queueOnly: message.queueOnly === true,
+        fileStem: message.fileStem ?? null,
+        saveLocation: message.saveLocation ?? "default"
       }).then(result => reply({
         accepted: result?.accepted === true,
-        message: result?.accepted ? "Selected quality queued in RangeDesk." :
-          "Open RangeDesk and verify the MediaTools setup."
-      })).catch(() => reply({ accepted: false,
-        message: "Cannot reach RangeDesk's native host." }));
+        jobId: typeof result?.jobId === "string" && /^[a-f0-9]{32}$/i.test(result.jobId)
+          ? result.jobId : null,
+        state: result?.accepted ? "queued" : "failed",
+        errorCode: result?.errorCode || null,
+        message: typeof result?.message === "string" && result.message.length <= 240
+          ? result.message : "RangeDesk could not queue this download."
+      })).catch(() => reply({ accepted: false, errorCode: "NATIVE_HOST_UNAVAILABLE",
+        message: "Cannot reach RangeDesk. Open the app and check its Chrome connection." }));
       return true;
     }
     void api.runtime.sendNativeMessage(HOST, {
@@ -147,7 +201,9 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
     }).then(result => {
       if (result?.accepted !== true || !Array.isArray(result.formats)) {
         reply({ accepted: false, formats: [],
-          message: "Media analysis unavailable. Check yt-dlp and RangeDesk." });
+          errorCode: typeof result?.errorCode === "string" ? result.errorCode : "PROBE_FAILED",
+          message: typeof result?.message === "string" && result.message.length <= 240
+            ? result.message : "RangeDesk could not analyze this video." });
         return;
       }
       const formats = result.formats.filter(f =>
@@ -161,27 +217,41 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
       reply({ accepted: formats.length > 0, formats,
         message: formats.length ? "" : "No usable formats found for this page." });
     }).catch(() => reply({ accepted: false, formats: [],
-      message: "RangeDesk analysis failed. Check its native connection." }));
+      errorCode: "NATIVE_HOST_UNAVAILABLE",
+      message: "Cannot reach RangeDesk's native media analyzer." }));
+    return true;
+  }
+  if (message?.action === "rangedesk_media_status") {
+    if (!allowedPageAction(message, sender) ||
+        typeof message.jobId !== "string" || !/^[a-f0-9]{32}$/i.test(message.jobId)) {
+      reply({ accepted: false, errorCode: "INVALID_STATUS_REQUEST" });
+      return false;
+    }
+    void api.runtime.sendNativeMessage(HOST, {
+      action: "media_status", jobId: message.jobId
+    }).then(result => reply({
+      accepted: result?.accepted === true,
+      jobId: result?.jobId === message.jobId ? result.jobId : null,
+      state: typeof result?.state === "string" ? result.state : null,
+      message: typeof result?.message === "string" && result.message.length <= 240
+        ? result.message : "Checking download status…",
+      downloadedBytes: Number.isSafeInteger(result?.downloadedBytes) && result.downloadedBytes >= 0
+        ? result.downloadedBytes : null,
+      totalBytes: Number.isSafeInteger(result?.totalBytes) && result.totalBytes > 0
+        ? result.totalBytes : null,
+      estimated: result?.estimated === true
+    })).catch(() => reply({ accepted: false, errorCode: "NATIVE_HOST_UNAVAILABLE",
+      message: "RangeDesk connection interrupted. The download may still be running." }));
     return true;
   }
   if (message?.action === "rangedesk_media_page") {
-    // User clicked "Analyze this page" on the visible player. Accept
-    // only the exact frame URL reported independently by Chrome, so site
-    // JS cannot make the extension queue a different destination.
+    // Use the same verified page identity as quality probes, including safe
+    // YouTube navigation. Never let the page request arbitrary destinations.
     const requested = message.url;
-    let safe = false;
-    try {
-      const candidate = new URL(requested);
-      const reported = new URL(sender?.url);
-      candidate.hash = ""; reported.hash = "";
-      safe = sender?.id === api.runtime.id &&
-        Number.isInteger(sender?.tab?.id) &&
-        requested.length <= 4096 &&
-        candidate.href === reported.href &&
-        ["http:", "https:"].includes(candidate.protocol) &&
-        !candidate.username && !candidate.password;
-    } catch { /* Invalid or restricted page. */ }
-    if (!safe) { reply({ accepted: false }); return false; }
+    if (!allowedPageAction(message, sender)) {
+      reply({ accepted: false, message: "Video page could not be verified." });
+      return false;
+    }
     void api.runtime.sendNativeMessage(HOST, {
       action: "add_link", url: requested
     }).then(result => reply({ accepted: result?.accepted === true }))

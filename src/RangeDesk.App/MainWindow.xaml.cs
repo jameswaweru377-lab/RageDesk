@@ -30,6 +30,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private OptionalMediaExtractor.Probe? _mediaProbe;
     private string? _mediaAnalyzedUrl;
     private CancellationTokenSource? _mediaOperation;
+    private DownloadEntry? _activeBrowserMediaEntry;
+    private readonly Dictionary<Guid, BrowserMediaRequest> _queuedBrowserMedia = new();
 
     private readonly string _schedulesFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -68,7 +70,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
 
-    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None);
+    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None, string? MediaJobId = null, string? MediaFormatId = null, bool MediaCompleted = false,
+        bool MediaQueued = false, string? MediaFileStem = null, string MediaSaveLocation = "default");
 
     public MainWindow()
     {
@@ -274,6 +277,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 try
                 {
+                    if (record.MediaJobId is not null && record.MediaFormatId is not null)
+                    {
+                        var media = new DownloadEntry(record.Url, record.Destination, record.Category, record.Labels);
+                        media.AttachMediaJob(record.MediaJobId, record.MediaFormatId);
+                        if (record.MediaCompleted && File.Exists(media.Destination))
+                        {
+                            long size = new FileInfo(media.Destination).Length;
+                            media.Report(DownloadStatus.Completed, size, size);
+                            media.UpdateMediaStage("Completed · verified output");
+                        }
+                        else if (record.MediaQueued)
+                        {
+                            var deferred = new BrowserMediaRequest("media_download",
+                                record.Url, record.MediaFormatId, record.MediaJobId, true,
+                                record.MediaFileStem, record.MediaSaveLocation);
+                            deferred.Validate();
+                            _queuedBrowserMedia[media.Id] = deferred;
+                            media.UpdateMediaStage("Saved for later · use Resume to start");
+                            BrowserMediaJobState.TryUpdate(record.MediaJobId, "queued",
+                                "Saved for later in RangeDesk.");
+                        }
+                        else
+                        {
+                            media.Report(DownloadStatus.Failed, 0, null,
+                                error: "The media transfer was interrupted. Select its quality in Chrome again.");
+                            media.UpdateMediaStage("Interrupted · reselect quality in Chrome");
+                            BrowserMediaJobState.TryUpdate(record.MediaJobId, "failed",
+                                "Previous RangeDesk media download was interrupted.");
+                        }
+                        Track(media);
+                        continue;
+                    }
                     var item = _engine.Create(record.Url, record.Destination,
                         record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1,
                         record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0,
@@ -300,7 +335,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_catalogFile)!);
-            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256, d.Adaptive, d.PostDownloadAction));
+            var saved = Downloads.Select(d =>
+            {
+                _queuedBrowserMedia.TryGetValue(d.Id, out var deferred);
+                return new SavedDownload(d.Url, d.Destination, d.Category,
+                    d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256,
+                    d.Adaptive, d.PostDownloadAction, d.MediaJobId, d.MediaFormatId,
+                    d.IsMedia && d.Status == DownloadStatus.Completed,
+                    deferred is not null && d.Status == DownloadStatus.Queued,
+                    deferred?.FileStem, deferred?.SaveLocation ?? "default");
+            });
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
@@ -851,7 +895,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             OpenFolder_Click(sender, e);
             return;
         }
-        if (entry.Status == DownloadStatus.Downloading) _engine.Pause(entry);
+        if (entry.IsMedia)
+        {
+            if (entry.Status == DownloadStatus.Downloading) StopManually(entry);
+            else StatusMessage.Text = "Choose another quality in Chrome to restart this media job.";
+        }
+        else if (entry.Status == DownloadStatus.Downloading) _engine.Pause(entry);
         else StartManually(entry);
         e.Handled = true;
     }
@@ -870,10 +919,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         details.Click += (_, _) => { SelectedDownload = entry; ShowDownloadDetails(); };
         menu.Items.Add(details);
         menu.Items.Add(new Separator());
-        var resume = new MenuItem { Header = "Resume", IsEnabled = entry.Status != DownloadStatus.Completed };
+        var resume = new MenuItem { Header = entry.IsMedia ? "Retry from Chrome" : "Resume",
+            IsEnabled = !entry.IsMedia && entry.Status != DownloadStatus.Completed };
         resume.Click += (_, _) => StartManually(entry);
-        var pause = new MenuItem { Header = "Pause", IsEnabled = entry.Status == DownloadStatus.Downloading };
-        pause.Click += (_, _) => _engine.Pause(entry);
+        var pause = new MenuItem { Header = entry.IsMedia ? "Pause unavailable" : "Pause",
+            IsEnabled = !entry.IsMedia && entry.Status == DownloadStatus.Downloading };
+        pause.Click += (_, _) => { if (!entry.IsMedia) _engine.Pause(entry); };
         var stop = new MenuItem { Header = "Stop", IsEnabled = entry.Status != DownloadStatus.Completed };
         stop.Click += (_, _) => StopManually(entry);
         var folder = new MenuItem { Header = "Open folder" };
@@ -884,7 +935,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         var editSchedule = new MenuItem
         {
             Header = _scheduled.ContainsKey(entry.Destination) ? "Edit scheduled start..." : "Schedule start...",
-            IsEnabled = entry.Status == DownloadStatus.Queued
+            IsEnabled = !entry.IsMedia && entry.Status == DownloadStatus.Queued
         };
         editSchedule.Click += (_, _) => OpenScheduleEditor(entry);
         menu.Items.Add(editSchedule);
@@ -997,6 +1048,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     /// <summary>The user can override a scheduled start by explicitly resuming.</summary>
     private bool StartManually(DownloadEntry item)
     {
+        if (item.IsMedia)
+        {
+            if (item.Status != DownloadStatus.Queued ||
+                !_queuedBrowserMedia.TryGetValue(item.Id, out var pending) ||
+                _mediaOperation is not null) return false;
+            _queuedBrowserMedia.Remove(item.Id);
+            SaveCatalog();
+            _ = RunBrowserMediaAsync(pending, item);
+            return true;
+        }
         if (!_engine.Start(item)) return false;
         if (_scheduled.Remove(item.Destination))
         {
@@ -1008,6 +1069,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void StopManually(DownloadEntry item)
     {
+        if (item.IsMedia)
+        {
+            if (ReferenceEquals(_activeBrowserMediaEntry, item) && _mediaOperation is not null)
+                _mediaOperation.Cancel();
+            else if (item.Status == DownloadStatus.Queued &&
+                     _queuedBrowserMedia.Remove(item.Id))
+            {
+                item.Report(DownloadStatus.Canceled, item.Received, null);
+                item.UpdateMediaStage("Cancelled before starting");
+                BrowserMediaJobState.TryUpdate(item.MediaJobId, "cancelled",
+                    "Saved-for-later media job cancelled.");
+                SaveCatalog();
+            }
+            else StatusMessage.Text = "The selected media transfer is not running.";
+            return;
+        }
         if (_scheduled.Remove(item.Destination))
         {
             SaveSchedules();
@@ -1049,7 +1126,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void StartQueue_Click(object sender, RoutedEventArgs e)
     {
         int started = 0;
-        foreach (var item in Downloads.Where(d => d.Status == DownloadStatus.Queued &&
+        foreach (var item in Downloads.Where(d => !d.IsMedia && d.Status == DownloadStatus.Queued &&
                                                  !_scheduled.ContainsKey(d.Destination)).ToArray())
             if (StartManually(item)) started++;
         StatusMessage.Text = started > 0
@@ -1169,76 +1246,122 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// A browser user gesture queues a URL for review, never auto-starts a
-    /// transfer. The Add Download form is the only handoff destination.
+    /// Chrome owns the confirmation panel. Only browser-confirmed Start or
+    /// Download Later commands reach here; never open or activate a WPF popup.
+    /// Both actions create a real entry in the local Downloads list.
     /// </summary>
-    /// <summary>
-    /// Accept only a user-clicked format choice from the Chrome bridge.
-    /// Re-analyze the page on Windows; never trust an unverified format ID
-    /// or allow an extension message to launch an arbitrary executable.
-    /// Media operations are serialized and visible in the Media tab.
-    /// </summary>
-    private async void CheckBrowserMediaInbox()
+    private void CheckBrowserMediaInbox()
     {
-        if (_mediaOperation is not null ||
-            AddOverlay.Visibility == Visibility.Visible ||
-            SettingsOverlay.Visibility == Visibility.Visible) return;
+        if (_mediaOperation is not null) return;
         BrowserMediaRequest? request;
         try { request = BrowserMediaInbox.TryTake(BrowserMediaInbox.DefaultDirectory); }
         catch (IOException) { return; }
         if (request is null) return;
+        if (request.JobId is null) return;
 
-        Add_Click(this, new RoutedEventArgs());
-        MediaPageUrl.Text = request.Url;
-        AddDownloadTabs.SelectedIndex = 4;
-        MediaFormatChoice.ItemsSource = null;
-        MediaStatus.Text = "Checking the selected video quality…";
-        StatusMessage.Text = "Chrome video format received. Verifying before download.";
-        MediaAnalyzeButton.IsEnabled = false;
-        MediaDownloadButton.IsEnabled = false;
+        string folder = BrowserMediaFolder(request);
+        string title = request.FileStem ?? "Video";
+        string filename = "RangeDesk-" + title.Trim() + "-" + request.JobId[..8] + ".pending";
+        var item = new DownloadEntry(request.Url, Path.Combine(folder, filename), "Videos");
+        item.AttachMediaJob(request.JobId, request.FormatId);
+        Track(item);
+        if (request.QueueOnly)
+        {
+            _queuedBrowserMedia[item.Id] = request;
+            item.UpdateMediaStage("Saved for later · select Resume when ready");
+            BrowserMediaJobState.TryUpdate(request.JobId, "queued",
+                "Saved for later in RangeDesk Downloads.");
+            StatusMessage.Text = "Video saved for later in Downloads.";
+            SaveCatalog();
+            return;
+        }
+        item.UpdateMediaStage("Preparing verified video quality…");
+        SaveCatalog();
+        _ = RunBrowserMediaAsync(request, item);
+    }
+
+    private string BrowserMediaFolder(BrowserMediaRequest request)
+    {
+        request.Validate();
+        return request.SaveLocation == "videos"
+            ? Path.Combine(_preferences.DownloadFolder, "Videos")
+            : _preferences.DownloadFolder;
+    }
+
+    private async Task RunBrowserMediaAsync(BrowserMediaRequest request, DownloadEntry item)
+    {
+        if (_mediaOperation is not null)
+        {
+            item.Report(DownloadStatus.Failed, item.Received, null,
+                error: "Another media operation is already running. Retry from Chrome.");
+            SaveCatalog();
+            return;
+        }
         using var cancel = new CancellationTokenSource();
         _mediaOperation = cancel;
+        _activeBrowserMediaEntry = item;
+        BrowserMediaJobState.TryUpdate(request.JobId, "validating",
+            "Verifying the selected video quality in RangeDesk…");
         try
         {
-            if (!OptionalMediaExtractor.IsReady(AppContext.BaseDirectory))
-                throw new FileNotFoundException(
-                    "Install yt-dlp.exe and ffmpeg.exe in MediaTools first.");
             var probe = await OptionalMediaExtractor.AnalyzeAsync(
                 AppContext.BaseDirectory, request.Url, cancel.Token);
-            var selected = probe.Formats.FirstOrDefault(f =>
-                string.Equals(f.Id, request.FormatId, StringComparison.Ordinal));
+            var selected = probe.Formats.FirstOrDefault(f => f.Id == request.FormatId);
             if (selected is null)
-                throw new NotSupportedException(
-                    "This quality is no longer available. Reopen the Chrome video menu.");
-            _mediaProbe = probe;
-            _mediaAnalyzedUrl = request.Url;
-            MediaFormatChoice.ItemsSource = probe.Formats;
-            MediaFormatChoice.SelectedItem = selected;
-            MediaRightsConfirm.IsChecked = true; // Confirmed in the Chrome UI.
-            await OptionalMediaExtractor.DownloadAsync(
-                AppContext.BaseDirectory, request.Url, selected,
-                _preferences.DownloadFolder,
+                throw new NotSupportedException("That quality is no longer available.");
+            item.UpdateMediaStage("Starting · " + selected.Label);
+            item.Report(DownloadStatus.Downloading, 0, null);
+            BrowserMediaJobState.TryUpdate(request.JobId, "starting",
+                "Starting your selected media download…");
+            string output = await OptionalMediaExtractor.DownloadAsync(
+                AppContext.BaseDirectory, request.Url, selected, BrowserMediaFolder(request),
                 message => Dispatcher.Invoke(() =>
                 {
-                    MediaStatus.Text = message;
-                    StatusMessage.Text = message;
-                }), cancel.Token);
+                    item.UpdateMediaStage(message);
+                    StatusMessage.Text = "Browser media: " + message;
+                    if (message.StartsWith("Processing and merging", StringComparison.Ordinal))
+                        BrowserMediaJobState.TryUpdate(request.JobId, "merging", message);
+                    else if (message.StartsWith("Downloading", StringComparison.Ordinal))
+                        BrowserMediaJobState.TryUpdate(request.JobId, "downloading", message);
+                }), cancel.Token,
+                progress => Dispatcher.Invoke(() =>
+                {
+                    // Streams may have separate byte totals; final output size
+                    // is unknown until muxing completes. Never imply 100%.
+                    item.Report(DownloadStatus.Downloading, progress.DownloadedBytes, null);
+                    BrowserMediaJobState.TryUpdate(request.JobId, "downloading",
+                        "Downloading selected video/audio stream…",
+                        progress.DownloadedBytes, progress.TotalBytes, progress.Estimated);
+                }), outputTag: request.JobId![..8], fileStem: request.FileStem);
+            item.UpdateMediaOutput(output);
+            long size = new FileInfo(output).Length;
+            item.Report(DownloadStatus.Completed, size, size);
+            item.UpdateMediaStage("Completed · output verified");
+            BrowserMediaJobState.TryUpdate(request.JobId, "completed",
+                "Video completed and saved.");
+            StatusMessage.Text = "Video completed: " + item.Name;
         }
         catch (OperationCanceledException)
         {
-            MediaStatus.Text = "Browser media download stopped.";
-            StatusMessage.Text = MediaStatus.Text;
+            item.Report(DownloadStatus.Canceled, item.Received, null);
+            item.UpdateMediaStage("Cancelled · partial files may remain");
+            BrowserMediaJobState.TryUpdate(request.JobId, "cancelled", "Download cancelled.");
         }
         catch (Exception ex)
         {
-            MediaStatus.Text = "Browser media download failed: " + ex.Message;
-            StatusMessage.Text = MediaStatus.Text;
+            item.Report(DownloadStatus.Failed, item.Received, null,
+                error: ex is MediaAnalyzerException ? ex.Message :
+                    "Media download failed. Reopen the video and try again.");
+            item.UpdateMediaStage("Failed · review the download details");
+            BrowserMediaJobState.TryUpdate(request.JobId, "failed",
+                ex is MediaAnalyzerException ? ex.Message :
+                    "Media transfer failed. Check RangeDesk MediaTools.");
         }
         finally
         {
+            _activeBrowserMediaEntry = null;
             _mediaOperation = null;
-            MediaAnalyzeButton.IsEnabled = true;
-            MediaDownloadButton.IsEnabled = true;
+            SaveCatalog();
         }
     }
 
@@ -1268,6 +1391,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Add_Click(object sender, RoutedEventArgs e)
     {
         AddDownloadTabs.SelectedIndex = 0;
+        AddDownloadTitle.Text = "Add Download";
+        AddStartButton.IsEnabled = true;
+        BrowserMediaNotice.Visibility = Visibility.Collapsed;
+        MediaFormatChoice.IsEnabled = true;
         FormError.Text = "";
         ApplyNewDownloadDefaults();
         ScheduleDownload.IsChecked = false;
@@ -1418,7 +1545,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         QueueOnly.IsChecked = !_preferences.StartImmediately;
         AdaptiveWorkers.IsChecked = false; // Experimental scheduler requires explicit opt-in.
     }
-    private void CloseAdd_Click(object sender, RoutedEventArgs e) => AddOverlay.Visibility = Visibility.Collapsed;
+    private void CloseAdd_Click(object sender, RoutedEventArgs e)
+    {
+        AddOverlay.Visibility = Visibility.Collapsed;
+        BrowserMediaNotice.Visibility = Visibility.Collapsed;
+        AddDownloadTitle.Text = "Add Download";
+        AddStartButton.IsEnabled = true;
+        MediaFormatChoice.IsEnabled = true;
+    }
 
     private void AutoStart_Click(object sender, RoutedEventArgs e)
     {
@@ -1666,7 +1800,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Pause_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var item in ActionSelection()) _engine.Pause(item);
+        foreach (var item in ActionSelection())
+        {
+            if (item.IsMedia)
+                StatusMessage.Text = "yt-dlp media pause is unsupported. Use Stop to cancel this transfer.";
+            else _engine.Pause(item);
+        }
     }
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
@@ -1728,7 +1867,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             DateTimeOffset now = DateTimeOffset.Now;
             foreach(var download in Downloads.ToArray())
             {
-                if (download.Status != DownloadStatus.Downloading)
+                if (download.IsMedia || download.Status != DownloadStatus.Downloading)
                 {
                     _appliedBandwidthCaps.Remove(download.Id);
                     continue;

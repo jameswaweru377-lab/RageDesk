@@ -56,7 +56,37 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         Status == DownloadStatus.Completed ? "SHA-256 verified" : "SHA-256 required";
     public Guid Id { get; }
     public string Url { get; }
-    public string Destination { get; }
+    public string Destination { get; private set; }
+    public string? MediaJobId { get; private set; }
+    public string? MediaFormatId { get; private set; }
+    public string MediaStage { get; private set; } = "";
+    public bool IsMedia => MediaJobId is not null;
+
+    public void AttachMediaJob(string jobId, string formatId)
+    {
+        if (!Guid.TryParseExact(jobId, "N", out _) ||
+            string.IsNullOrWhiteSpace(formatId) || formatId.Length > 64 ||
+            !formatId.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.'))
+            throw new ArgumentException("Invalid external media job identity.");
+        MediaJobId = jobId;
+        MediaFormatId = formatId;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+    }
+
+    public void UpdateMediaStage(string stage)
+    {
+        if (!IsMedia) throw new InvalidOperationException("Not a media download.");
+        MediaStage = stage.Length > 160 ? stage[..160] : stage;
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(MediaStage)));
+    }
+
+    public void UpdateMediaOutput(string actualPath)
+    {
+        if (!IsMedia || !Path.IsPathFullyQualified(actualPath))
+            throw new ArgumentException("A media output must have a full path.");
+        Destination = Path.GetFullPath(actualPath);
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(string.Empty));
+    }
     public string Category { get; set; }
     public string Labels { get; set; }
     public DateTimeOffset AddedAt { get; }

@@ -65,8 +65,45 @@ public sealed class OptionalMediaExtractorTests
         Assert.Contains("--ignore-config", argv);
         Assert.Contains("--no-plugin-dirs", argv);
         Assert.Contains("--no-remote-components", argv);
+        Assert.Contains("--progress", argv);
+        Assert.Contains("after_move:RangeDeskFinal:%(filepath)s", argv);
         Assert.Equal(Example, argv[^1]);
         Assert.Equal("--", argv[^2]);
+    }
+
+    [Fact]
+    public void BrowserMediaOutputsUseDistinctValidatedJobSuffixes()
+    {
+        var selected = OptionalMediaExtractor.ParseProbe(Probe).Formats[0];
+        string output = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "RangeDeskTests"));
+        var argv = OptionalMediaExtractor.DownloadArguments(Example, selected,
+            output, Path.Combine(output, "ffmpeg.exe"), "deadbeef");
+        int position = argv.ToList().IndexOf("--output");
+        Assert.True(position >= 0);
+        Assert.Contains("-deadbeef.%(ext)s", argv[position + 1]);
+        Assert.Throws<ArgumentException>(() => OptionalMediaExtractor.DownloadArguments(
+            Example, selected, output, Path.Combine(output, "ffmpeg.exe"), "../bad"));
+        Assert.Throws<ArgumentException>(() => OptionalMediaExtractor.DownloadArguments(
+            Example, selected, output, Path.Combine(output, "ffmpeg.exe"), "x"));
+    }
+
+    [Theory]
+    [InlineData("ERROR: Sign in to confirm you are not a bot", "SIGN_IN_REQUIRED")]
+    [InlineData("ERROR: HTTP Error 429: Too Many Requests", "RATE_LIMITED")]
+    [InlineData("ERROR: HTTP Error 403: Forbidden", "SITE_RESTRICTED")]
+    [InlineData("ERROR: Unsupported URL: foo", "SITE_UNSUPPORTED")]
+    [InlineData("WARNING: EJS challenge scripts could not be loaded", "JS_CHALLENGE_FAILED")]
+    [InlineData("ERROR: HTTP Error 404: Not Found", "VIDEO_UNAVAILABLE")]
+    [InlineData("ERROR: Unable to download webpage: timed out", "NETWORK_ERROR")]
+    [InlineData("ERROR: unpredictable extractor error", "EXTRACTOR_FAILED")]
+    public void ProbeFailureDiagnosesWithoutLeakingRawOutput(string stderr, string code)
+    {
+        var exception = OptionalMediaExtractor.ClassifyProbeFailure(
+            stderr + " https://example.test/watch?private_token=do-not-log");
+        Assert.Equal(code, exception.Code);
+        Assert.DoesNotContain("private_token", exception.Message);
+        Assert.DoesNotContain("example.test", exception.Message);
+        Assert.DoesNotContain("do-not-log", exception.Message);
     }
 
     [Fact]

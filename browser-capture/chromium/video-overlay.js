@@ -23,6 +23,34 @@
     ".choice{all:unset;cursor:pointer;box-sizing:border-box;display:block;padding:9px 8px;width:100%;",
     "border-radius:7px;background:#163453;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
     ".choice:hover{background:#245682}",
+    ".choice.selected{background:#245b89;outline:1px solid #8bd1ff;}",
+    ".confirm-mask{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;",
+    "padding:18px;background:#000a;pointer-events:auto;z-index:2147483647;box-sizing:border-box;}",
+    ".confirm{width:min(670px,95vw);max-height:93vh;overflow:auto;box-sizing:border-box;",
+    "background:linear-gradient(140deg,#0e2439,#091725);border:1px solid #2e5174;",
+    "box-shadow:0 16px 65px #000c;border-radius:15px;padding:22px;color:#eaf4ff;",
+    "font:14px/1.5 system-ui,Segoe UI,sans-serif;}",
+    ".confirm-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px;}",
+    ".confirm-brand{font-size:21px;font-weight:750;}",
+    ".confirm-body{display:grid;grid-template-columns:132px 1fr;gap:19px;}",
+    ".confirm-thumb{height:92px;border-radius:9px;background:#163755;object-fit:cover;width:132px;}",
+    ".confirm-title{font-size:16px;font-weight:700;overflow-wrap:anywhere;}",
+    ".confirm-sub{color:#adbfce;font-size:12px;margin:2px 0 12px;}",
+    ".confirm-form{display:grid;grid-template-columns:84px 1fr;gap:9px;align-items:center;}",
+    ".confirm-label{font-size:12px;color:#d0e1f1;}",
+    ".confirm-field{box-sizing:border-box;width:100%;min-height:37px;background:#12283b;",
+    "border:1px solid #48647d;border-radius:6px;color:#f1f7fc;padding:7px 9px;font:13px system-ui;}",
+    ".confirm-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;",
+    "gap:9px;margin-top:19px;}",
+    ".confirm-btn{cursor:pointer;min-height:39px;border:1px solid #58738a;border-radius:7px;",
+    "padding:9px 14px;background:#142b3c;color:#fff;font-weight:600;}",
+    ".confirm-btn.primary{background:#087bed;border-color:#1595ff;}",
+    ".confirm-btn:disabled{opacity:.55;cursor:not-allowed;}",
+    ".confirm-btn:focus-visible,.confirm-field:focus-visible{outline:2px solid #8ed5ff;outline-offset:2px;}",
+    ".confirm-note{font-size:12px;color:#b6c9db;margin-top:10px;overflow-wrap:anywhere;}",
+    ".confirm-rights{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;}",
+    "@media(max-width:560px){.confirm{padding:14px}.confirm-body{grid-template-columns:1fr;}",
+    ".confirm-thumb{display:none}.confirm-form{grid-template-columns:1fr;gap:5px}}",
     ".status{font-size:11px;color:#b3c7df;margin:7px 5px 3px;max-width:235px;overflow-wrap:break-word;}",
     "[hidden]{display:none!important}"
   ].join("");
@@ -49,7 +77,95 @@
   status.setAttribute("role", "status");
   menu.append(heading, hint, options, status);
   panel.append(toggle, menu);
-  shadow.append(style, panel);
+  const confirmMask = document.createElement("div");
+  confirmMask.className = "confirm-mask";
+  confirmMask.hidden = true;
+  const confirmPanel = document.createElement("div");
+  confirmPanel.className = "confirm";
+  confirmPanel.setAttribute("role", "dialog");
+  confirmPanel.setAttribute("aria-modal", "true");
+  confirmPanel.setAttribute("aria-label", "RangeDesk video download");
+  const confirmHead = document.createElement("div");
+  confirmHead.className = "confirm-head";
+  const brand = document.createElement("div");
+  brand.className = "confirm-brand";
+  brand.textContent = "↓  RangeDesk · Download video";
+  const confirmX = document.createElement("button");
+  confirmX.className = "confirm-btn";
+  confirmX.textContent = "×";
+  confirmX.setAttribute("aria-label", "Close download confirmation");
+  confirmHead.append(brand, confirmX);
+  const confirmBody = document.createElement("div");
+  confirmBody.className = "confirm-body";
+  const thumb = document.createElement("img");
+  thumb.className = "confirm-thumb";
+  thumb.alt = "";
+  const detail = document.createElement("div");
+  const confirmTitle = document.createElement("div");
+  confirmTitle.className = "confirm-title";
+  const confirmSource = document.createElement("div");
+  confirmSource.className = "confirm-sub";
+  const confirmForm = document.createElement("div");
+  confirmForm.className = "confirm-form";
+  const field = (name, control) => {
+    const caption = document.createElement("label");
+    caption.className = "confirm-label";
+    caption.textContent = name;
+    confirmForm.append(caption, control);
+  };
+  const qualityField = document.createElement("select");
+  qualityField.className = "confirm-field";
+  field("Quality", qualityField);
+  const folderField = document.createElement("select");
+  folderField.className = "confirm-field";
+  for (const [value, label] of [["default", "RangeDesk Downloads (configured folder)"],
+      ["videos", "RangeDesk Downloads / Videos"]]) {
+    const option = document.createElement("option");
+    option.value = value; option.textContent = label; folderField.append(option);
+  }
+  field("Save to", folderField);
+  const nameField = document.createElement("input");
+  nameField.className = "confirm-field";
+  nameField.type = "text"; nameField.maxLength = 80;
+  nameField.setAttribute("aria-label", "Download file name without extension");
+  field("File name", nameField);
+  const nameInfo = document.createElement("div");
+  nameInfo.className = "confirm-note";
+  nameInfo.textContent = "RangeDesk determines the final extension after download and merging. Choose a save folder in RangeDesk settings.";
+  const rememberLabel = document.createElement("label");
+  rememberLabel.className = "confirm-rights";
+  const rememberFolder = document.createElement("input");
+  rememberFolder.type = "checkbox";
+  const rememberText = document.createElement("span");
+  rememberText.textContent = "Remember this folder choice for this site";
+  rememberLabel.append(rememberFolder, rememberText);
+  const permissionLabel = document.createElement("label");
+  permissionLabel.className = "confirm-rights";
+  const confirmPermission = document.createElement("input");
+  confirmPermission.type = "checkbox";
+  const permissionText = document.createElement("span");
+  permissionText.textContent = "I have permission to save this video";
+  permissionLabel.append(confirmPermission, permissionText);
+  detail.append(confirmTitle, confirmSource, confirmForm, nameInfo, rememberLabel, permissionLabel);
+  confirmBody.append(thumb, detail);
+  const confirmInfo = document.createElement("div");
+  confirmInfo.className = "confirm-note";
+  confirmInfo.setAttribute("role", "status");
+  const actions = document.createElement("div");
+  actions.className = "confirm-actions";
+  const laterButton = document.createElement("button");
+  laterButton.className = "confirm-btn";
+  laterButton.textContent = "Download Later";
+  const startButton = document.createElement("button");
+  startButton.className = "confirm-btn primary";
+  startButton.textContent = "↓ Start Download";
+  const cancelButton = document.createElement("button");
+  cancelButton.className = "confirm-btn";
+  cancelButton.textContent = "Cancel";
+  actions.append(laterButton, startButton, cancelButton);
+  confirmPanel.append(confirmHead, confirmBody, confirmInfo, actions);
+  confirmMask.appendChild(confirmPanel);
+  shadow.append(style, panel, confirmMask);
   document.documentElement.appendChild(host);
 
   let active = null;
@@ -61,8 +177,62 @@
   let mediaFormats = [];
   let mediaAnalyzedUrl = "";
   let mediaLoading = false;
+  let mediaRequestSequence = 0;
   let mediaError = "";
+  let selectedQualityId = "";
+  let qualityButtons = [];
   let rightsConfirmed = false;
+  let confirmPageUrl = "";
+  let confirmPending = false;
+  let confirmJobSubmitted = false;
+  let confirmReturnFocus = null;
+  let mediaJobId = null;
+  let mediaJobUrl = "";
+  let mediaJobTimer = null;
+  let mediaJobDone = false;
+
+  function jobStatusText(reply) {
+    const stage = String(reply?.state || "");
+    const safe = typeof reply?.message === "string" ? reply.message.slice(0, 200) : "Checking media status…";
+    const downloaded = reply?.downloadedBytes;
+    const total = reply?.totalBytes;
+    if (stage !== "downloading" || !Number.isSafeInteger(downloaded) || downloaded < 0)
+      return safe;
+    const bytes = n => (n / 1048576).toFixed(1) + " MB";
+    if (Number.isSafeInteger(total) && total > 0)
+      return safe + " " + bytes(downloaded) + " / " + (reply.estimated ? "~" : "") + bytes(total) +
+        (!reply.estimated ? " (" + Math.min(100, Math.floor(downloaded * 100 / total)) + "% of current stream)" : "");
+    return safe + " " + bytes(downloaded) + " received.";
+  }
+
+  function pollJob() {
+    if (mediaJobTimer !== null) clearTimeout(mediaJobTimer);
+    mediaJobTimer = null;
+    if ((!expanded && confirmMask.hidden) || mediaJobDone || !mediaJobId) return;
+    if (mediaJobUrl !== currentPageUrl()) {
+      mediaJobId = null; // The job still runs in RangeDesk; never associate it with another page.
+      return;
+    }
+    mediaJobTimer = setTimeout(async () => {
+      try {
+        const result = await chrome.runtime.sendMessage({
+          action: "rangedesk_media_status", url: mediaJobUrl, jobId: mediaJobId
+        });
+        if ((!expanded && confirmMask.hidden) || mediaJobUrl !== currentPageUrl()) return;
+        if (result?.accepted && result?.jobId === mediaJobId) {
+          status.textContent = jobStatusText(result);
+          if (!confirmMask.hidden) confirmInfo.textContent = jobStatusText(result);
+          mediaJobDone = ["completed", "failed", "cancelled"].includes(result.state);
+        } else {
+          status.textContent = typeof result?.message === "string"
+            ? result.message : "Checking RangeDesk connection; the download may still be running.";
+        }
+      } catch {
+        if (expanded) status.textContent = "RangeDesk connection interrupted. Check the Media tab.";
+      }
+      if (!mediaJobDone) pollJob();
+    }, 1500);
+  }
 
   function currentPageUrl() {
     return typeof document.URL === "string" ? document.URL : document.baseURI;
@@ -70,12 +240,15 @@
 
   async function analyzePageQualities() {
     const url = currentPageUrl();
-    if (mediaLoading) return;
+    if (mediaLoading && url === mediaAnalyzedUrl) return;
     if (url === mediaAnalyzedUrl && mediaFormats.length > 0) return;
+    const requestId = ++mediaRequestSequence;
     mediaAnalyzedUrl = url;
     mediaFormats = [];
+    selectedQualityId = "";
     mediaError = "";
     rightsConfirmed = false;
+    if (!confirmMask.hidden && confirmPageUrl !== url) closeConfirmation();
     mediaLoading = true;
     status.textContent = "Finding available video qualities…";
     if (expanded) renderChoices();
@@ -83,10 +256,14 @@
       const result = await chrome.runtime.sendMessage({
         action: "rangedesk_media_probe", url
       });
-      // Drop stale results when navigation occurs while yt-dlp is probing.
-      if (currentPageUrl() !== url) return;
+      // A YouTube SPA navigation can finish while an older probe is in flight.
+      if (requestId !== mediaRequestSequence || currentPageUrl() !== url) return;
       if (!result?.accepted || !Array.isArray(result.formats)) {
-        mediaError = "Could not analyze this page. Check yt-dlp, connection and video permissions.";
+        const safeCode = typeof result?.errorCode === "string" &&
+          /^[A-Z][A-Z0-9_]{2,48}$/.test(result.errorCode) ? result.errorCode : "";
+        const detail = typeof result?.message === "string" && result.message.length <= 240
+          ? result.message : "Could not analyze this page. Check RangeDesk Media Tools.";
+        mediaError = safeCode ? detail + " · " + safeCode : detail;
         return;
       }
       mediaFormats = result.formats.filter(f =>
@@ -95,42 +272,148 @@
       if (mediaFormats.length === 0)
         mediaError = "No downloadable quality was reported for this video.";
     } catch {
-      mediaError = "RangeDesk media analyzer is unavailable.";
+      if (requestId === mediaRequestSequence && currentPageUrl() === url)
+        mediaError = "RangeDesk media analyzer is unavailable.";
     } finally {
-      mediaLoading = false;
-      if (expanded && currentPageUrl() === url) renderChoices();
+      if (requestId === mediaRequestSequence) {
+        mediaLoading = false;
+        if (status.textContent === "Finding available video qualities…")
+          status.textContent = "";
+        if (expanded && currentPageUrl() === url) renderChoices();
+      }
     }
   }
 
-  async function downloadQuality(format, button) {
-    if (pending || mediaLoading) return;
-    if (!rightsConfirmed) {
-      status.textContent = "Confirm that you have permission to save this video.";
-      return;
-    }
+  function sanitizeFileStem(title) {
+    const clean = String(title || "Video").replace(/ - YouTube$/i, "")
+      .replace(/[^\p{L}\p{N} _-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 80);
+    return clean || "Video";
+  }
+
+  function closeConfirmation() {
+    if (confirmPending) return;
+    confirmMask.hidden = true;
+    if (confirmReturnFocus?.isConnected) confirmReturnFocus.focus();
+  }
+  function setConfirmationBusy(busy) {
+    confirmPending = busy;
+    startButton.disabled = busy || confirmJobSubmitted;
+    laterButton.disabled = busy || confirmJobSubmitted;
+    nameField.disabled = busy || confirmJobSubmitted;
+    folderField.disabled = busy || confirmJobSubmitted;
+    qualityField.disabled = busy || confirmJobSubmitted;
+  }
+
+  async function openConfirmation(format, button) {
+    if (mediaLoading || pending) return;
     if (mediaAnalyzedUrl !== currentPageUrl() ||
         !mediaFormats.some(item => item.id === format.id)) {
-      status.textContent = "The page has changed. Reopen Download video to analyze it.";
+      status.textContent = "Video changed. Reopen Download video to refresh the qualities.";
       return;
     }
-    pending = true;
-    button.disabled = true;
-    status.textContent = "Queueing selected quality in RangeDesk…";
+    confirmReturnFocus = button;
+    confirmPageUrl = currentPageUrl();
+    confirmJobSubmitted = false;
+    confirmInfo.textContent = "Choose Start Download or Download Later. No transfer has begun.";
+    setConfirmationBusy(false);
+    confirmTitle.textContent = typeof document.title === "string"
+      ? document.title.slice(0, 160) : "Video";
+    confirmSource.textContent = new URL(confirmPageUrl).hostname + " · Selected video format";
+    const poster = typeof active?.poster === "string" ? active.poster : "";
+    if (/^https?:\/\//i.test(poster)) { thumb.src = poster; thumb.hidden = false; }
+    else { thumb.hidden = true; }
+    qualityField.replaceChildren();
+    for (const candidate of mediaFormats) {
+      const choice = document.createElement("option");
+      choice.value = candidate.id; choice.textContent = candidate.label;
+      qualityField.appendChild(choice);
+    }
+    qualityField.value = format.id;
+    nameField.value = sanitizeFileStem(confirmTitle.textContent);
+    confirmPermission.checked = false;
+    let hostName = "";
+    try { hostName = new URL(confirmPageUrl).hostname; } catch {}
+    const key = "rangedesk_media_folder:" + hostName;
+    folderField.value = "default";
+    rememberFolder.checked = false;
+    try {
+      const saved = await chrome.storage?.local?.get(key);
+      if (confirmPageUrl !== currentPageUrl()) return;
+      const choice = saved?.[key];
+      if (choice === "default" || choice === "videos") {
+        folderField.value = choice; rememberFolder.checked = true;
+      }
+    } catch {}
+    if (confirmPageUrl !== currentPageUrl()) return;
+    confirmMask.hidden = false;
+    startButton.focus();
+  }
+
+  async function submitConfirmation(queueOnly) {
+    if (confirmPending || confirmJobSubmitted) return;
+    if (!confirmPermission.checked) {
+      confirmInfo.textContent = "Confirm you have permission to save this video.";
+      return;
+    }
+    const chosen = mediaFormats.find(f => f.id === qualityField.value);
+    if (!chosen || confirmPageUrl !== currentPageUrl() ||
+        confirmPageUrl !== mediaAnalyzedUrl) {
+      confirmInfo.textContent = "The video or available formats changed. Close and refresh the menu.";
+      return;
+    }
+    const fileStem = nameField.value.trim();
+    if (!fileStem || [...fileStem].length > 80 ||
+        !/^[\p{L}\p{N} _-]+$/u.test(fileStem)) {
+      confirmInfo.textContent = "File name must contain only letters, numbers, spaces, _ or - (80 characters maximum).";
+      return;
+    }
+    if (!["default", "videos"].includes(folderField.value)) return;
+    setConfirmationBusy(true);
+    confirmInfo.textContent = queueOnly ? "Saving for later in RangeDesk…" :
+      "Sending confirmed download to RangeDesk…";
     try {
       const result = await chrome.runtime.sendMessage({
-        action: "rangedesk_media_download", url: currentPageUrl(),
-        formatId: format.id, rightsConfirmed: true
+        action: "rangedesk_media_download", url: confirmPageUrl,
+        formatId: chosen.id, rightsConfirmed: true,
+        queueOnly, fileStem, saveLocation: folderField.value
       });
-      status.textContent = result?.accepted
-        ? "Queued in RangeDesk. View its Media tab for progress."
-        : "Download not queued. Open RangeDesk and check the MediaTools setup.";
+      if (!result?.accepted || typeof result.jobId !== "string" ||
+          !/^[a-f0-9]{32}$/i.test(result.jobId)) {
+        confirmInfo.textContent = typeof result?.message === "string"
+          ? result.message : "RangeDesk could not accept the request.";
+        return;
+      }
+      confirmJobSubmitted = true;
+      mediaJobId = result.jobId;
+      mediaJobUrl = confirmPageUrl;
+      mediaJobDone = queueOnly;
+      confirmInfo.textContent = queueOnly
+        ? "Saved for later in RangeDesk Downloads. Use Resume there to start."
+        : "Accepted by RangeDesk. Checking real download progress…";
+      status.textContent = confirmInfo.textContent;
+      cancelButton.textContent = "Close";
+      if (rememberFolder.checked) {
+        const hostname = new URL(confirmPageUrl).hostname;
+        const key = "rangedesk_media_folder:" + hostname;
+        try { await chrome.storage?.local?.set({ [key]: folderField.value }); } catch {}
+      }
+      if (!queueOnly) pollJob();
     } catch {
-      status.textContent = "RangeDesk could not accept this video selection.";
+      confirmInfo.textContent = "RangeDesk is unavailable. Keep the app open and retry.";
     } finally {
-      pending = false;
-      button.disabled = false;
+      setConfirmationBusy(false);
     }
   }
+  startButton.addEventListener("click", () => { void submitConfirmation(false); });
+  laterButton.addEventListener("click", () => { void submitConfirmation(true); });
+  cancelButton.addEventListener("click", closeConfirmation);
+  confirmX.addEventListener("click", closeConfirmation);
+  confirmMask.addEventListener("keydown", event => {
+    if (event.key === "Escape") { closeConfirmation(); event.stopPropagation(); }
+  });
+  qualityField.addEventListener("change", () => {
+    confirmInfo.textContent = "Selected reported quality: " + qualityField.value;
+  });
 
   function available(video) {
     const direct = sources.list(video, document.baseURI);
@@ -267,6 +550,7 @@
 
   function renderChoices() {
     options.replaceChildren();
+    qualityButtons = [];
     if (!active) return;
     const found = available(active);
     if (found.length === 0 && mediaFormats.length === 0 &&
@@ -290,27 +574,29 @@
       title.className = "header";
       title.textContent = "Available qualities";
       options.appendChild(title);
-      const consentLabel = document.createElement("label");
-      consentLabel.style.cssText =
-        "display:flex;align-items:center;gap:7px;color:#d8e8fa;font-size:11px;padding:6px 3px";
-      const consent = document.createElement("input");
-      consent.type = "checkbox";
-      consent.checked = rightsConfirmed;
-      consent.addEventListener("change", () => {
-        rightsConfirmed = consent.checked === true;
-      });
-      const wording = document.createElement("span");
-      wording.textContent = "I have permission to save this video";
-      consentLabel.append(consent, wording);
-      options.appendChild(consentLabel);
+      const selectionHint = document.createElement("div");
+      selectionHint.className = "hint";
+      selectionHint.textContent = "Click a quality to open RangeDesk download options";
+      options.appendChild(selectionHint);
       mediaFormats.forEach(format => {
         const option = document.createElement("button");
         option.type = "button";
-        option.className = "choice quality";
+        option.className = "choice quality" + (selectedQualityId === format.id ? " selected" : "");
+        option.setAttribute("aria-pressed", String(selectedQualityId === format.id));
         option.textContent = "↓ " + format.label;
-        option.title = "Download this exact reported quality to RangeDesk";
+        option.title = "Open RangeDesk download confirmation for this real quality";
+        const select = () => {
+          selectedQualityId = format.id;
+          for (const item of qualityButtons) {
+            const activeChoice = item.id === format.id;
+            item.button.className = "choice quality" + (activeChoice ? " selected" : "");
+            item.button.setAttribute("aria-pressed", String(activeChoice));
+          }
+        };
+        qualityButtons.push({ id: format.id, button: option });
         option.addEventListener("click", () => {
-          void downloadQuality(format, option);
+          select();
+          void openConfirmation(format, option);
         });
         options.appendChild(option);
       });
@@ -346,10 +632,20 @@
       status.textContent = "";
       if (mediaAnalyzedUrl !== currentPageUrl()) {
         mediaFormats = [];
+        selectedQualityId = "";
         rightsConfirmed = false;
       }
       renderChoices();
+      if (mediaJobId && !mediaJobDone) {
+        status.textContent = "Checking current RangeDesk download…";
+        pollJob();
+      } else if (mediaJobId && mediaJobDone) {
+        status.textContent = "Check the RangeDesk Media tab for the final job result.";
+      }
       void analyzePageQualities();
+    } else if (mediaJobTimer !== null) {
+      clearTimeout(mediaJobTimer);
+      mediaJobTimer = null;
     }
   });
   panel.addEventListener("keydown", event => {

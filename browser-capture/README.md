@@ -327,3 +327,76 @@ native manifest registration, permissions, MV3 service-worker lifetime,
 completed-before-pause races, redirects, single-use/authenticated links,
 closed app and restart behavior, session lock and download integrity.
 This is a development preview, not universal production-certified capture.
+
+## Chrome v0.9: truthful media job status and YouTube runtime checks
+
+- The in-player button still appears automatically on eligible HTML5 video players.
+  Opening it performs the user-requested yt-dlp probe; selecting a reported format
+  and confirming rights submits a download to RangeDesk without copying a link.
+- After acceptance Chrome receives a local job ID and can ask RangeDesk for the
+  latest stage: queued, validating, downloading, merging, completed or failed.
+  "Queued" is not described as proof that a transfer started.
+- For YouTube, RangeDesk looks for Deno 2.3+ first in `MediaTools/deno.exe`,
+  then on Windows PATH. yt-dlp uses that exact runtime. Install an official
+  yt-dlp.exe with bundled EJS solver scripts; no remote components are downloaded.
+- Errors are classified into structured codes (missing/outdated runtime, site
+  restrictions, analyzer timeouts and tool failures). No signed stream URLs or
+  browser credentials are surfaced to the web page.
+- Progress reports only real bytes for the current transfer; percentages appear
+  only when a non-estimated stream total is available. FFmpeg merging is a
+  separate stage. Completed output must exist and be nonempty.
+- RangeDesk must be running to accept new selected media downloads. Status
+  snapshots are kept under the local user's RangeDesk app-data directory.
+  This version does not support DRM bypasses, hidden authentication/cookies,
+  automatic downloading without user approval or guaranteed YouTube availability.
+
+### YouTube navigation and page-identity repair
+
+Chrome can report a frame URL that lags behind YouTube's in-page video
+navigation. RangeDesk accepts the browser-reported current top-level tab URL
+when it matches the requested video, or a narrowly restricted, same-origin
+YouTube video-route fallback when the browser origin and frame identity agree.
+Cross-origin pages, invented paths and credentialed URLs remain blocked.
+A rejected probe clears its loading indicator and displays an actionable
+error. Changing video pages while a probe is running discards stale results.
+
+## Chrome v0.9.2: direct browser quality quick-start
+
+- Selecting a reported format now highlights the choice. Double-clicking a quality
+  (or pressing Enter on the focused button) submits the confirmed selection.
+  Explicit permission confirmation remains required and duplicate submissions
+  for an in-progress media job are blocked.
+- The Windows application processes accepted browser media jobs directly in the
+  background; it no longer opens Add Download or requires a second download click.
+  The browser polls the job state instead of claiming that queueing means started.
+- RangeDesk revalidates the actual format and downloads it using yt-dlp with
+  FFmpeg merging separate video and audio tracks where supported. Failures
+  appear in the browser job state; the toolchain is still a user-controlled setup.
+- Standard link capture and the manual Media tab keep their existing behavior.
+
+## Browser media confirmation and download history
+
+- Double-clicking a reported quality opens RangeDesk's existing Add Download
+  popup on the Media tab, with the browser-selected quality ready for confirmation.
+- Start Download begins yt-dlp/FFmpeg transfer and records the job in the
+  main Downloads list. Cancel dismisses the request without downloading.
+- A media row shows current-stage progress and remains in the local catalog.
+  The final output path is set only after yt-dlp verifies the completed file.
+- Media uses the external extractor, not RangeDesk's HTTP range engine; a
+  missing/unsupported media pause control must never silently call that engine.
+
+## Browser-native video confirmation (0.10.0)
+
+- A single click on a reported quality opens a RangeDesk-styled modal inside the browser.
+  The Windows app does not open its Add Download dialog or take browser focus.
+- Start Download sends the explicitly confirmed format to the native host;
+  Download Later creates a persisted queued video entry in RangeDesk Downloads;
+  Cancel closes the browser modal before anything is sent.
+- Save to offers the trusted default RangeDesk folder or its Videos subfolder.
+  Browser pages do not receive an unrestricted Windows directory picker or raw
+  computer paths. Filename is an editable *stem*, not an invented output extension;
+  yt-dlp determines the real format and final extension.
+- Remember-folder preference uses Chrome extension-local storage keyed by site
+  hostname. No browsing histories, credentials or media URLs are persisted there.
+- The browser popup can overlay the Chrome tab, not unrelated Windows programs.
+  Media bytes, merging, progress and final output tracking are owned by RangeDesk.

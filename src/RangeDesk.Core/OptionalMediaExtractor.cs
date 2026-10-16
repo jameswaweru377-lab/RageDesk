@@ -10,6 +10,11 @@ namespace RangeDesk.Core;
 /// load external plugins or download tools. It handles one user-supplied page
 /// URL and only surfaces actual formats reported by the extractor.
 /// </summary>
+public sealed class MediaAnalyzerException(string code, string message) : Exception(message)
+{
+    public string Code { get; } = code;
+}
+
 public static class OptionalMediaExtractor
 {
     public sealed record Format(string Id, string Label, bool NeedsAudioMerge, int Height);
@@ -26,6 +31,74 @@ public static class OptionalMediaExtractor
 
     public static bool IsReady(string appFolder) =>
         File.Exists(ExtractorExecutable(appFolder)) && File.Exists(FfmpegExecutable(appFolder));
+
+    // YouTube currently requires an approved JS runtime to solve its player challenges.
+    // Prefer the portable MediaTools folder; the Windows PATH is a fallback.
+    public static string? DenoExecutable(string appFolder)
+    {
+        string local = Path.Combine(DefaultToolsFolder(appFolder), "deno.exe");
+        if (File.Exists(local)) return local;
+        foreach (string folder in (Environment.GetEnvironmentVariable("PATH") ?? "")
+                     .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        {
+            try
+            {
+                string trimmed = folder.Trim().Trim('"');
+                if (!Path.IsPathFullyQualified(trimmed)) continue;
+                string candidate = Path.Combine(trimmed, "deno.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+            catch (Exception ex) when (ex is ArgumentException or NotSupportedException
+                                       or PathTooLongException) { }
+        }
+        return null;
+    }
+
+    private static bool IsYouTube(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) return false;
+        string host = uri.Host;
+        return host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+               host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase) ||
+               host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? CheckedDeno(string appFolder, string url)
+    {
+        if (!IsYouTube(url)) return null;
+        string path = DenoExecutable(appFolder) ??
+            throw new MediaAnalyzerException("JS_RUNTIME_MISSING",
+                "Deno 2.3 or newer is required for YouTube. Place deno.exe in MediaTools or install it on PATH.");
+        try
+        {
+            using var process = Process.Start(new ProcessStartInfo(path)
+            {
+                ArgumentList = { "--version" },
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true
+            }) ?? throw new IOException("Deno could not start.");
+            if (!process.WaitForExit(4000))
+            {
+                process.Kill(entireProcessTree: true);
+                throw new IOException("Deno version check timed out.");
+            }
+            string first = process.StandardOutput.ReadLine() ?? "";
+            string[] tokens = first.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (process.ExitCode != 0 || tokens.Length < 2 ||
+                !Version.TryParse(tokens[1], out Version? version) ||
+                version < new Version(2, 3))
+                throw new MediaAnalyzerException("JS_RUNTIME_OUTDATED",
+                    "Deno 2.3 or newer is required. Check the executable in MediaTools.");
+        }
+        catch (MediaAnalyzerException) { throw; }
+        catch (Exception ex) when (ex is IOException or System.ComponentModel.Win32Exception
+                                   or InvalidOperationException or UnauthorizedAccessException)
+        {
+            throw new MediaAnalyzerException("JS_RUNTIME_UNAVAILABLE",
+                "Deno could not be started. Check MediaTools and the installed runtime.");
+        }
+        return path;
+    }
 
     public static bool IsPageCandidate(string url)
     {
@@ -94,7 +167,8 @@ public static class OptionalMediaExtractor
     }
 
     public static IReadOnlyList<string> DownloadArguments(string url, Format format,
-        string destinationDirectory, string ffmpegExecutable)
+        string destinationDirectory, string ffmpegExecutable, string? outputTag = null,
+        string? fileStem = null)
     {
         ValidatePage(url);
         if (format is null || string.IsNullOrWhiteSpace(format.Id) ||
@@ -107,14 +181,24 @@ public static class OptionalMediaExtractor
         // A video-only track is paired with the best available audio track;
         // FFmpeg muxes both into MKV when compatible. Do not mislabel MPEG-TS
         // or silently manufacture quality levels.
+        if (!BrowserMediaRequest.IsValidStem(fileStem))
+            throw new ArgumentException("Invalid media filename.");
+        if (outputTag is not null && (outputTag.Length is < 1 or > 16 ||
+            !outputTag.All(char.IsAsciiHexDigit)))
+            throw new ArgumentException("Invalid media output identity.");
         string selector = format.NeedsAudioMerge ? format.Id + "+ba/" + format.Id : format.Id;
         return ["--ignore-config", "--no-plugin-dirs", "--no-remote-components",
             "--no-playlist", "--no-overwrites", "--windows-filenames",
-            "--restrict-filenames", "--continue", "--newline",
+            "--restrict-filenames", "--continue", "--newline", "--progress",
+            "--progress-template", "download:RangeDeskProgress:%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s",
+            "--progress-template", "postprocess:RangeDeskPostprocess:%(progress.status)s",
+            "--print", "after_move:RangeDeskFinal:%(filepath)s",
             "--format", selector, "--merge-output-format", "mkv",
             "--ffmpeg-location", ffmpegExecutable,
             "--paths", Path.GetFullPath(destinationDirectory),
-            "--output", "RangeDesk-%(id).80s.%(ext)s", "--", url];
+            "--output", (fileStem is null ? "RangeDesk-%(id).80s-%(format_id)s" :
+                fileStem.Trim() + "-%(format_id)s") +
+                (outputTag is null ? "" : "-" + outputTag) + ".%(ext)s", "--", url];
     }
 
     private static void ValidatePage(string url)
@@ -126,16 +210,65 @@ public static class OptionalMediaExtractor
     private static ProcessStartInfo Setup(string appFolder, IReadOnlyList<string> arguments)
     {
         var path = ExtractorExecutable(appFolder);
-        if (!File.Exists(path)) throw new FileNotFoundException(
-            "Missing MediaTools/yt-dlp.exe. Install the official tool manually.", path);
+        if (!File.Exists(path))
+            throw new MediaAnalyzerException("TOOL_MISSING",
+                "yt-dlp.exe is missing from MediaTools. Install the official executable.");
+        string url = arguments[^1];
+        string? deno = CheckedDeno(appFolder, url);
         var info = new ProcessStartInfo(path)
         {
             UseShellExecute = false, CreateNoWindow = true,
             RedirectStandardOutput = true, RedirectStandardError = true,
             WorkingDirectory = DefaultToolsFolder(appFolder)
         };
-        foreach (var arg in arguments) info.ArgumentList.Add(arg);
+        foreach (var arg in arguments)
+        {
+            if (arg == "--" && deno is not null)
+            {
+                info.ArgumentList.Add("--js-runtimes");
+                info.ArgumentList.Add("deno:" + deno);
+            }
+            info.ArgumentList.Add(arg);
+        }
         return info;
+    }
+
+    /// <summary>
+    /// Reduce untrusted yt-dlp stderr to a fixed local diagnostic. Never return
+    /// raw output: it may contain signed URLs, account identifiers or file paths.
+    /// </summary>
+    public static MediaAnalyzerException ClassifyProbeFailure(string? stderr)
+    {
+        bool Has(string phrase) => stderr?.Contains(
+            phrase, StringComparison.OrdinalIgnoreCase) == true;
+
+        if (Has("Sign in") || Has("confirm you're not a bot") ||
+            Has("login required") || Has("members-only") || Has("private video"))
+            return new MediaAnalyzerException("SIGN_IN_REQUIRED",
+                "This video may require sign-in or additional access. Try a permitted public video.");
+        if (Has("HTTP Error 429") || Has("Too Many Requests") ||
+            Has("rate limit"))
+            return new MediaAnalyzerException("RATE_LIMITED",
+                "The video site is limiting requests. Wait before trying again.");
+        if (Has("HTTP Error 403") || Has("Forbidden"))
+            return new MediaAnalyzerException("SITE_RESTRICTED",
+                "The video site denied access. Check availability and permissions.");
+        if (Has("Unsupported URL") || Has("No suitable extractor"))
+            return new MediaAnalyzerException("SITE_UNSUPPORTED",
+                "The installed yt-dlp does not support this video page.");
+        if (Has("EJS") || Has("JavaScript challenge") ||
+            Has("n challenge") || Has("signature extraction failed"))
+            return new MediaAnalyzerException("JS_CHALLENGE_FAILED",
+                "The video challenge could not be solved. Check Deno 2.3+ and update the official yt-dlp.exe.");
+        if (Has("HTTP Error 404") || Has("Video unavailable"))
+            return new MediaAnalyzerException("VIDEO_UNAVAILABLE",
+                "The video is not available from this URL.");
+        if (Has("timed out") || Has("Unable to download webpage") ||
+            Has("Name or service not known") || Has("Could not resolve"))
+            return new MediaAnalyzerException("NETWORK_ERROR",
+                "The video page could not be reached. Check the network or try again later.");
+        return new MediaAnalyzerException("EXTRACTOR_FAILED",
+            "yt-dlp could not analyze this page. Check its version and try a permitted public video.");
     }
 
     public static async Task<Probe> AnalyzeAsync(string appFolder, string url,
@@ -152,11 +285,15 @@ public static class OptionalMediaExtractor
             Task<string> error = ReadBoundedAsync(process.StandardError, 128_000, timeout.Token);
             await process.WaitForExitAsync(timeout.Token);
             string json = await output;
-            _ = await error; // Never echo a possibly secret signed media URL.
+            string stderr = await error; // Classify locally, never echo private URLs.
             if (process.ExitCode != 0)
-                throw new InvalidOperationException(
-                    "The extractor could not analyze this video. Check permissions, tool version and site support.");
+                throw ClassifyProbeFailure(stderr);
             return ParseProbe(json);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            throw new MediaAnalyzerException("PROBE_TIMEOUT",
+                "Video analysis timed out. Retry or check the network connection.");
         }
         finally
         {
@@ -170,30 +307,42 @@ public static class OptionalMediaExtractor
     /// This preview does not claim integration with native RangeDesk pause/
     /// scheduling checkpoints, which remain separate from yt-dlp .part files.
     /// </summary>
-    public static async Task DownloadAsync(string appFolder, string url,
+    public sealed record MediaProgress(long DownloadedBytes, long? TotalBytes, bool Estimated);
+
+    public static async Task<string> DownloadAsync(string appFolder, string url,
         Format selected, string destinationDirectory, Action<string> status,
-        CancellationToken token)
+        CancellationToken token, Action<MediaProgress>? onProgress = null,
+        string? outputTag = null, string? fileStem = null)
     {
         if (!IsReady(appFolder)) throw new FileNotFoundException(
             "Both MediaTools/yt-dlp.exe and MediaTools/ffmpeg.exe are required.");
         Directory.CreateDirectory(destinationDirectory);
         var info = Setup(appFolder, DownloadArguments(url, selected,
-            destinationDirectory, FfmpegExecutable(appFolder)));
+            destinationDirectory, FfmpegExecutable(appFolder), outputTag, fileStem));
         using var process = Process.Start(info) ??
             throw new InvalidOperationException("yt-dlp could not start.");
         try
         {
             // Read lines to avoid deadlocks. Do not surface raw output; it can
             // contain expiring signed media URLs, private titles and paths.
-            Task stdout = DrainAsync(process.StandardOutput, token);
+            Task<string?> stdout = ReadDownloadOutputAsync(process.StandardOutput, status, onProgress, token);
             Task stderr = DrainAsync(process.StandardError, token);
             status("Downloading selected video and audio…");
             await process.WaitForExitAsync(token);
-            await Task.WhenAll(stdout, stderr);
+            string? finalPath = await stdout;
+            await stderr;
             if (process.ExitCode != 0)
-                throw new InvalidOperationException(
-                    "Media download failed. Check the source, yt-dlp/FFmpeg compatibility and access rights.");
-            status("Media download complete. Check the selected downloads folder.");
+                throw new MediaAnalyzerException("DOWNLOAD_FAILED",
+                    "The selected media could not be downloaded or merged.");
+            string folder = Path.GetFullPath(destinationDirectory).TrimEnd(Path.DirectorySeparatorChar) +
+                            Path.DirectorySeparatorChar;
+            if (string.IsNullOrEmpty(finalPath) ||
+                !Path.GetFullPath(finalPath).StartsWith(folder, StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(finalPath) || new FileInfo(finalPath).Length == 0)
+                throw new MediaAnalyzerException("OUTPUT_FAILED",
+                    "The extractor finished, but a completed output file could not be verified.");
+            status("Media download complete. Output file verified.");
+            return Path.GetFullPath(finalPath);
         }
         catch (OperationCanceledException)
         {
@@ -220,6 +369,37 @@ public static class OptionalMediaExtractor
             result.Append(buffer, 0, count);
         }
         return result.ToString();
+    }
+
+    private static async Task<string?> ReadDownloadOutputAsync(
+        StreamReader reader, Action<string> status, Action<MediaProgress>? onProgress,
+        CancellationToken token)
+    {
+        string? output = null;
+        while (await reader.ReadLineAsync(token) is string line)
+        {
+            if (line.StartsWith("RangeDeskFinal:", StringComparison.Ordinal))
+            {
+                output = line["RangeDeskFinal:".Length..];
+            }
+            else if (line.StartsWith("RangeDeskProgress:", StringComparison.Ordinal))
+            {
+                string[] values = line["RangeDeskProgress:".Length..].Split('|');
+                if (values.Length == 3 &&
+                    long.TryParse(values[0], out long bytes) && bytes >= 0)
+                {
+                    long? total = long.TryParse(values[1], out long t) && t > 0 ? t : null;
+                    bool estimated = total is null && long.TryParse(values[2], out long estimate) && estimate > 0;
+                    if (estimated) total = long.Parse(values[2]);
+                    onProgress?.Invoke(new MediaProgress(bytes, total, estimated));
+                }
+            }
+            else if (line.StartsWith("RangeDeskPostprocess:", StringComparison.Ordinal) ||
+                     line.StartsWith("[Merger]", StringComparison.Ordinal) ||
+                     line.StartsWith("[VideoRemuxer]", StringComparison.Ordinal))
+                status("Processing and merging downloaded media…");
+        }
+        return output;
     }
 
     private static async Task DrainAsync(StreamReader reader, CancellationToken token)
