@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "RangeDesk Browser Capture",
-  "version": "0.3.0",
-  "description": "Chrome development preview: opt-in direct-file capture, safe fallback, and a stable unpacked extension ID.",
+  "version": "0.4.0",
+  "description": "Opt-in browser downloads and in-page HTML5 video download control for exposed direct media sources.",
   "permissions": [
     "contextMenus",
     "nativeMessaging",
@@ -15,5 +15,19 @@
   "action": {
     "default_title": "RangeDesk — click to enable automatic capture"
   },
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArctowskWMQaecb9ipegv9fe02N+4t/2+QdLmkhbN/Fz/BwC1zzo3zlEndQThi4ww8g918sYmm/ABNVm3pc6VZGR2jrQ4ytU0fuCt3c4lase3ZiEoQKCXz+7KRajRZCjdLW3hPqAEvTH5ddT0TuzImj0z6lkuGMCUcQOBN8g9xLJM4WE3dSCCfBvrClwi+dllkE9Dl3F8Baj+Kw4Ub7v4y7OIkZ771btxtHq3UpsAiCe3F6Eqh7jnTFf5po07josbtWImC29u0BKGKdrku3nyKkVhiUvCa5XyWL26P4sa2Xdtt1DqW8qZuYxJWWY6gePQ3gYlaPc+Gjni51ZmzFxLvQIDAQAB"
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEArctowskWMQaecb9ipegv9fe02N+4t/2+QdLmkhbN/Fz/BwC1zzo3zlEndQThi4ww8g918sYmm/ABNVm3pc6VZGR2jrQ4ytU0fuCt3c4lase3ZiEoQKCXz+7KRajRZCjdLW3hPqAEvTH5ddT0TuzImj0z6lkuGMCUcQOBN8g9xLJM4WE3dSCCfBvrClwi+dllkE9Dl3F8Baj+Kw4Ub7v4y7OIkZ771btxtHq3UpsAiCe3F6Eqh7jnTFf5po07josbtWImC29u0BKGKdrku3nyKkVhiUvCa5XyWL26P4sa2Xdtt1DqW8qZuYxJWWY6gePQ3gYlaPc+Gjni51ZmzFxLvQIDAQAB",
+  "content_scripts": [
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": [
+        "video-sources.js",
+        "video-overlay.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
 }
