@@ -269,10 +269,11 @@
     options.replaceChildren();
     if (!active) return;
     const found = available(active);
-    if (found.length === 0) {
+    if (found.length === 0 && mediaFormats.length === 0 &&
+        !mediaLoading && !mediaError && status.textContent === "") {
       status.textContent = detecting
-        ? "Start or restart playback to find a public HLS stream on this tab."
-        : "No direct video sources available.";
+        ? "No direct stream found. Checking the video page for qualities…"
+        : "No direct source found. Checking the video page for qualities…";
     }
     found.forEach((source, i) => {
       const button = document.createElement("button");
