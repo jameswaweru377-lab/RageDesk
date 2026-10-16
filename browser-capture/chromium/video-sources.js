@@ -11,7 +11,8 @@
   });
   const MIME_FORMATS = Object.freeze({
     "video/mp4": "MP4", "video/webm": "WebM",
-    "video/ogg": "Ogg video", "video/quicktime": "MOV"
+    "video/ogg": "Ogg video", "video/quicktime": "MOV",
+    "application/vnd.apple.mpegurl": "HLS", "application/x-mpegurl": "HLS"
   });
   const BLOCKED = /\.(?:m3u8|mpd|m3u|ism|mp4\.m3u8)$/i;
 
