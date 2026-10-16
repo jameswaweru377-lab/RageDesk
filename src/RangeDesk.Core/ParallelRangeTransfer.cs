@@ -207,6 +207,19 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                                 output.Flush(true);
                                 break;
                             }
+                            catch (TimeoutException) when (
+                                Interlocked.Read(ref workerBytes[i]) == totalSegment &&
+                                !workerStop.Token.IsCancellationRequested)
+                            {
+                                // The requested byte count arrived but the server never
+                                // supplied a clean EOF. Force a 1-byte verified Range
+                                // request on retry or restart instead of trusting length.
+                                UnconfirmedRangeTail.RewindOneByte(path, totalSegment);
+                                Interlocked.Decrement(ref workerBytes[i]);
+                                Interlocked.Decrement(ref measured);
+                                if (bodyAttempt >= HttpRetryPolicy.MaximumAttempts) throw;
+                                await Task.Delay(HttpRetryPolicy.Delay(bodyAttempt, null), workerStop.Token);
+                            }
                             catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
                                 bodyAttempt < HttpRetryPolicy.MaximumAttempts &&
                                 Interlocked.Read(ref workerBytes[i]) < totalSegment &&

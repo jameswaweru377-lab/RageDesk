@@ -256,10 +256,20 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     output.Flush(true);
                     return;
                 }
+                catch (TimeoutException) when (
+                    Interlocked.Read(ref piece.Downloaded) == piece.To - piece.From + 1 &&
+                    !allStop.Token.IsCancellationRequested)
+                {
+                    // A full-length checkpoint without a validated response end
+                    // must never be treated as complete after a restart.
+                    UnconfirmedRangeTail.RewindOneByte(PartPath(piece), piece.Downloaded);
+                    Interlocked.Decrement(ref piece.Downloaded);
+                    Interlocked.Decrement(ref transferred);
+                    if (attempt >= HttpRetryPolicy.MaximumAttempts) throw;
+                    await Task.Delay(HttpRetryPolicy.Delay(attempt, null), allStop.Token);
+                }
                 catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
                     attempt < HttpRetryPolicy.MaximumAttempts &&
-                    // A timeout while validating EOF must not turn into an
-                    // implicit success on the next iteration.
                     Interlocked.Read(ref piece.Downloaded) < piece.To - piece.From + 1 &&
                     !allStop.Token.IsCancellationRequested)
                 {
