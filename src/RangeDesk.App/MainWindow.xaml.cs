@@ -1,4 +1,6 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
+using System.Windows.Threading;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
@@ -25,6 +27,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "preferences-v5.json");
     private RangeDeskPreferences _preferences = new();
+    private readonly string _schedulesFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "RangeDesk", "schedules-v5.json");
+    private readonly Dictionary<string, ScheduledDownload> _scheduled =
+        new(StringComparer.OrdinalIgnoreCase);
+    private readonly DispatcherTimer _scheduleTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private string _navigation = "all";
     private string _downloadTab = "all";
     private string? _categoryNavigation;
@@ -54,7 +62,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         VisibleDownloads.Filter = MatchesFilters;
         DataContext = this;
         LoadCatalog();
-        Closing += (_, _) => _engine.Dispose();
+        try
+        {
+            foreach (var scheduled in ScheduledQueueStore.Load(_schedulesFile))
+                _scheduled.Add(scheduled.Destination, scheduled);
+        }
+        catch (Exception ex) { StatusMessage.Text = "Could not read schedules: " + ex.Message; }
+        _scheduleTimer.Tick += (_, _) => RunDueSchedules();
+        _scheduleTimer.Start();
+        RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
+        Closing += (_, _) => { _scheduleTimer.Stop(); _engine.Dispose(); };
         SourceInitialized += (_, _) =>
         {
             int enabled = 1;
@@ -297,7 +314,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         if (_siteNavigation is not null && !SitePresets.Matches(item.Host, _siteNavigation))
             return false;
-        return DownloadListVisibility.Matches(item, _navigation, GlobalSearch?.Text,
+        if (_navigation == "scheduled" && !_scheduled.ContainsKey(item.Destination)) return false;
+        return DownloadListVisibility.Matches(item, _navigation == "scheduled" ? "all" : _navigation, GlobalSearch?.Text,
             status, category, labelFilter);
     }
 
@@ -335,7 +353,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _labelNavigation = null;
         _siteNavigation = null;
         ViewTitle.Text = _navigation == "completed" ? "Completed" :
-            _navigation == "queue" ? "Queue" : "Downloads";
+            _navigation == "queue" ? "Queue" : _navigation == "scheduled" ? "Scheduled" : "Downloads";
         RefreshFilter();
     }
 
@@ -528,7 +546,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void OpenDownloadsFolder_Click(object sender, RoutedEventArgs e)
     {
-        string folder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+        string folder = _preferences.DownloadFolder;
         Directory.CreateDirectory(folder);
         Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
     }
@@ -543,7 +561,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
         if (entry.Status == DownloadStatus.Downloading) _engine.Pause(entry);
-        else _engine.Start(entry);
+        else StartManually(entry);
         e.Handled = true;
     }
 
@@ -558,11 +576,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Foreground = (Brush)FindResource("V5TextBrush")
         };
         var resume = new MenuItem { Header = "Resume", IsEnabled = entry.Status != DownloadStatus.Completed };
-        resume.Click += (_, _) => _engine.Start(entry);
+        resume.Click += (_, _) => StartManually(entry);
         var pause = new MenuItem { Header = "Pause", IsEnabled = entry.Status == DownloadStatus.Downloading };
         pause.Click += (_, _) => _engine.Pause(entry);
         var stop = new MenuItem { Header = "Stop", IsEnabled = entry.Status != DownloadStatus.Completed };
-        stop.Click += (_, _) => _engine.Cancel(entry);
+        stop.Click += (_, _) => StopManually(entry);
         var folder = new MenuItem { Header = "Open folder" };
         folder.Click += (_, _) => OpenFolder_Click(button, new RoutedEventArgs());
         menu.Items.Add(resume);
@@ -597,11 +615,65 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshFilter();
     }
 
+    private void SaveSchedules() =>
+        ScheduledQueueStore.Save(_schedulesFile, _scheduled.Values);
+
+    /// <summary>The user can override a scheduled start by explicitly resuming.</summary>
+    private bool StartManually(DownloadEntry item)
+    {
+        if (!_engine.Start(item)) return false;
+        if (_scheduled.Remove(item.Destination))
+        {
+            SaveSchedules();
+            RefreshFilter();
+        }
+        return true;
+    }
+
+    private void StopManually(DownloadEntry item)
+    {
+        if (_scheduled.Remove(item.Destination))
+        {
+            SaveSchedules();
+            RefreshFilter();
+        }
+        _engine.Cancel(item);
+    }
+
+    private void RunDueSchedules()
+    {
+        if (_scheduled.Count == 0) return;
+        try
+        {
+            bool changed = false;
+            foreach (var scheduled in _scheduled.Values.ToArray())
+            {
+                if (!ScheduledQueueStore.IsDue(scheduled, DateTimeOffset.Now)) continue;
+                var item = Downloads.FirstOrDefault(d =>
+                    string.Equals(d.Destination, scheduled.Destination, StringComparison.OrdinalIgnoreCase));
+                if (item?.Status == DownloadStatus.Queued && _engine.Start(item))
+                {
+                    _scheduled.Remove(scheduled.Destination);
+                    changed = true;
+                    StatusMessage.Text = "Scheduled download started: " + item.Name;
+                }
+                else if (item is not null && item.Status is DownloadStatus.Completed or DownloadStatus.Canceled)
+                {
+                    _scheduled.Remove(scheduled.Destination);
+                    changed = true;
+                }
+            }
+            if (changed) { SaveSchedules(); RefreshFilter(); }
+        }
+        catch (Exception ex) { StatusMessage.Text = "Schedule check failed: " + ex.Message; }
+    }
+
     private void StartQueue_Click(object sender, RoutedEventArgs e)
     {
         int started = 0;
-        foreach (var item in Downloads.Where(d => d.Status == DownloadStatus.Queued).ToArray())
-            if (_engine.Start(item)) started++;
+        foreach (var item in Downloads.Where(d => d.Status == DownloadStatus.Queued &&
+                                                 !_scheduled.ContainsKey(d.Destination)).ToArray())
+            if (StartManually(item)) started++;
         StatusMessage.Text = started > 0
             ? $"Queued transfers started in saved order: {started}"
             : "There are no queued transfers to start.";
@@ -623,6 +695,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         FormError.Text = "";
         ApplyNewDownloadDefaults();
+        ScheduleDownload.IsChecked = false;
+        var localFuture = DateTime.Now.AddMinutes(30);
+        ScheduledDate.SelectedDate = localFuture.Date;
+        ScheduledTime.Text = localFuture.ToString("HH:mm", CultureInfo.InvariantCulture);
         AddOverlay.Visibility = Visibility.Visible;
         NewUrl.Focus();
     }
@@ -773,15 +849,32 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 AdaptiveWorkers.IsChecked == true);
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
-            bool queued = QueueOnly.IsChecked == true;
+            ScheduledDownload? schedule = null;
+            if (ScheduleDownload.IsChecked == true)
+            {
+                if (ScheduledDate.SelectedDate is not DateTime day ||
+                    !TimeSpan.TryParseExact(ScheduledTime.Text.Trim(), @"hh\:mm",
+                        CultureInfo.InvariantCulture, out var clock))
+                    throw new ArgumentException("Choose a date and a 24-hour time (HH:mm).");
+                var dueAt = ScheduledQueueStore.FromLocal(day, clock, TimeZoneInfo.Local, DateTimeOffset.Now);
+                schedule = new ScheduledDownload(item.Destination, dueAt).Validate();
+            }
+            bool queued = schedule is not null || QueueOnly.IsChecked == true;
             ShowSubmittedDownload(queued);
             Track(item);
             SaveCatalog();
+            if (schedule is not null)
+            {
+                _scheduled[item.Destination] = schedule;
+                SaveSchedules();
+                RefreshFilter();
+            }
             if (!queued && !_engine.Start(item))
                 throw new InvalidOperationException("Could not start this download.");
             SelectedDownload = item;
             AddOverlay.Visibility = Visibility.Collapsed;
-            StatusMessage.Text = (queued ? "Added to queue: " : "Download started: ") + item.Name;
+            StatusMessage.Text = (schedule is not null ? "Scheduled: " :
+                queued ? "Added to queue: " : "Download started: ") + item.Name;
             NewUrl.Clear();
             NewDestination.Clear();
             NewCategory.SelectedIndex = 0;
@@ -791,6 +884,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             VerifyChecksum.IsChecked = false;
             NewChecksum.Clear();
             AdaptiveWorkers.IsChecked = false;
+            ScheduleDownload.IsChecked = false;
         }
         catch (Exception ex) { FormError.Text = ex.Message; }
     }
@@ -809,14 +903,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void Cancel_Click(object sender, RoutedEventArgs e)
     {
-        foreach (var item in ActionSelection()) _engine.Cancel(item);
+        foreach (var item in ActionSelection()) StopManually(item);
     }
 
     private void Resume_Click(object sender, RoutedEventArgs e)
     {
         int started = 0;
         foreach (var item in ActionSelection())
-            if (_engine.Start(item)) started++;
+            if (StartManually(item)) started++;
         if (started == 0) StatusMessage.Text = "No selected downloads could be started.";
         else StatusMessage.Text = $"{started} download(s) started.";
     }
