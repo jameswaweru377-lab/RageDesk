@@ -251,6 +251,9 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                 }
                 catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
                     attempt < HttpRetryPolicy.MaximumAttempts &&
+                    // A timeout while validating EOF must not turn into an
+                    // implicit success on the next iteration.
+                    Interlocked.Read(ref piece.Downloaded) < piece.To - piece.From + 1 &&
                     !allStop.Token.IsCancellationRequested)
                 {
                     // The response and output stream have been disposed. Never
