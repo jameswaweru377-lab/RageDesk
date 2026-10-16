@@ -325,7 +325,8 @@ test("player overlay appears and clicking exposed format sends link for review",
   const toggle = elements.find(el => el.className === "toggle");
   assert.ok(toggle);
   toggle.listeners.click();
-  const choices = elements.filter(el => el.className === "choice");
+  const visibleOptions = elements.find(el => el.className === "menu").children[2];
+  const choices = visibleOptions.children.filter(el => el.className === "choice");
   assert.equal(choices.length, 1);
   assert.equal(choices[0].textContent, "MP4 · 720p");
   choices[0].listeners.click();
@@ -409,7 +410,8 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
   assert.equal(overlay.style.display, "block");
   const toggle = els.find(x => x.className === "toggle");
   toggle.listeners.click();
-  const choices = els.filter(x => x.className === "choice");
+  const visibleOptions = els.find(el => el.className === "menu").children[2];
+  const choices = visibleOptions.children.filter(x => x.className === "choice");
   assert.equal(choices.length, 1);
   assert.match(choices[0].textContent, /Observed HLS/);
   choices[0].listeners.click();
@@ -420,7 +422,7 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
   assert.equal(handoffs[0].url, "https://cdn.test/stream/master.m3u8?sig=secret");
   // The observed URL is never automatically sent just because a player exists.
   assert.ok(sent.filter(x => x.action === "rangedesk_media_list").length >= 1);
-  const qualities = els.filter(x => x.className === "choice quality");
+  const qualities = visibleOptions.children.filter(x => x.className === "choice quality");
   assert.equal(qualities.length, 2);
   assert.match(qualities[0].textContent, /1080p/);
   // Explicit checkbox is required before queueing user-selected quality.
