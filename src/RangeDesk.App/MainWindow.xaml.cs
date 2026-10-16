@@ -1169,34 +1169,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// A browser user gesture queues a URL for review, never auto-starts a
-    /// transfer. The Add Download form is the only handoff destination.
-    /// </summary>
-    /// <summary>
-    /// Accept only a user-clicked format choice from the Chrome bridge.
-    /// Re-analyze the page on Windows; never trust an unverified format ID
-    /// or allow an extension message to launch an arbitrary executable.
-    /// Media operations are serialized and visible in the Media tab.
+    /// A confirmed browser format choice starts a background media job without
+    /// opening or modifying Add Download. The app independently re-probes the
+    /// selected format; Chrome receives authoritative progress via the local
+    /// job snapshot, rather than requiring another click in the desktop UI.
+    /// Media operations remain serialized with manual media downloads.
     /// </summary>
     private async void CheckBrowserMediaInbox()
     {
-        if (_mediaOperation is not null ||
-            AddOverlay.Visibility == Visibility.Visible ||
-            SettingsOverlay.Visibility == Visibility.Visible) return;
+        if (_mediaOperation is not null) return;
         BrowserMediaRequest? request;
         try { request = BrowserMediaInbox.TryTake(BrowserMediaInbox.DefaultDirectory); }
         catch (IOException) { return; }
         if (request is null) return;
 
-        Add_Click(this, new RoutedEventArgs());
-        MediaPageUrl.Text = request.Url;
-        AddDownloadTabs.SelectedIndex = 4;
-        MediaFormatChoice.ItemsSource = null;
-        MediaStatus.Text = "Checking the selected video quality…";
-        StatusMessage.Text = "Chrome video format received. Verifying before download.";
-        BrowserMediaJobState.TryUpdate(request.JobId, "validating", "Checking selected video quality…");
-        MediaAnalyzeButton.IsEnabled = false;
-        MediaDownloadButton.IsEnabled = false;
+        BrowserMediaJobState.TryUpdate(request.JobId, "validating",
+            "Verifying selected quality before starting…");
+        StatusMessage.Text = "Browser selection received. Starting media without another confirmation…";
         using var cancel = new CancellationTokenSource();
         _mediaOperation = cancel;
         try
@@ -1211,46 +1200,45 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (selected is null)
                 throw new NotSupportedException(
                     "This quality is no longer available. Reopen the Chrome video menu.");
-            _mediaProbe = probe;
-            _mediaAnalyzedUrl = request.Url;
-            MediaFormatChoice.ItemsSource = probe.Formats;
-            MediaFormatChoice.SelectedItem = selected;
-            MediaRightsConfirm.IsChecked = true; // Confirmed in the Chrome UI.
-            BrowserMediaJobState.TryUpdate(request.JobId, "downloading", "Starting the selected video download…");
+
+            BrowserMediaJobState.TryUpdate(request.JobId, "starting",
+                "Verified quality. Starting media download…");
             await OptionalMediaExtractor.DownloadAsync(
                 AppContext.BaseDirectory, request.Url, selected,
                 _preferences.DownloadFolder,
-                message => Dispatcher.Invoke(() =>
+                message =>
                 {
-                    MediaStatus.Text = message;
-                    StatusMessage.Text = message;
-                    if (message.StartsWith("Merging", StringComparison.Ordinal))
-                        BrowserMediaJobState.TryUpdate(request.JobId, "merging", message);
-                }), cancel.Token,
+                    string state = message.StartsWith("Processing and merging", StringComparison.Ordinal)
+                        ? "merging" : message.StartsWith("Downloading", StringComparison.Ordinal)
+                            ? "downloading" : "finalizing";
+                    BrowserMediaJobState.TryUpdate(request.JobId, state, message);
+                    Dispatcher.Invoke(() => StatusMessage.Text = "Browser media: " + message);
+                }, cancel.Token,
                 progress => BrowserMediaJobState.TryUpdate(request.JobId, "downloading",
                     "Downloading selected video/audio stream…",
                     progress.DownloadedBytes, progress.TotalBytes, progress.Estimated));
             BrowserMediaJobState.TryUpdate(request.JobId, "completed",
                 "Download completed and output file verified.");
+            StatusMessage.Text = "Browser video download completed and saved.";
         }
         catch (OperationCanceledException)
         {
-            MediaStatus.Text = "Browser media download stopped.";
-            StatusMessage.Text = MediaStatus.Text;
-            BrowserMediaJobState.TryUpdate(request.JobId, "cancelled", MediaStatus.Text);
+            StatusMessage.Text = "Browser video download stopped.";
+            BrowserMediaJobState.TryUpdate(request.JobId, "cancelled",
+                "Browser video download stopped.");
         }
         catch (Exception ex)
         {
-            MediaStatus.Text = "Browser media download failed: " + ex.Message;
-            StatusMessage.Text = MediaStatus.Text;
+            // The local UI may show the safe error; browser snapshots must not
+            // include the source URL or any extractor process output.
+            StatusMessage.Text = "Browser media download failed: " + ex.Message;
             BrowserMediaJobState.TryUpdate(request.JobId, "failed",
-                ex is MediaAnalyzerException ? ex.Message : "Media download failed. Open RangeDesk for details.");
+                ex is MediaAnalyzerException ? ex.Message :
+                "Video could not start or finish. Check MediaTools in RangeDesk.");
         }
         finally
         {
             _mediaOperation = null;
-            MediaAnalyzeButton.IsEnabled = true;
-            MediaDownloadButton.IsEnabled = true;
         }
     }
 

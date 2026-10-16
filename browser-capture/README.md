@@ -359,3 +359,17 @@ YouTube video-route fallback when the browser origin and frame identity agree.
 Cross-origin pages, invented paths and credentialed URLs remain blocked.
 A rejected probe clears its loading indicator and displays an actionable
 error. Changing video pages while a probe is running discards stale results.
+
+## Chrome v0.9.2: direct browser quality quick-start
+
+- Selecting a reported format now highlights the choice. Double-clicking a quality
+  (or pressing Enter on the focused button) submits the confirmed selection.
+  Explicit permission confirmation remains required and duplicate submissions
+  for an in-progress media job are blocked.
+- The Windows application processes accepted browser media jobs directly in the
+  background; it no longer opens Add Download or requires a second download click.
+  The browser polls the job state instead of claiming that queueing means started.
+- RangeDesk revalidates the actual format and downloads it using yt-dlp with
+  FFmpeg merging separate video and audio tracks where supported. Failures
+  appear in the browser job state; the toolchain is still a user-controlled setup.
+- Standard link capture and the manual Media tab keep their existing behavior.

@@ -433,7 +433,10 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
   assert.ok(permission);
   permission.checked = true;
   permission.listeners.change();
-  qualities[0].listeners.click();
+  qualities[0].listeners.click({detail: 1});
+  await new Promise(resolve => setTimeout(resolve, 1));
+  assert.equal(sent.filter(x => x.action === "rangedesk_media_download").length, 0);
+  qualities[0].listeners.dblclick();
   await new Promise(resolve => setTimeout(resolve, 1));
   const queued = sent.filter(x => x.action === "rangedesk_media_download");
   assert.equal(queued.length, 1);
@@ -599,7 +602,7 @@ function mockPlayerOverlay(sendMessage) {
     return sendMessage(message);
   }}};
   const context=vm.createContext({URL,document,window:{innerHeight:800,innerWidth:1400,addEventListener:()=>{}},
-    chrome,Number,Array,Set,MutationObserver:class{observe(){}},
+    chrome,Number,Array,Set,setTimeout,clearTimeout,MutationObserver:class{observe(){}},
     requestAnimationFrame:cb=>cb()});
   vm.runInContext(scripts("video-sources.js"),context);
   vm.runInContext(scripts("video-overlay.js"),context);
@@ -637,4 +640,85 @@ test("New YouTube SPA probe can finish before an older in-flight probe", async (
   await new Promise(resolve=>setTimeout(resolve,5));
   assert.equal(ui.options.children.filter(e=>e.className==="choice quality").length,1);
   assert.ok(!ui.options.children.some(e=>/Old video should not/.test(e.textContent)));
+});
+
+test("single-click selects genuine quality; double-click starts directly with permission", async () => {
+  const messages=[];
+  const jobId="0123456789abcdef0123456789abcdef";
+  const ui=mockPlayerOverlay(async message=>{
+    messages.push(message);
+    if(message.action==="rangedesk_media_probe")return {accepted:true,formats:[
+      {id:"f1080",label:"1080p · MP4 · f1080",height:1080,needsAudioMerge:true},
+      {id:"f720",label:"720p · MP4 · f720",height:720,needsAudioMerge:false}
+    ]};
+    if(message.action==="rangedesk_media_download")
+      return {accepted:true,jobId,state:"queued",message:"Selection received by RangeDesk."};
+    if(message.action==="rangedesk_media_status")
+      return {accepted:true,jobId,state:"completed",message:"Output verified."};
+    return {accepted:false};
+  });
+  ui.toggle.listeners.click();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  const qualities=ui.options.children.filter(x=>x.className.startsWith("choice quality"));
+  assert.equal(qualities.length,2);
+  qualities[0].listeners.click({detail:1});
+  assert.match(qualities[0].className,/selected/);
+  assert.equal(qualities[0].attributes["aria-pressed"],"true");
+  assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,0);
+  const consent=ui.elements.find(x=>x.tagName==="INPUT"&&x.type==="checkbox");
+  assert.ok(consent);
+  consent.checked=true;consent.listeners.change();
+  qualities[0].listeners.dblclick();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,1);
+  assert.equal(messages.find(m=>m.action==="rangedesk_media_download").formatId,"f1080");
+  assert.match(ui.status.textContent,/Selection received|Checking current|RangeDesk/);
+  // Browser must not submit another job when the same selection is still active.
+  qualities[0].listeners.dblclick();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,1);
+});
+
+test("double-click never downloads without permission and stale formats cannot start", async () => {
+  const messages=[];
+  const ui=mockPlayerOverlay(async message=>{
+    messages.push(message);
+    if(message.action==="rangedesk_media_probe")
+      return {accepted:true,formats:[{id:"f1080",label:"1080p · MP4",height:1080}]};
+    return {accepted:false};
+  });
+  ui.toggle.listeners.click();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  const quality=ui.options.children.find(x=>x.className.startsWith("choice quality"));
+  assert.ok(quality);
+  quality.listeners.dblclick();
+  await new Promise(resolve=>setTimeout(resolve,1));
+  assert.match(ui.status.textContent,/permission/);
+  assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,0);
+  const consent=ui.elements.find(x=>x.tagName==="INPUT"&&x.type==="checkbox");
+  consent.checked=true;consent.listeners.change();
+  ui.document.URL="https://www.youtube.com/watch?v=bbbbbbbbbbb";
+  quality.listeners.dblclick();
+  await new Promise(resolve=>setTimeout(resolve,1));
+  assert.match(ui.status.textContent,/page has changed/);
+  assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,0);
+});
+
+test("keyboard Enter activates a selected quality with no double-click requirement", async () => {
+  const messages=[];
+  const ui=mockPlayerOverlay(async message=>{
+    messages.push(message);
+    if(message.action==="rangedesk_media_probe")
+      return {accepted:true,formats:[{id:"a720",label:"720p · MP4",height:720}]};
+    return {accepted:true};
+  });
+  ui.toggle.listeners.click();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  const consent=ui.elements.find(x=>x.tagName==="INPUT"&&x.type==="checkbox");
+  consent.checked=true;consent.listeners.change();
+  const quality=ui.options.children.find(x=>x.className.startsWith("choice quality"));
+  quality.listeners.click({detail:0});
+  await new Promise(resolve=>setTimeout(resolve,2));
+  assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,1);
+  assert.equal(messages.find(m=>m.action==="rangedesk_media_download").formatId,"a720");
 });

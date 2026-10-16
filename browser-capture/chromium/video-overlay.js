@@ -23,6 +23,7 @@
     ".choice{all:unset;cursor:pointer;box-sizing:border-box;display:block;padding:9px 8px;width:100%;",
     "border-radius:7px;background:#163453;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
     ".choice:hover{background:#245682}",
+    ".choice.selected{background:#245b89;outline:1px solid #8bd1ff;}",
     ".status{font-size:11px;color:#b3c7df;margin:7px 5px 3px;max-width:235px;overflow-wrap:break-word;}",
     "[hidden]{display:none!important}"
   ].join("");
@@ -63,6 +64,8 @@
   let mediaLoading = false;
   let mediaRequestSequence = 0;
   let mediaError = "";
+  let selectedQualityId = "";
+  let qualityButtons = [];
   let rightsConfirmed = false;
   let mediaJobId = null;
   let mediaJobUrl = "";
@@ -122,6 +125,7 @@
     const requestId = ++mediaRequestSequence;
     mediaAnalyzedUrl = url;
     mediaFormats = [];
+    selectedQualityId = "";
     mediaError = "";
     rightsConfirmed = false;
     mediaLoading = true;
@@ -158,6 +162,10 @@
 
   async function downloadQuality(format, button) {
     if (pending || mediaLoading) return;
+    if (mediaJobId && !mediaJobDone && mediaJobUrl === currentPageUrl()) {
+      status.textContent = "A video selection is already queued or downloading in RangeDesk.";
+      return;
+    }
     if (!rightsConfirmed) {
       status.textContent = "Confirm that you have permission to save this video.";
       return;
@@ -332,6 +340,7 @@
 
   function renderChoices() {
     options.replaceChildren();
+    qualityButtons = [];
     if (!active) return;
     const found = available(active);
     if (found.length === 0 && mediaFormats.length === 0 &&
@@ -355,6 +364,10 @@
       title.className = "header";
       title.textContent = "Available qualities";
       options.appendChild(title);
+      const selectionHint = document.createElement("div");
+      selectionHint.className = "hint";
+      selectionHint.textContent = "Click to select · Double-click to download (Enter also works)";
+      options.appendChild(selectionHint);
       const consentLabel = document.createElement("label");
       consentLabel.style.cssText =
         "display:flex;align-items:center;gap:7px;color:#d8e8fa;font-size:11px;padding:6px 3px";
@@ -371,10 +384,32 @@
       mediaFormats.forEach(format => {
         const option = document.createElement("button");
         option.type = "button";
-        option.className = "choice quality";
+        option.className = "choice quality" + (selectedQualityId === format.id ? " selected" : "");
+        option.setAttribute("aria-pressed", String(selectedQualityId === format.id));
         option.textContent = "↓ " + format.label;
-        option.title = "Download this exact reported quality to RangeDesk";
-        option.addEventListener("click", () => {
+        option.title = "Click to select; double-click to start download in RangeDesk";
+        const select = () => {
+          selectedQualityId = format.id;
+          for (const item of qualityButtons) {
+            const activeChoice = item.id === format.id;
+            item.button.className = "choice quality" + (activeChoice ? " selected" : "");
+            item.button.setAttribute("aria-pressed", String(activeChoice));
+          }
+        };
+        qualityButtons.push({ id: format.id, button: option });
+        option.addEventListener("click", event => {
+          select();
+          // Native keyboard button activation produces click.detail === 0.
+          if (event?.detail === 0) {
+            void downloadQuality(format, option);
+          } else if (!pending) {
+            status.textContent = "Selected " +
+              (Number.isInteger(format.height) && format.height > 0 ? format.height + "p" : "quality") +
+              ". Double-click to start in RangeDesk.";
+          }
+        });
+        option.addEventListener("dblclick", () => {
+          select();
           void downloadQuality(format, option);
         });
         options.appendChild(option);
@@ -411,6 +446,7 @@
       status.textContent = "";
       if (mediaAnalyzedUrl !== currentPageUrl()) {
         mediaFormats = [];
+        selectedQualityId = "";
         rightsConfirmed = false;
       }
       renderChoices();
