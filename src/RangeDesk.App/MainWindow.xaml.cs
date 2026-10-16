@@ -21,6 +21,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly string _catalogFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "catalog-v5.json");
+    private readonly string _preferencesFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "RangeDesk", "preferences-v5.json");
+    private RangeDeskPreferences _preferences = new();
     private string _navigation = "all";
     private string _downloadTab = "all";
     private string? _categoryNavigation;
@@ -43,6 +47,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         VisibleDownloads = CollectionViewSource.GetDefaultView(Downloads);
         VisibleDownloads.Filter = MatchesFilters;
         DataContext = this;
+        try { _preferences = RangeDeskPreferencesStore.Load(_preferencesFile); }
+        catch (Exception ex)
+        {
+            StatusMessage.Text = "Could not read download settings; using defaults: " + ex.Message;
+        }
         LoadCatalog();
         Closing += (_, _) => _engine.Dispose();
         SourceInitialized += (_, _) =>
@@ -612,8 +621,36 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void Add_Click(object sender, RoutedEventArgs e)
     {
         FormError.Text = "";
+        ApplyNewDownloadDefaults();
         AddOverlay.Visibility = Visibility.Visible;
         NewUrl.Focus();
+    }
+
+    private static void SelectNumericChoice(ComboBox dropdown, int number)
+    {
+        for (int i = 0; i < dropdown.Items.Count; i++)
+        {
+            if (dropdown.Items[i] is ComboBoxItem choice &&
+                int.TryParse(choice.Tag?.ToString(), out int value) && value == number)
+            {
+                dropdown.SelectedIndex = i;
+                return;
+            }
+        }
+        dropdown.SelectedIndex = 0;
+    }
+
+    private static int GetNumericChoice(ComboBox dropdown, int fallback) =>
+        dropdown.SelectedItem is ComboBoxItem item &&
+        int.TryParse(item.Tag?.ToString(), out int value) ? value : fallback;
+
+    private void ApplyNewDownloadDefaults()
+    {
+        SelectNumericChoice(ConnectionChoice, _preferences.DefaultConnections);
+        SelectNumericChoice(BandwidthChoice, _preferences.DefaultBandwidthKiBps);
+        StartAutomatically.IsChecked = _preferences.StartImmediately;
+        QueueOnly.IsChecked = !_preferences.StartImmediately;
+        AdaptiveWorkers.IsChecked = false; // Experimental scheduler requires explicit opt-in.
     }
     private void CloseAdd_Click(object sender, RoutedEventArgs e) => AddOverlay.Visibility = Visibility.Collapsed;
 
@@ -684,7 +721,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         name = string.Concat(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
         if (string.IsNullOrWhiteSpace(name)) name = "download.bin";
         NewDestination.Text = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads", name);
+            _preferences.DownloadFolder, name);
         // The initial "Other" is an automatic hint; never override a category
         // the user deliberately selected in the New Download dialog.
         if (NewCategory is not null && NewCategory.SelectedIndex == 0)
@@ -748,8 +785,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             NewDestination.Clear();
             NewCategory.SelectedIndex = 0;
             NewLabels.Clear();
-            QueueOnly.IsChecked = false;
-            StartAutomatically.IsChecked = true;
+            QueueOnly.IsChecked = !_preferences.StartImmediately;
+            StartAutomatically.IsChecked = _preferences.StartImmediately;
             VerifyChecksum.IsChecked = false;
             NewChecksum.Clear();
             AdaptiveWorkers.IsChecked = false;
@@ -799,8 +836,60 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void Settings_Click(object sender, RoutedEventArgs e) =>
+    private void PopulateSettings(RangeDeskPreferences preferences)
+    {
+        SettingsDownloadFolder.Text = preferences.DownloadFolder;
+        SelectNumericChoice(SettingsConnectionsChoice, preferences.DefaultConnections);
+        SelectNumericChoice(SettingsBandwidthChoice, preferences.DefaultBandwidthKiBps);
+        SettingsStartImmediately.IsChecked = preferences.StartImmediately;
+        SettingsError.Text = "";
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        PopulateSettings(_preferences);
         SettingsOverlay.Visibility = Visibility.Visible;
+        SettingsDownloadFolder.Focus();
+    }
+
+    private void BrowseSettingsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        var folder = new OpenFolderDialog
+        {
+            Title = "Choose the default RangeDesk download folder",
+            Multiselect = false
+        };
+        if (Directory.Exists(SettingsDownloadFolder.Text))
+            folder.InitialDirectory = SettingsDownloadFolder.Text;
+        if (folder.ShowDialog(this) == true)
+            SettingsDownloadFolder.Text = folder.FolderName;
+    }
+
+    private void RestoreSettings_Click(object sender, RoutedEventArgs e) =>
+        PopulateSettings(new RangeDeskPreferences());
+
+    private void SaveSettings_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var updated = new RangeDeskPreferences
+            {
+                DownloadFolder = SettingsDownloadFolder.Text.Trim(),
+                DefaultConnections = GetNumericChoice(SettingsConnectionsChoice, 8),
+                DefaultBandwidthKiBps = GetNumericChoice(SettingsBandwidthChoice, 0),
+                StartImmediately = SettingsStartImmediately.IsChecked == true
+            }.Validate();
+            RangeDeskPreferencesStore.Save(_preferencesFile, updated);
+            _preferences = updated;
+            SettingsOverlay.Visibility = Visibility.Collapsed;
+            StatusMessage.Text = "Settings saved. New downloads will use these defaults; active transfers are unchanged.";
+        }
+        catch (Exception ex)
+        {
+            SettingsError.Text = "Could not save settings: " + ex.Message;
+        }
+    }
+
     private void CloseSettings_Click(object sender, RoutedEventArgs e) =>
         SettingsOverlay.Visibility = Visibility.Collapsed;
 }
