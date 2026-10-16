@@ -42,6 +42,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<string, CustomSitePreset> _customSites =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _scheduleTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private readonly string _bandwidthCalendarFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "RangeDesk", "bandwidth-calendar-v5.json");
+    private readonly List<BandwidthCalendarRule> _bandwidthWindows = new();
+    private readonly Dictionary<Guid,int> _appliedBandwidthCaps = new();
+    private bool _bandwidthUpdateInProgress;
     private DownloadEntry? _editingSchedule;
     private string _navigation = "all";
     private string _downloadTab = "all";
@@ -76,6 +82,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         LoadCatalog();
         try
         {
+            _bandwidthWindows.AddRange(BandwidthCalendarStore.Load(_bandwidthCalendarFile));
+            RefreshBandwidthCalendar();
+        }
+        catch (Exception ex) { StatusMessage.Text = "Could not load bandwidth calendar: " + ex.Message; }
+        try
+        {
             _automationRules.AddRange(DownloadAutomationRuleStore.Load(_automationFile));
             RefreshAutomationRules();
         }
@@ -93,10 +105,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _scheduled.Add(scheduled.Destination, scheduled);
         }
         catch (Exception ex) { StatusMessage.Text = "Could not read schedules: " + ex.Message; }
-        _scheduleTimer.Tick += (_, _) =>
+        _scheduleTimer.Tick += async (_, _) =>
         {
             RunDueSchedules();
             CheckBrowserInbox();
+            await ApplyBandwidthCalendarAsync();
         };
         _scheduleTimer.Start();
         RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
@@ -1425,6 +1438,106 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SettingsStartImmediately.IsChecked = preferences.StartImmediately;
         SettingsProxyUri.Text = preferences.ProxyUri ?? "";
         SettingsError.Text = "";
+    }
+
+    private void RefreshBandwidthCalendar()
+    {
+        BandwidthCalendarList.Items.Clear();
+        foreach (var rule in _bandwidthWindows)
+            BandwidthCalendarList.Items.Add($"{rule.Name} · " +
+                (string.IsNullOrEmpty(rule.HostSuffix) ? "All sites" : rule.HostSuffix) +
+                $" · {rule.Start:HH:mm}–{rule.End:HH:mm} · {rule.CapKiBps} KiB/s");
+    }
+
+    private async Task ApplyBandwidthCalendarAsync()
+    {
+        if (_bandwidthUpdateInProgress) return;
+        _bandwidthUpdateInProgress = true;
+        try
+        {
+            DateTimeOffset now = DateTimeOffset.Now;
+            foreach(var download in Downloads.ToArray())
+            {
+                if (download.Status != DownloadStatus.Downloading)
+                {
+                    _appliedBandwidthCaps.Remove(download.Id);
+                    continue;
+                }
+                int limit = BandwidthCalendarPolicy.EffectiveLimit(
+                    download.BandwidthKiBps,download.Host,now,TimeZoneInfo.Local,_bandwidthWindows);
+                if (_appliedBandwidthCaps.TryGetValue(download.Id,out int current) && current==limit)
+                    continue;
+                if (await _engine.SetLiveBandwidthLimitAsync(download, limit))
+                {
+                    _appliedBandwidthCaps[download.Id] = limit;
+                    download.ReportAppliedBandwidthLimit(limit);
+                }
+            }
+        }
+        catch(Exception ex) { StatusMessage.Text="Bandwidth calendar failed: "+ex.Message; }
+        finally { _bandwidthUpdateInProgress=false; }
+    }
+
+    private void AddBandwidthRule_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!TimeOnly.TryParseExact(BandwidthStart.Text.Trim(),"HH:mm",
+                CultureInfo.InvariantCulture,DateTimeStyles.None,out var start) ||
+                !TimeOnly.TryParseExact(BandwidthEnd.Text.Trim(),"HH:mm",
+                    CultureInfo.InvariantCulture,DateTimeStyles.None,out var end))
+                throw new ArgumentException("Use 24-hour HH:mm start and end times.");
+            var rule = new BandwidthCalendarRule(BandwidthRuleName.Text,BandwidthRuleDomain.Text,
+                start,end,GetNumericChoice(BandwidthWindowCap,512)).Validate();
+            if(_bandwidthWindows.Any(r=>r.Name.Equals(rule.Name,StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException("This bandwidth window name already exists.");
+            BandwidthCalendarStore.Save(_bandwidthCalendarFile,_bandwidthWindows.Append(rule));
+            _bandwidthWindows.Add(rule);
+            RefreshBandwidthCalendar();
+            BandwidthCalendarError.Text="";
+            BandwidthRuleName.Clear();BandwidthRuleDomain.Clear();
+            _appliedBandwidthCaps.Clear();
+            _ = ApplyBandwidthCalendarAsync();
+        }
+        catch(Exception ex){BandwidthCalendarError.Text=ex.Message;}
+    }
+
+    private void RemoveBandwidthRule_Click(object sender, RoutedEventArgs e)
+    {
+        int index=BandwidthCalendarList.SelectedIndex;
+        if(index<0 || index>=_bandwidthWindows.Count)return;
+        try
+        {
+            var next=_bandwidthWindows.Where((_,i)=>i!=index).ToArray();
+            BandwidthCalendarStore.Save(_bandwidthCalendarFile,next);
+            _bandwidthWindows.Clear();_bandwidthWindows.AddRange(next);
+            RefreshBandwidthCalendar();
+            BandwidthCalendarError.Text="";
+            _appliedBandwidthCaps.Clear();
+            _ = ApplyBandwidthCalendarAsync();
+        }
+        catch(Exception ex){BandwidthCalendarError.Text=ex.Message;}
+    }
+
+    private void ReorderBandwidthRule_Click(object sender, RoutedEventArgs e)
+    {
+        if(sender is not Button {Tag:string direction} ||
+            !int.TryParse(direction,out int change))return;
+        int index=BandwidthCalendarList.SelectedIndex,target=index+change;
+        if(index<0 || target<0 || target>=_bandwidthWindows.Count)return;
+        try
+        {
+            var next=_bandwidthWindows.ToList();
+            (next[index],next[target])=(next[target],next[index]);
+            BandwidthCalendarStore.Save(_bandwidthCalendarFile,next);
+            _bandwidthWindows.Clear();_bandwidthWindows.AddRange(next);
+            RefreshBandwidthCalendar();
+            BandwidthCalendarList.SelectedIndex=target;
+            BandwidthCalendarError.Text="";
+            _appliedBandwidthCaps.Clear();
+            _ = ApplyBandwidthCalendarAsync();
+        }
+        catch(Exception ex){BandwidthCalendarError.Text=ex.Message;}
     }
 
     private void RefreshAutomationRules()
