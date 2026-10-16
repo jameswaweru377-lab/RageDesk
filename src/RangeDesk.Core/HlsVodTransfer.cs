@@ -69,6 +69,9 @@ public sealed class HlsVodTransfer(HttpClient http, TimeSpan? timeout = null)
         }
         else
         {
+            // Initialize both companions before starting the first network segment.
+            await using (var blank = new FileStream(partial, FileMode.CreateNew, FileAccess.Write))
+                await blank.FlushAsync(token);
             await SaveCheckpointAsync(journal, new Checkpoint(entry.Url, fingerprint, 0, 0), token);
         }
 
