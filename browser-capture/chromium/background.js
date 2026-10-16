@@ -168,13 +168,22 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
     if (message.action === "rangedesk_media_download") {
       if (message.rightsConfirmed !== true ||
           typeof message.formatId !== "string" ||
-          !/^[A-Za-z0-9_.-]{1,64}$/.test(message.formatId)) {
+          !/^[A-Za-z0-9_.-]{1,64}$/.test(message.formatId) ||
+          (message.fileStem !== undefined &&
+            (typeof message.fileStem !== "string" ||
+             message.fileStem.length < 1 || message.fileStem.length > 80 ||
+             !/^[\\p{L}\\p{N} _-]+$/u.test(message.fileStem))) ||
+          !["default", "videos"].includes(message.saveLocation ?? "default") ||
+          (message.queueOnly !== undefined && typeof message.queueOnly !== "boolean")) {
         reply({ accepted: false, message: "Select a valid quality and confirm permission." });
         return false;
       }
       void api.runtime.sendNativeMessage(HOST, {
         action: "media_download", url: message.url,
-        formatId: message.formatId, rightsConfirmed: true
+        formatId: message.formatId, rightsConfirmed: true,
+        queueOnly: message.queueOnly === true,
+        fileStem: message.fileStem ?? null,
+        saveLocation: message.saveLocation ?? "default"
       }).then(result => reply({
         accepted: result?.accepted === true,
         jobId: typeof result?.jobId === "string" && /^[a-f0-9]{32}$/i.test(result.jobId)

@@ -167,7 +167,8 @@ public static class OptionalMediaExtractor
     }
 
     public static IReadOnlyList<string> DownloadArguments(string url, Format format,
-        string destinationDirectory, string ffmpegExecutable, string? outputTag = null)
+        string destinationDirectory, string ffmpegExecutable, string? outputTag = null,
+        string? fileStem = null)
     {
         ValidatePage(url);
         if (format is null || string.IsNullOrWhiteSpace(format.Id) ||
@@ -180,6 +181,8 @@ public static class OptionalMediaExtractor
         // A video-only track is paired with the best available audio track;
         // FFmpeg muxes both into MKV when compatible. Do not mislabel MPEG-TS
         // or silently manufacture quality levels.
+        if (!BrowserMediaRequest.IsValidStem(fileStem))
+            throw new ArgumentException("Invalid media filename.");
         if (outputTag is not null && (outputTag.Length is < 1 or > 16 ||
             !outputTag.All(char.IsAsciiHexDigit)))
             throw new ArgumentException("Invalid media output identity.");
@@ -193,7 +196,8 @@ public static class OptionalMediaExtractor
             "--format", selector, "--merge-output-format", "mkv",
             "--ffmpeg-location", ffmpegExecutable,
             "--paths", Path.GetFullPath(destinationDirectory),
-            "--output", "RangeDesk-%(id).80s-%(format_id)s" +
+            "--output", (fileStem is null ? "RangeDesk-%(id).80s-%(format_id)s" :
+                fileStem.Trim() + "-%(format_id)s") +
                 (outputTag is null ? "" : "-" + outputTag) + ".%(ext)s", "--", url];
     }
 
@@ -279,13 +283,13 @@ public static class OptionalMediaExtractor
     public static async Task<string> DownloadAsync(string appFolder, string url,
         Format selected, string destinationDirectory, Action<string> status,
         CancellationToken token, Action<MediaProgress>? onProgress = null,
-        string? outputTag = null)
+        string? outputTag = null, string? fileStem = null)
     {
         if (!IsReady(appFolder)) throw new FileNotFoundException(
             "Both MediaTools/yt-dlp.exe and MediaTools/ffmpeg.exe are required.");
         Directory.CreateDirectory(destinationDirectory);
         var info = Setup(appFolder, DownloadArguments(url, selected,
-            destinationDirectory, FfmpegExecutable(appFolder), outputTag));
+            destinationDirectory, FfmpegExecutable(appFolder), outputTag, fileStem));
         using var process = Process.Start(info) ??
             throw new InvalidOperationException("yt-dlp could not start.");
         try

@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "RangeDesk Browser Capture",
-  "version": "0.9.3",
-  "description": "In-player quality selection with native job status, opt-in direct download capture and per-tab HLS discovery.",
+  "version": "0.10.0",
+  "description": "Browser-native video confirmation, real quality selection, local RangeDesk job tracking.",
   "permissions": [
     "contextMenus",
     "nativeMessaging",

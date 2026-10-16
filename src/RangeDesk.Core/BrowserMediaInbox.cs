@@ -8,7 +8,9 @@ namespace RangeDesk.Core;
 /// verifies that the chosen format really exists before downloading.
 /// No cookies, authentication headers or commands are accepted.
 /// </summary>
-public sealed record BrowserMediaRequest(string Action, string Url, string FormatId, string? JobId = null)
+public sealed record BrowserMediaRequest(string Action, string Url, string FormatId,
+    string? JobId = null, bool QueueOnly = false,
+    string? FileStem = null, string SaveLocation = "default")
 {
     public void Validate()
     {
@@ -17,9 +19,15 @@ public sealed record BrowserMediaRequest(string Action, string Url, string Forma
             !OptionalMediaExtractor.IsPageCandidate(Url) ||
             string.IsNullOrWhiteSpace(FormatId) || FormatId.Length > 64 ||
             !FormatId.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.') ||
-            (JobId is not null && !Guid.TryParseExact(JobId, "N", out _)))
+            (JobId is not null && !Guid.TryParseExact(JobId, "N", out _)) ||
+            SaveLocation is not ("default" or "videos") ||
+            !IsValidStem(FileStem))
             throw new ArgumentException("Invalid user-selected media download request.");
     }
+
+    public static bool IsValidStem(string? value) =>
+        value is null || (value.Length is >= 1 and <= 80 &&
+            value.All(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_'));
 }
 
 public static class BrowserMediaInbox

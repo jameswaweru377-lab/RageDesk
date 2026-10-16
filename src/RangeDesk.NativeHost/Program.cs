@@ -48,10 +48,18 @@ try
             throw new ArgumentException("Explicit download permission is required.");
         string url = request.RootElement.GetProperty("url").GetString() ?? "";
         string formatId = request.RootElement.GetProperty("formatId").GetString() ?? "";
+        bool queueOnly = request.RootElement.TryGetProperty("queueOnly", out var queueProperty) &&
+            queueProperty.ValueKind == JsonValueKind.True;
+        string? stem = request.RootElement.TryGetProperty("fileStem", out var fileProperty) &&
+            fileProperty.ValueKind == JsonValueKind.String ? fileProperty.GetString() : null;
+        string location = request.RootElement.TryGetProperty("saveLocation", out var folderProperty) &&
+            folderProperty.ValueKind == JsonValueKind.String ? folderProperty.GetString() ?? "" : "default";
         string jobId = Guid.NewGuid().ToString("N");
-        var item = new BrowserMediaRequest("media_download", url, formatId, jobId);
+        var item = new BrowserMediaRequest("media_download", url, formatId, jobId,
+            queueOnly, stem, location);
         item.Validate();
-        BrowserMediaJobState.Update(jobId, "queued", "Selection received. Waiting for RangeDesk confirmation popup.");
+        BrowserMediaJobState.Update(jobId, "queued",
+            queueOnly ? "Saved for later in RangeDesk." : "Start confirmed in Chrome. Waiting for RangeDesk.");
         try
         {
             BrowserMediaInbox.Enqueue(BrowserMediaInbox.DefaultDirectory,
@@ -63,7 +71,8 @@ try
             throw;
         }
         WriteResponseObject(new { accepted = true, jobId, state = "queued",
-            message = "Selection received. Confirm Start Download in the RangeDesk popup." });
+            message = queueOnly ? "Saved for later in RangeDesk." :
+                "Start Download confirmed. RangeDesk is preparing your transfer." });
     }
     else if (action == "media_status")
     {

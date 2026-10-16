@@ -384,3 +384,19 @@ error. Changing video pages while a probe is running discards stale results.
   The final output path is set only after yt-dlp verifies the completed file.
 - Media uses the external extractor, not RangeDesk's HTTP range engine; a
   missing/unsupported media pause control must never silently call that engine.
+
+## Browser-native video confirmation (0.10.0)
+
+- A single click on a reported quality opens a RangeDesk-styled modal inside the browser.
+  The Windows app does not open its Add Download dialog or take browser focus.
+- Start Download sends the explicitly confirmed format to the native host;
+  Download Later creates a persisted queued video entry in RangeDesk Downloads;
+  Cancel closes the browser modal before anything is sent.
+- Save to offers the trusted default RangeDesk folder or its Videos subfolder.
+  Browser pages do not receive an unrestricted Windows directory picker or raw
+  computer paths. Filename is an editable *stem*, not an invented output extension;
+  yt-dlp determines the real format and final extension.
+- Remember-folder preference uses Chrome extension-local storage keyed by site
+  hostname. No browsing histories, credentials or media URLs are persisted there.
+- The browser popup can overlay the Chrome tab, not unrelated Windows programs.
+  Media bytes, merging, progress and final output tracking are owned by RangeDesk.

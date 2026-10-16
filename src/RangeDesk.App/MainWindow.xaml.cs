@@ -32,6 +32,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private CancellationTokenSource? _mediaOperation;
     private BrowserMediaRequest? _pendingBrowserMediaRequest;
     private DownloadEntry? _activeBrowserMediaEntry;
+    private readonly Dictionary<Guid, BrowserMediaRequest> _queuedBrowserMedia = new();
 
     private readonly string _schedulesFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -70,7 +71,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
 
-    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None, string? MediaJobId = null, string? MediaFormatId = null, bool MediaCompleted = false);
+    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None, string? MediaJobId = null, string? MediaFormatId = null, bool MediaCompleted = false,
+        bool MediaQueued = false, string? MediaFileStem = null, string MediaSaveLocation = "default");
 
     public MainWindow()
     {
@@ -286,6 +288,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                             media.Report(DownloadStatus.Completed, size, size);
                             media.UpdateMediaStage("Completed · verified output");
                         }
+                        else if (record.MediaQueued)
+                        {
+                            var deferred = new BrowserMediaRequest("media_download",
+                                record.Url, record.MediaFormatId, record.MediaJobId, true,
+                                record.MediaFileStem, record.MediaSaveLocation);
+                            deferred.Validate();
+                            _queuedBrowserMedia[media.Id] = deferred;
+                            media.UpdateMediaStage("Saved for later · use Resume to start");
+                            BrowserMediaJobState.TryUpdate(record.MediaJobId, "queued",
+                                "Saved for later in RangeDesk.");
+                        }
                         else
                         {
                             media.Report(DownloadStatus.Failed, 0, null,
@@ -323,10 +336,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_catalogFile)!);
-            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category,
-                d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256,
-                d.Adaptive, d.PostDownloadAction, d.MediaJobId, d.MediaFormatId,
-                d.IsMedia && d.Status == DownloadStatus.Completed));
+            var saved = Downloads.Select(d =>
+            {
+                _queuedBrowserMedia.TryGetValue(d.Id, out var deferred);
+                return new SavedDownload(d.Url, d.Destination, d.Category,
+                    d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256,
+                    d.Adaptive, d.PostDownloadAction, d.MediaJobId, d.MediaFormatId,
+                    d.IsMedia && d.Status == DownloadStatus.Completed,
+                    deferred is not null && d.Status == DownloadStatus.Queued,
+                    deferred?.FileStem, deferred?.SaveLocation ?? "default");
+            });
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
@@ -1032,8 +1051,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (item.IsMedia)
         {
-            StatusMessage.Text = "Choose the quality again in Chrome to retry a media download.";
-            return false;
+            if (item.Status != DownloadStatus.Queued ||
+                !_queuedBrowserMedia.TryGetValue(item.Id, out var pending) ||
+                _mediaOperation is not null) return false;
+            _queuedBrowserMedia.Remove(item.Id);
+            SaveCatalog();
+            _ = RunBrowserMediaAsync(pending, item);
+            return true;
         }
         if (!_engine.Start(item)) return false;
         if (_scheduled.Remove(item.Destination))
@@ -1050,6 +1074,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (ReferenceEquals(_activeBrowserMediaEntry, item) && _mediaOperation is not null)
                 _mediaOperation.Cancel();
+            else if (item.Status == DownloadStatus.Queued &&
+                     _queuedBrowserMedia.Remove(item.Id))
+            {
+                item.Report(DownloadStatus.Canceled, item.Received, null);
+                item.UpdateMediaStage("Cancelled before starting");
+                BrowserMediaJobState.TryUpdate(item.MediaJobId, "cancelled",
+                    "Saved-for-later media job cancelled.");
+                SaveCatalog();
+            }
             else StatusMessage.Text = "The selected media transfer is not running.";
             return;
         }
@@ -1214,126 +1247,75 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
 
     /// <summary>
-    /// A confirmed browser format choice starts a background media job without
-    /// opening or modifying Add Download. The app independently re-probes the
-    /// selected format; Chrome receives authoritative progress via the local
-    /// job snapshot, rather than requiring another click in the desktop UI.
-    /// Media operations remain serialized with manual media downloads.
+    /// Chrome owns the confirmation panel. Only browser-confirmed Start or
+    /// Download Later commands reach here; never open or activate a WPF popup.
+    /// Both actions create a real entry in the local Downloads list.
     /// </summary>
-    /// <summary>Open the existing Media popup for the browser-selected format.</summary>
-    private async void CheckBrowserMediaInbox()
+    private void CheckBrowserMediaInbox()
     {
-        if (_mediaOperation is not null || _pendingBrowserMediaRequest is not null ||
-            AddOverlay.Visibility == Visibility.Visible ||
-            SettingsOverlay.Visibility == Visibility.Visible) return;
+        if (_mediaOperation is not null) return;
         BrowserMediaRequest? request;
         try { request = BrowserMediaInbox.TryTake(BrowserMediaInbox.DefaultDirectory); }
         catch (IOException) { return; }
         if (request is null) return;
+        if (request.JobId is null) return;
 
-        Add_Click(this, new RoutedEventArgs());
-        _pendingBrowserMediaRequest = request;
-        AddDownloadTitle.Text = "Download video";
-        AddStartButton.IsEnabled = false;
-        BrowserMediaNotice.Visibility = Visibility.Visible;
-        BrowserMediaNotice.Text = "Chrome selected a quality. Confirm Start Download to begin.";
-        MediaPageUrl.Text = request.Url;
-        AddDownloadTabs.SelectedIndex = 4;
-        MediaFormatChoice.ItemsSource = null;
-        MediaFormatChoice.IsEnabled = false;
-        MediaStatus.Text = "Checking selected quality…";
-        MediaRightsConfirm.IsChecked = true; // Already confirmed in Chrome.
-        FormError.Text = "";
-        BrowserMediaJobState.TryUpdate(request.JobId, "validating", "Preparing download confirmation…");
-        if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
-        Activate();
+        string folder = BrowserMediaFolder(request);
+        string title = request.FileStem ?? "Video";
+        string filename = "RangeDesk-" + title.Trim() + "-" + request.JobId[..8] + ".pending";
+        var item = new DownloadEntry(request.Url, Path.Combine(folder, filename), "Videos");
+        item.AttachMediaJob(request.JobId, request.FormatId);
+        Track(item);
+        if (request.QueueOnly)
+        {
+            _queuedBrowserMedia[item.Id] = request;
+            item.UpdateMediaStage("Saved for later · select Resume when ready");
+            BrowserMediaJobState.TryUpdate(request.JobId, "queued",
+                "Saved for later in RangeDesk Downloads.");
+            StatusMessage.Text = "Video saved for later in Downloads.";
+            SaveCatalog();
+            return;
+        }
+        item.UpdateMediaStage("Preparing verified video quality…");
+        SaveCatalog();
+        _ = RunBrowserMediaAsync(request, item);
+    }
 
+    private string BrowserMediaFolder(BrowserMediaRequest request)
+    {
+        request.Validate();
+        return request.SaveLocation == "videos"
+            ? Path.Combine(_preferences.DownloadFolder, "Videos")
+            : _preferences.DownloadFolder;
+    }
+
+    private async Task RunBrowserMediaAsync(BrowserMediaRequest request, DownloadEntry item)
+    {
+        if (_mediaOperation is not null)
+        {
+            item.Report(DownloadStatus.Failed, item.Received, null,
+                error: "Another media operation is already running. Retry from Chrome.");
+            SaveCatalog();
+            return;
+        }
         using var cancel = new CancellationTokenSource();
         _mediaOperation = cancel;
-        _mediaProbe = null;
-        _mediaAnalyzedUrl = null;
+        _activeBrowserMediaEntry = item;
+        BrowserMediaJobState.TryUpdate(request.JobId, "validating",
+            "Verifying the selected video quality in RangeDesk…");
         try
         {
             var probe = await OptionalMediaExtractor.AnalyzeAsync(
                 AppContext.BaseDirectory, request.Url, cancel.Token);
-            if (_pendingBrowserMediaRequest != request) return;
             var selected = probe.Formats.FirstOrDefault(f => f.Id == request.FormatId);
-            if (selected is null) throw new NotSupportedException(
-                "This quality is no longer available. Reopen the Chrome video menu.");
-            _mediaProbe = probe;
-            _mediaAnalyzedUrl = request.Url;
-            MediaFormatChoice.ItemsSource = probe.Formats;
-            MediaFormatChoice.SelectedItem = selected;
-            MediaStatus.Text = "Ready · " + selected.Label;
-            BrowserMediaJobState.TryUpdate(request.JobId, "awaiting_confirmation",
-                "Selected quality ready. Press Start Download in the RangeDesk popup.");
-        }
-        catch (OperationCanceledException)
-        {
-            if (_pendingBrowserMediaRequest == request)
-                MediaStatus.Text = "Video confirmation cancelled.";
-        }
-        catch (Exception ex)
-        {
-            if (_pendingBrowserMediaRequest != request) return;
-            MediaStatus.Text = "Cannot prepare video: " + ex.Message;
-            FormError.Text = ex.Message;
-            BrowserMediaJobState.TryUpdate(request.JobId, "failed",
-                ex is MediaAnalyzerException ? ex.Message : "Selected quality could not be verified.");
-        }
-        finally
-        {
-            _mediaOperation = null;
-            if (_pendingBrowserMediaRequest == request)
-                AddStartButton.IsEnabled = _mediaProbe is not null &&
-                    _mediaAnalyzedUrl == request.Url &&
-                    MediaFormatChoice.SelectedItem is OptionalMediaExtractor.Format f &&
-                    f.Id == request.FormatId;
-        }
-    }
-
-    /// <summary>Track a real yt-dlp job in Downloads; never send it to DownloadEngine.</summary>
-    private async Task StartBrowserMediaFromPopupAsync(BrowserMediaRequest request,
-        OptionalMediaExtractor.Format format)
-    {
-        if (_mediaOperation is not null || _pendingBrowserMediaRequest != request) return;
-        if (MediaRightsConfirm.IsChecked != true)
-        {
-            FormError.Text = "Confirm permission to save this video.";
-            return;
-        }
-        if (request.JobId is null || format.Id != request.FormatId ||
-            _mediaAnalyzedUrl != request.Url || _mediaProbe is null ||
-            !_mediaProbe.Formats.Contains(format))
-        {
-            FormError.Text = "The selected format changed. Reopen the Chrome menu.";
-            return;
-        }
-        string title = string.Concat(_mediaProbe.Title
-            .Where(c => char.IsAsciiLetterOrDigit(c) || c is ' ' or '-' or '_')).Trim();
-        if (title.Length == 0) title = "Video";
-        if (title.Length > 50) title = title[..50];
-        string previewPath = Path.Combine(_preferences.DownloadFolder,
-            $"RangeDesk-{title}-{format.Height}p-{request.JobId[..8]}.mkv");
-        var item = new DownloadEntry(request.Url, previewPath, "Videos");
-        item.AttachMediaJob(request.JobId, format.Id);
-        item.UpdateMediaStage("Starting · " + format.Label);
-        Track(item);
-        SaveCatalog();
-        ShowSubmittedDownload(false);
-        SelectedDownload = item;
-        _pendingBrowserMediaRequest = null;
-        BrowserMediaNotice.Visibility = Visibility.Collapsed;
-        AddOverlay.Visibility = Visibility.Collapsed;
-        _activeBrowserMediaEntry = item;
-        using var cancel = new CancellationTokenSource();
-        _mediaOperation = cancel;
-        BrowserMediaJobState.TryUpdate(request.JobId, "starting", "Launching the selected media transfer…");
-        try
-        {
+            if (selected is null)
+                throw new NotSupportedException("That quality is no longer available.");
+            item.UpdateMediaStage("Starting · " + selected.Label);
             item.Report(DownloadStatus.Downloading, 0, null);
+            BrowserMediaJobState.TryUpdate(request.JobId, "starting",
+                "Starting your selected media download…");
             string output = await OptionalMediaExtractor.DownloadAsync(
-                AppContext.BaseDirectory, request.Url, format, _preferences.DownloadFolder,
+                AppContext.BaseDirectory, request.Url, selected, BrowserMediaFolder(request),
                 message => Dispatcher.Invoke(() =>
                 {
                     item.UpdateMediaStage(message);
@@ -1345,17 +1327,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 }), cancel.Token,
                 progress => Dispatcher.Invoke(() =>
                 {
-                    // Each yt-dlp progress update describes a stream, not the
-                    // entire final audio+video output. Keep the total unknown.
+                    // Streams may have separate byte totals; final output size
+                    // is unknown until muxing completes. Never imply 100%.
                     item.Report(DownloadStatus.Downloading, progress.DownloadedBytes, null);
                     BrowserMediaJobState.TryUpdate(request.JobId, "downloading",
                         "Downloading selected video/audio stream…",
                         progress.DownloadedBytes, progress.TotalBytes, progress.Estimated);
-                }), outputTag: request.JobId[..8]);
+                }), outputTag: request.JobId![..8], fileStem: request.FileStem);
             item.UpdateMediaOutput(output);
             long size = new FileInfo(output).Length;
             item.Report(DownloadStatus.Completed, size, size);
-            item.UpdateMediaStage("Completed · verified output");
+            item.UpdateMediaStage("Completed · output verified");
             BrowserMediaJobState.TryUpdate(request.JobId, "completed",
                 "Video completed and saved.");
             StatusMessage.Text = "Video completed: " + item.Name;
@@ -1370,8 +1352,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             item.Report(DownloadStatus.Failed, item.Received, null,
                 error: ex is MediaAnalyzerException ? ex.Message :
-                    "Media download failed. Check RangeDesk MediaTools.");
-            item.UpdateMediaStage("Failed · see error details");
+                    "Media download failed. Reopen the video and try again.");
+            item.UpdateMediaStage("Failed · review the download details");
             BrowserMediaJobState.TryUpdate(request.JobId, "failed",
                 ex is MediaAnalyzerException ? ex.Message :
                     "Media transfer failed. Check RangeDesk MediaTools.");
