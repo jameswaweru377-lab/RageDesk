@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "RangeDesk Browser Capture",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Opt-in browser downloads and in-page HTML5 video download control for exposed direct media sources.",
   "permissions": [
     "contextMenus",
