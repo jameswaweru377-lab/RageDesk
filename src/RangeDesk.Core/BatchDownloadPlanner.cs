@@ -26,6 +26,8 @@ public static class BatchDownloadPlanner
             string name = Uri.UnescapeDataString(Path.GetFileName(uri.AbsolutePath));
             name = string.Concat(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
             if (string.IsNullOrWhiteSpace(name) || name is "." or "..") name = "download.bin";
+            if (HlsPlaylist.IsHlsUrl(link))
+                name = Path.ChangeExtension(name, ".ts");
             if (name.Length > 180) name = name[..180];
             string stem = Path.GetFileNameWithoutExtension(name);
             string ext = Path.GetExtension(name);
