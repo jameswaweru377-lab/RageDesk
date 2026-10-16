@@ -42,6 +42,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<string, CustomSitePreset> _customSites =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _scheduleTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private DownloadEntry? _editingSchedule;
     private string _navigation = "all";
     private string _downloadTab = "all";
     private string? _categoryNavigation;
@@ -822,6 +823,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         menu.Items.Add(resume);
         menu.Items.Add(pause);
         menu.Items.Add(stop);
+        var editSchedule = new MenuItem
+        {
+            Header = _scheduled.ContainsKey(entry.Destination) ? "Edit scheduled start..." : "Schedule start...",
+            IsEnabled = entry.Status == DownloadStatus.Queued
+        };
+        editSchedule.Click += (_, _) => OpenScheduleEditor(entry);
+        menu.Items.Add(editSchedule);
         menu.Items.Add(new Separator());
         var startQueue = new MenuItem { Header = "Start all queued downloads" };
         startQueue.Click += StartQueue_Click;
@@ -849,6 +857,77 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SelectedDownload = item;
         SaveCatalog(); // queue ordering survives application restart
         RefreshFilter();
+    }
+
+    private void OpenScheduleEditor(DownloadEntry entry)
+    {
+        if (entry.Status != DownloadStatus.Queued) return;
+        _editingSchedule = entry;
+        ScheduledEditTarget.Text = entry.Name;
+        ScheduledEditError.Text = "";
+        var existing = _scheduled.GetValueOrDefault(entry.Destination);
+        DateTime local = existing?.DueAt.ToLocalTime().DateTime ?? DateTime.Now.AddMinutes(30);
+        ScheduledEditDate.SelectedDate = local.Date;
+        ScheduledEditTime.Text = local.ToString("HH:mm", CultureInfo.InvariantCulture);
+        ScheduleRecurrence frequency = existing?.Recurrence ?? ScheduleRecurrence.Once;
+        for (int i = 0; i < ScheduledEditRecurrence.Items.Count; i++)
+            if (ScheduledEditRecurrence.Items[i] is ComboBoxItem option &&
+                option.Tag?.ToString() == frequency.ToString())
+            { ScheduledEditRecurrence.SelectedIndex = i; break; }
+        ScheduledEditOverlay.Visibility = Visibility.Visible;
+    }
+
+    private void CloseEditedSchedule_Click(object sender, RoutedEventArgs e)
+    {
+        _editingSchedule = null;
+        ScheduledEditOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void SaveEditedSchedule_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (_editingSchedule is not DownloadEntry item ||
+                item.Status != DownloadStatus.Queued)
+                throw new InvalidOperationException("Only queued downloads can be scheduled.");
+            if (ScheduledEditDate.SelectedDate is not DateTime date ||
+                !TimeSpan.TryParseExact(ScheduledEditTime.Text.Trim(), @"hh\:mm",
+                    CultureInfo.InvariantCulture, out TimeSpan clock))
+                throw new ArgumentException("Enter a date and 24-hour time (HH:mm).");
+            var recurrence = Enum.Parse<ScheduleRecurrence>(
+                (ScheduledEditRecurrence.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Once");
+            DateTimeOffset due = ScheduledQueueStore.FromLocal(
+                date, clock, TimeZoneInfo.Local, DateTimeOffset.Now);
+            var updated = RecurringSchedulePolicy.Configure(
+                new ScheduledDownload(item.Destination, due), recurrence, TimeZoneInfo.Local);
+            var next = _scheduled.Values.Where(x =>
+                !x.Destination.Equals(item.Destination, StringComparison.OrdinalIgnoreCase))
+                .Append(updated).ToArray();
+            ScheduledQueueStore.Save(_schedulesFile, next);
+            _scheduled[item.Destination] = updated;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+            StatusMessage.Text = "Scheduled download: " + item.Name;
+            RefreshFilter();
+            CloseEditedSchedule_Click(sender, e);
+        }
+        catch (Exception ex) { ScheduledEditError.Text = ex.Message; }
+    }
+
+    private void RemoveEditedSchedule_Click(object sender, RoutedEventArgs e)
+    {
+        if (_editingSchedule is not DownloadEntry item) return;
+        try
+        {
+            var next = _scheduled.Values.Where(x =>
+                !x.Destination.Equals(item.Destination, StringComparison.OrdinalIgnoreCase)).ToArray();
+            ScheduledQueueStore.Save(_schedulesFile, next);
+            _scheduled.Remove(item.Destination);
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+            StatusMessage.Text = "Schedule removed; download remains queued: " + item.Name;
+            RefreshFilter();
+            CloseEditedSchedule_Click(sender, e);
+        }
+        catch (Exception ex) { ScheduledEditError.Text = ex.Message; }
     }
 
     private void SaveSchedules()
@@ -1342,6 +1421,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RuleCategory.SelectedIndex = 0;
             AutomationRuleError.Text = "";
             StatusMessage.Text = "New downloads will use automation rule: " + rule.Name;
+        }
+        catch (Exception ex) { AutomationRuleError.Text = ex.Message; }
+    }
+
+    private void ReorderAutomationRule_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string direction } ||
+            !int.TryParse(direction, out int offset)) return;
+        int index = AutomationRuleList.SelectedIndex;
+        int target = index + offset;
+        if (index < 0 || target < 0 || target >= _automationRules.Count) return;
+        try
+        {
+            var next = _automationRules.ToList();
+            (next[index], next[target]) = (next[target], next[index]);
+            DownloadAutomationRuleStore.Save(_automationFile, next);
+            _automationRules.Clear();
+            _automationRules.AddRange(next);
+            RefreshAutomationRules();
+            AutomationRuleList.SelectedIndex = target;
+            AutomationRuleError.Text = "";
         }
         catch (Exception ex) { AutomationRuleError.Text = ex.Message; }
     }
