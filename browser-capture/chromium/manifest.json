@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "RangeDesk Browser Capture",
   "version": "0.8.0",
-  "description": "Opt-in direct downloads, player overlays and optional per-tab HLS request discovery.",
+  "description": "In-player yt-dlp quality selection, opt-in direct download capture and per-tab HLS discovery.",
   "permissions": [
     "contextMenus",
     "nativeMessaging",
