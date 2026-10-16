@@ -1,13 +1,14 @@
 {
   "manifest_version": 3,
   "name": "RangeDesk Browser Capture",
-  "version": "0.5.0",
-  "description": "Opt-in browser downloads and in-page HTML5 video download control for exposed direct media sources.",
+  "version": "0.6.0",
+  "description": "Opt-in direct downloads, player overlays and optional per-tab HLS request discovery.",
   "permissions": [
     "contextMenus",
     "nativeMessaging",
     "downloads",
-    "storage"
+    "storage",
+    "webRequest"
   ],
   "background": {
     "service_worker": "background.js"
@@ -29,5 +30,8 @@
       "run_at": "document_idle",
       "all_frames": true
     }
+  ],
+  "optional_host_permissions": [
+    "<all_urls>"
   ]
 }
