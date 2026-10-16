@@ -6,7 +6,7 @@ public static class DownloadCategory
     private static readonly HashSet<string> Software = new(StringComparer.OrdinalIgnoreCase)
         { ".exe", ".msi", ".msix", ".appx", ".deb", ".rpm", ".apk" };
     private static readonly HashSet<string> Videos = new(StringComparer.OrdinalIgnoreCase)
-        { ".mp4", ".mkv", ".avi", ".webm", ".mov", ".wmv" };
+        { ".mp4", ".mkv", ".avi", ".webm", ".mov", ".wmv", ".ts" };
     private static readonly HashSet<string> Images = new(StringComparer.OrdinalIgnoreCase)
         { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" };
     private static readonly HashSet<string> Documents = new(StringComparer.OrdinalIgnoreCase)

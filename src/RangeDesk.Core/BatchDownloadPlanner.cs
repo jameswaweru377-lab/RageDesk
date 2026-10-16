@@ -26,6 +26,8 @@ public static class BatchDownloadPlanner
             string name = Uri.UnescapeDataString(Path.GetFileName(uri.AbsolutePath));
             name = string.Concat(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
             if (string.IsNullOrWhiteSpace(name) || name is "." or "..") name = "download.bin";
+            if (HlsPlaylist.IsHlsUrl(link))
+                name = Path.ChangeExtension(name, ".ts");
             if (name.Length > 180) name = name[..180];
             string stem = Path.GetFileNameWithoutExtension(name);
             string ext = Path.GetExtension(name);
@@ -33,7 +35,9 @@ public static class BatchDownloadPlanner
             for (int n = 2; used.Contains(destination) || File.Exists(destination)
                  || File.Exists(destination + ".rdpartial")
                  || Directory.Exists(destination + ".rdsegments")
-                 || Directory.Exists(destination + ".rdadaptive"); n++)
+                 || Directory.Exists(destination + ".rdadaptive")
+                 || File.Exists(destination + ".rdhls-state")
+                 || File.Exists(destination + ".rdhls-partial"); n++)
             {
                 if (n > 10000) throw new IOException("Could not choose a unique download name.");
                 destination = Path.Combine(root, $"{stem} ({n}){ext}");

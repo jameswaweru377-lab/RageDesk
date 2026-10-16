@@ -6,13 +6,15 @@
 
   const FORMATS = Object.freeze({
     ".mp4": "MP4", ".m4v": "M4V", ".webm": "WebM",
-    ".ogv": "Ogg video", ".ogg": "Ogg video", ".mov": "MOV"
+    ".ogv": "Ogg video", ".ogg": "Ogg video", ".mov": "MOV",
+    ".m3u8": "HLS"
   });
   const MIME_FORMATS = Object.freeze({
     "video/mp4": "MP4", "video/webm": "WebM",
-    "video/ogg": "Ogg video", "video/quicktime": "MOV"
+    "video/ogg": "Ogg video", "video/quicktime": "MOV",
+    "application/vnd.apple.mpegurl": "HLS", "application/x-mpegurl": "HLS"
   });
-  const BLOCKED = /\.(?:m3u8|mpd|m3u|ism|mp4\.m3u8)$/i;
+  const BLOCKED = /\.(?:mpd|m3u|ism)$/i;
 
   function directSource(value, base, type = "") {
     if (typeof value !== "string" || !value.trim()) return null;
@@ -63,7 +65,8 @@
       result.push({
         url: source.url,
         format: source.format,
-        label: source.format + (playing && height ? " · " + height + "p" : "")
+        label: source.format === "HLS" ? "HLS · VOD auto quality (.ts)" :
+          source.format + (playing && height ? " · " + height + "p" : "")
       });
     }
 

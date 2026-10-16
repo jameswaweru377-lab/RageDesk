@@ -1,4 +1,4 @@
-# RangeDesk Browser Capture — opt-in preview (v0.2)
+# RangeDesk Browser Capture — opt-in preview (v0.5)
 
 RangeDesk supports Chrome, Edge and Firefox desktop browser extensions through
 the existing native messaging bridge. The approved Windows GUI is unchanged.
@@ -100,14 +100,44 @@ in-page access is unacceptable, leave the video overlay feature
 uninstalled and use manual context-menu capture.
 
 **Known limitations:** no detection in DRM-protected players; no bypass of
-paywalls or signed-in session protections; no HLS (.m3u8), MPEG-DASH
-(.mpd), MediaSource/blob, canvas-only players or proprietary media APIs.
+paywalls or signed-in session protections; only the limited HLS MPEG-TS VOD
+pipeline described above; no MPEG-DASH (.mpd), MediaSource/blob,
+canvas-only players or proprietary media APIs.
 Cross-origin frames require Chrome permission and content-script access.
 A source URL may not be downloadable outside its site if the server
 requires login cookies, short-lived tokens or special headers. Some sites
 may prevent showing the overlay or conceal actual video URLs. No
 background page scanning, playlist parsing or conversion is implemented.
 These are preview features and still require testing against real pages.
+
+## Experimental HLS MPEG-TS VOD downloads — Phase 3 foundation
+
+The Windows engine now recognizes **direct .m3u8 URLs** and handles a limited
+class of unencrypted, finished HLS MPEG-TS video-on-demand playlists. This is
+not universal streaming support.
+
+- User clicks an exposed HLS URL in the Chrome video overlay (or pastes the
+  URL), reviews the normal Add Download window and starts the transfer.
+- A master manifest may publish variants; the preview selects its **highest
+  BANDWIDTH** variant automatically. Individual quality selection is **not
+  yet implemented**. Only ordinary HLS media playlists with explicit
+  .ts segment URLs and #EXT-X-ENDLIST are handled.
+- Output is a valid **.ts transport stream**, not a fake MP4 or a remux.
+  RangeDesk suggests .ts as the destination filename.
+- Segment files are received and validated before becoming committed bytes.
+  Paused/failed downloads can resume from whole-segment checkpoints when
+  the exact media playlist is unchanged. A changed playlist, truncated
+  segment or invalid MPEG-TS body preserves incomplete data and fails.
+- No HLS decryption, AES-128, DRM, byte-range playlists, fMP4
+  initialization segments, live streams, separate audio tracks, DASH,
+  FFmpeg conversion, cross-site authentication, YouTube extraction or
+  hidden MediaSource players. Those require separate tested features.
+- Some sites present an HLS URL on a video element; many Chrome websites
+  use JavaScript MediaSource playback instead, so the in-page button will
+  not appear there yet. No network sniffing or cookie forwarding.
+
+Test on a user-owned unencrypted HLS sample before wider site support.
+Only download videos you have the rights and permission to save.
 
 ## Edge and Firefox previews (unchanged)
 
@@ -138,7 +168,7 @@ downloads continue in the browser.
   Authorization headers, page contents, full history, or downloaded bytes.
   URLs can contain sensitive signed queries, stored only in the local Windows
   user profile; avoid using on shared/untrusted accounts.
-- No blob:/data: URLs, intercepted HTTPS bodies, DRM/HLS/DASH, password-
+- No blob:/data: URLs, intercepted HTTPS bodies, DRM or DASH, password-
   protected files, universal media extraction, or untested browser families.
 - Automatic filenames derive from URL paths and can differ from Content-
   Disposition names. Existing completed files and partial checkpoints are

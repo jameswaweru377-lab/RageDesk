@@ -1294,6 +1294,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         string name = Uri.UnescapeDataString(Path.GetFileName(address.AbsolutePath));
         name = string.Concat(name.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
         if (string.IsNullOrWhiteSpace(name)) name = "download.bin";
+        if (HlsPlaylist.IsHlsUrl(NewUrl.Text)) name = Path.ChangeExtension(name, ".ts");
         NewDestination.Text = Path.Combine(
             _preferences.DownloadFolder, name);
         // The initial "Other" is an automatic hint; never override a category

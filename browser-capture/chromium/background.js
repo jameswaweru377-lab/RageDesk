@@ -69,8 +69,9 @@ api.contextMenus.onClicked.addListener(async info => {
 // request this user-clicked direct-video link handoff. No page JS can call
 // native messaging directly; no cookies, headers or page content are sent.
 const DIRECT_VIDEO = /\.(mp4|m4v|webm|ogv|ogg|mov)$/i;
-const STREAMING_MANIFEST = /\.(m3u8|mpd|m3u|ism)$/i;
+const STREAMING_MANIFEST = /\.(mpd|m3u|ism)$/i;
 const VIDEO_FORMATS = new Set(["MP4", "M4V", "WebM", "Ogg video", "MOV"]);
+const HLS_SUFFIX = /\.m3u8$/i;
 
 function allowedVideoHandoff(message, sender) {
   if (!message || message.action !== "rangedesk_video_source" ||
@@ -85,7 +86,8 @@ function allowedVideoHandoff(message, sender) {
     // Accept recognized direct video paths, or extensionless endpoints that
     // the video element explicitly declared as a known video MIME type.
     const suffix = /\.[a-z0-9]+$/i.exec(path)?.[0] || "";
-    return DIRECT_VIDEO.test(path) ||
+    return (HLS_SUFFIX.test(path) && message.format === "HLS") ||
+      DIRECT_VIDEO.test(path) ||
       (!suffix && VIDEO_FORMATS.has(message.format));
   } catch { return false; }
 }
