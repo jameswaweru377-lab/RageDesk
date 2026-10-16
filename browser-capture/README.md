@@ -61,6 +61,54 @@ then remove the extension in Chrome. The download catalog and checkpoints
 are left alone. Moving the application folder invalidates the old native
 host path; click Connect Chrome again in its new location.
 
+## Chrome Phase 2: in-player "Download video" overlay (development preview)
+
+The Chrome extension now looks for ordinary HTML5 video elements on permitted
+HTTP and HTTPS webpages, including accessible embedded frames, and offers a
+small **Download video** overlay when a source has a **direct**, usable URL.
+The control offers only sources actually listed on the video element:
+
+- Direct .mp4, .m4v, .webm, .ogv, .ogg and .mov URLs exposed in the current
+  video or its source elements; relative URLs are resolved against the page.
+- Extensionless HTTP(S) video endpoints only when their HTML5 source element
+  explicitly declares a supported video MIME type (e.g. video/mp4).
+- Duplicate sources are suppressed and source options are capped at eight.
+  The displayed resolution is taken only from the **currently playing**
+  video when its actual dimensions are available, not guessed for variants.
+  No invented quality choices, transcodes, format conversions or 4K claims.
+- Selecting a source sends that URL through the existing native messaging
+  bridge into RangeDesk's **Add Download** review flow. Confirm and start it
+  there. RangeDesk may be closed while the link is queued, but must be
+  reopened to review it.
+
+**Existing v0.3 users:** extract the new v0.4 preview ZIP, then use
+chrome://extensions → RangeDesk Browser Capture → **Reload** if still
+loaded from that same extension folder. If switching folders, remove the
+old unpacked instance and load BrowserCapture/chromium from the new
+extracted package. The development extension ID is unchanged, but
+reconnect Chrome from RangeDesk Settings if the executable path moved.
+
+**New site permission:** the extension now has content scripts matching
+regular HTTP(S) pages to display the button inside the page, so Chrome
+may display broad site-access permissions. Detection inspects only
+HTML5 video element source attributes and player dimensions locally.
+No browsing history, video bytes, cookies, authentication headers,
+network traffic, page text or detected URL lists are transmitted.
+**Only a direct video URL the user explicitly clicks is sent to the
+RangeDesk Windows account through native messaging.** If this broad
+in-page access is unacceptable, leave the video overlay feature
+uninstalled and use manual context-menu capture.
+
+**Known limitations:** no detection in DRM-protected players; no bypass of
+paywalls or signed-in session protections; no HLS (.m3u8), MPEG-DASH
+(.mpd), MediaSource/blob, canvas-only players or proprietary media APIs.
+Cross-origin frames require Chrome permission and content-script access.
+A source URL may not be downloadable outside its site if the server
+requires login cookies, short-lived tokens or special headers. Some sites
+may prevent showing the overlay or conceal actual video URLs. No
+background page scanning, playlist parsing or conversion is implemented.
+These are preview features and still require testing against real pages.
+
 ## Edge and Firefox previews (unchanged)
 
 Chrome's guided native setup is currently Chrome-only. For Edge, load
