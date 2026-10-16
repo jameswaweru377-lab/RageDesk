@@ -98,6 +98,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             catch (DllNotFoundException) { }
         };
         RefreshFilter();
+        RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
     }
 
