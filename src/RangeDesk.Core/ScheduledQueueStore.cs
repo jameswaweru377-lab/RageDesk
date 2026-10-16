@@ -9,11 +9,24 @@ namespace RangeDesk.Core;
 /// </summary>
 public sealed record ScheduledDownload(string Destination, DateTimeOffset DueAt)
 {
+    public ScheduleRecurrence Recurrence { get; init; } = ScheduleRecurrence.Once;
+    public string? TimeZoneId { get; init; }
+
     public ScheduledDownload Validate()
     {
         if (string.IsNullOrWhiteSpace(Destination) || !Path.IsPathFullyQualified(Destination))
             throw new ArgumentException("Scheduled download needs an absolute destination path.");
         if (DueAt == default) throw new ArgumentException("Scheduled start needs a valid time.");
+        if (!Enum.IsDefined(Recurrence))
+            throw new ArgumentException("Unrecognized scheduled recurrence.");
+        if (Recurrence != ScheduleRecurrence.Once)
+        {
+            if (string.IsNullOrWhiteSpace(TimeZoneId))
+                throw new ArgumentException("Recurring starts require a saved time zone.");
+            try { _ = TimeZoneInfo.FindSystemTimeZoneById(TimeZoneId); }
+            catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+            { throw new ArgumentException("The saved scheduling time zone is unavailable.", ex); }
+        }
         return this with { Destination = Path.GetFullPath(Destination) };
     }
 }
@@ -54,7 +67,8 @@ public static class ScheduledQueueStore
         }
     }
 
-    public static bool IsDue(ScheduledDownload item, DateTimeOffset now) => item.DueAt <= now;
+    public static bool IsDue(ScheduledDownload item, DateTimeOffset now) =>
+        RecurringSchedulePolicy.ShouldStart(item, now);
 
     /// <summary>Reject the DST gap and ambiguous clock times; never silently change the user's intent.</summary>
     public static DateTimeOffset FromLocal(DateTime date, TimeSpan clock, TimeZoneInfo zone, DateTimeOffset now)
