@@ -19,27 +19,57 @@ Automatic capture is **off on first installation**. Its ON/OFF state is local
 to each browser profile; no telemetry, remote service or cookies are used.
 The native host does not launch hidden services, scrape pages or extract media.
 
-## Setup on a Windows computer
+## Chrome first: guided setup without the Chrome Web Store
 
-1. Extract the entire RangeDesk-Preview-win-x64.zip together. Keep
-   RangeDesk.exe, NativeHost/ and BrowserCapture/ folders in place.
-2. For Chrome: open chrome://extensions. For Edge: open edge://extensions.
-   Enable Developer Mode, select **Load unpacked**, and select the
-   BrowserCapture/chromium directory. Copy the extension's 32-character ID.
-   For Firefox preview: temporarily load BrowserCapture/firefox/manifest.json
-   using about:debugging. Public distribution requires Firefox signing.
-3. From the extracted folder in your own PowerShell session, register the
-   host with:
-     - .\BrowserCapture\setup.ps1 -ChromeExtensionId YOUR_EXTENSION_ID
-     - .\BrowserCapture\setup.ps1 -EdgeExtensionId YOUR_EXTENSION_ID
-     - .\BrowserCapture\setup.ps1 -Firefox
-   Chrome/Edge IDs must be 32 characters a-p. No admin privileges normally
-   required. Follow device policies if PowerShell execution is restricted.
-4. Restart browser and open RangeDesk. Click the RangeDesk extension toolbar
-   icon to enable auto capture. The ON badge confirms the setting. Eligible
-   direct-file downloads can now be handed off without copying a link.
-5. Click toolbar icon again to disable. Manual capture continues to work.
-   Remove outdated native-host registration when moving/uninstalling the app.
+Chrome's local **Load unpacked** installation remains a user action. Google
+does not permit a normal Windows application to silently install arbitrary
+unreviewed extensions. RangeDesk streamlines the remaining steps:
+
+1. Download and extract the full latest Windows preview ZIP. Keep
+   RangeDesk.exe, NativeHost/ and BrowserCapture/ together. Open RangeDesk.
+2. Go to **RangeDesk Settings → Chrome browser** and choose
+   **Open Chrome extensions**. In Chrome, enable Developer mode, click
+   **Load unpacked** and select the folder shown by RangeDesk's
+   **Open extension folder** button (BrowserCapture/chromium).
+3. Return to **RangeDesk Settings → Chrome browser** and click
+   **Connect Chrome**. This writes a current-user native messaging manifest
+   and registry entry without PowerShell or administrator privileges.
+   RangeDesk can check that this **registration** is in place; it cannot
+   independently assert that Chrome has installed the extension.
+4. Restart Chrome, pin the RangeDesk toolbar icon, right-click it and
+   select **Check RangeDesk connection**. An **OK** badge means Chrome
+   successfully contacted the RangeDesk native messaging host. A **!**
+   badge means the connection failed; recheck the extracted package and
+   the connection in RangeDesk Settings.
+5. The toolbar icon click toggles automatic capture; a blue **ON** badge
+   enables eligible direct-file takeover while the RangeDesk desktop app
+   is running. It is **OFF by default** and right-click manual capture
+   remains available. No store listing, developer fee or Google review
+   is required for this development-only unpacked extension.
+
+**Development extension ID:**
+pknbhiklbdmhgdohieapjoipkdklahlp. The unpacked Chrome manifest includes
+a **public** development key to keep its ID stable across extract locations;
+no private key is included. Existing unpacked installations without this
+key may have a different ID, so remove the older unpacked instance and
+load the updated extension. A future signed Chrome Web Store release may
+have a different ID and will need a registration migration.
+
+**Uninstall:** Click **Disconnect** in RangeDesk Settings → Chrome browser
+to remove only the RangeDesk-owned current-user native host registration,
+then remove the extension in Chrome. The download catalog and checkpoints
+are left alone. Moving the application folder invalidates the old native
+host path; click Connect Chrome again in its new location.
+
+## Edge and Firefox previews (unchanged)
+
+Chrome's guided native setup is currently Chrome-only. For Edge, load
+BrowserCapture/chromium from edge://extensions, copy its ID and use the
+existing BrowserCapture/setup.ps1 -EdgeExtensionId ID command. For Firefox
+temporarily load BrowserCapture/firefox/manifest.json via about:debugging,
+then use BrowserCapture/setup.ps1 -Firefox. Firefox public distribution
+requires signing. No Windows executable can force an unreviewed extension
+onto a consumer's Chrome installation.
 
 ## Safety and supported downloads
 
