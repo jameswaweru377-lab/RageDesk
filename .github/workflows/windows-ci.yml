@@ -30,6 +30,9 @@ jobs:
         run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
       - name: Publish restricted browser native host
         run: dotnet publish src/RangeDesk.NativeHost/RangeDesk.NativeHost.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk/NativeHost
+      - name: Verify browser native messaging framing
+        shell: pwsh
+        run: ./browser-capture/test-native-host.ps1
       - name: Package opt-in browser extensions and setup
         shell: pwsh
         run: Copy-Item -Path browser-capture -Destination artifact/RangeDesk/BrowserCapture -Recurse -Force
