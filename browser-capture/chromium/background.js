@@ -69,7 +69,7 @@ api.contextMenus.onClicked.addListener(async info => {
 // request this user-clicked direct-video link handoff. No page JS can call
 // native messaging directly; no cookies, headers or page content are sent.
 const DIRECT_VIDEO = /\.(mp4|m4v|webm|ogv|ogg|mov)$/i;
-const STREAMING_MANIFEST = /\.(m3u8|mpd|m3u|ism)$/i;
+const STREAMING_MANIFEST = /\.(mpd|m3u|ism)$/i;
 const VIDEO_FORMATS = new Set(["MP4", "M4V", "WebM", "Ogg video", "MOV"]);
 
 function allowedVideoHandoff(message, sender) {
