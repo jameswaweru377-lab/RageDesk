@@ -45,6 +45,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private string? _labelNavigation;
     private string? _siteNavigation;
     private bool _sidebarCollapsed;
+    private SidebarSectionExpansion _sidebarSections = new();
     private readonly Dictionary<Guid, DownloadStatus> _lastStatuses = new();
 
     [DllImport("dwmapi.dll")]
@@ -97,6 +98,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             catch (DllNotFoundException) { }
         };
         RefreshFilter();
+        RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
     }
 
@@ -176,6 +178,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
     public int QueueCount => Downloads.Count(d => d.Status != DownloadStatus.Completed);
+    public int ScheduledCount => _scheduled.Count;
     public int SoftwareCount => CategoryCount("Software");
     public int VideosCount => CategoryCount("Videos");
     public int DocumentsCount => CategoryCount("Documents");
@@ -200,13 +203,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void RefreshCounters()
     {
         foreach (var property in new[] {
-            nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount),
+            nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount), nameof(ScheduledCount),
             nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount), nameof(FailedCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
             nameof(WorkCount), nameof(PersonalCount), nameof(ResearchCount), nameof(ImportantCount),
             nameof(MicrosoftCount), nameof(GitHubCount), nameof(GoogleDriveCount), nameof(YouTubeCount) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
+        RefreshCustomSiteCounters();
     }
     public DownloadEntry? SelectedDownload
     {
@@ -426,33 +430,88 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         CustomSitesPanel.Children.Clear();
         foreach (var site in _customSites.Values.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
         {
-            var button = new Button
+            var row = new Button
             {
                 Tag = "custom:" + site.Name,
                 ToolTip = site.HostSuffix,
-                Style = (Style)FindResource("V5NavButton")
+                Style = (Style)FindResource("SidebarRowStyle")
             };
-            button.Click += SitePreset_Click;
-            var horizontal = new StackPanel { Orientation = Orientation.Horizontal };
-            horizontal.Children.Add(new TextBlock
+            row.Click += SitePreset_Click;
+
+            var content = new Grid();
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(31) });
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            content.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+            var icon = new TextBlock
             {
-                Text = "🌐", FontSize = 14, Width = 26, TextAlignment = TextAlignment.Center
-            });
-            horizontal.Children.Add(new TextBlock
+                Text = "\uE774",
+                FontFamily = (FontFamily)FindResource("V5IconFont"),
+                FontSize = 18,
+                Foreground = (Brush)FindResource("V5AccentLightBrush"),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Width = 24,
+                TextAlignment = TextAlignment.Center
+            };
+            content.Children.Add(icon);
+            var caption = new TextBlock
             {
                 Text = site.Name, Tag = "NavCaption", FontSize = 12,
                 Foreground = (Brush)FindResource("V5TextBrush"),
-                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
-            });
-            button.Content = horizontal;
+                Margin = new Thickness(5, 0, 4, 0),
+                TextTrimming = TextTrimming.CharacterEllipsis,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            Grid.SetColumn(caption, 1);
+            content.Children.Add(caption);
+
+            var count = new TextBlock
+            {
+                Tag = "CustomSiteCount", FontSize = 10, FontWeight = FontWeights.SemiBold,
+                Text = Downloads.Count(d => site.MatchesHost(d.Host)).ToString(),
+                Foreground = (Brush)FindResource("V5AccentLightBrush"),
+                VerticalAlignment = VerticalAlignment.Center,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            var badge = new Border
+            {
+                Tag = "NavBadge",
+                MinWidth = 29, Height = 23,
+                Padding = new Thickness(5, 2, 5, 2),
+                CornerRadius = new CornerRadius(11),
+                Background = new SolidColorBrush(Color.FromRgb(20, 54, 89)),
+                HorizontalAlignment = HorizontalAlignment.Right,
+                VerticalAlignment = VerticalAlignment.Center,
+                Child = count
+            };
+            Grid.SetColumn(badge, 2);
+            content.Children.Add(badge);
+            row.Content = content;
+
             var menu = new ContextMenu();
             var remove = new MenuItem { Header = "Remove preset" };
             remove.Click += (_, _) => RemoveCustomSite(site.Name);
             menu.Items.Add(remove);
-            button.ContextMenu = menu;
-            CustomSitesPanel.Children.Add(button);
+            row.ContextMenu = menu;
+            CustomSitesPanel.Children.Add(row);
         }
-        AddSitePresetButton.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        RefreshFilter();
+    }
+
+    private void RefreshCustomSiteCounters()
+    {
+        if (CustomSitesPanel is null) return;
+        foreach (var button in CustomSitesPanel.Children.OfType<Button>())
+        {
+            if (button.Tag is not string tag || !tag.StartsWith("custom:", StringComparison.Ordinal))
+                continue;
+            if (!_customSites.TryGetValue(tag["custom:".Length..], out var site))
+                continue;
+            foreach (var text in Descendants<TextBlock>(button))
+                if (text.Tag as string == "CustomSiteCount")
+                    text.Text = Downloads.Count(d => site.MatchesHost(d.Host)).ToString();
+        }
     }
 
     private void AddSitePreset_Click(object sender, RoutedEventArgs e)
@@ -511,24 +570,46 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    private void ToggleSidebarSection_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string section }) return;
+        _sidebarSections = _sidebarSections.Toggle(section);
+        UpdateSidebarSectionVisibility();
+    }
+
+    private void UpdateSidebarSectionVisibility()
+    {
+        CategoryItems.Visibility = _sidebarSections.IsVisible("categories", _sidebarCollapsed)
+            ? Visibility.Visible : Visibility.Collapsed;
+        LabelItems.Visibility = _sidebarSections.IsVisible("labels", _sidebarCollapsed)
+            ? Visibility.Visible : Visibility.Collapsed;
+        SiteItems.Visibility = _sidebarSections.IsVisible("sites", _sidebarCollapsed)
+            ? Visibility.Visible : Visibility.Collapsed;
+        CategoriesChevron.Text = _sidebarSections.Categories ? "⌄" : "›";
+        LabelsChevron.Text = _sidebarSections.Labels ? "⌄" : "›";
+        SitesChevron.Text = _sidebarSections.Sites ? "⌄" : "›";
+    }
+
     private void ToggleSidebar_Click(object sender, RoutedEventArgs e)
     {
         _sidebarCollapsed = !_sidebarCollapsed;
-        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 55 : 202);
+        SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 75 : 244);
+        SidebarBrandColumn.Width = new GridLength(_sidebarCollapsed ? 0 : 43);
         SidebarBrand.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SidebarBrandIcon.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        SidebarSections.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        AutomationNavButton.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
 
         foreach (var caption in Descendants<TextBlock>(SidebarPanel))
         {
-            if (caption.Tag is string tag && tag == "NavCaption" ||
-                caption.Text is "CATEGORIES" or "LABELS" or "SITE PRESETS")
+            if (caption.Tag as string == "NavCaption")
                 caption.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         }
         foreach (var badge in Descendants<Border>(SidebarPanel).Where(x => x.Tag as string == "NavBadge"))
             badge.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
 
-        AddSitePresetButton.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SidebarToggle.ToolTip = _sidebarCollapsed ? "Expand navigation" : "Collapse navigation";
+        UpdateSidebarSectionVisibility();
     }
 
     /// <summary>
@@ -729,8 +810,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshFilter();
     }
 
-    private void SaveSchedules() =>
+    private void SaveSchedules()
+    {
         ScheduledQueueStore.Save(_schedulesFile, _scheduled.Values);
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+    }
 
     /// <summary>The user can override a scheduled start by explicitly resuming.</summary>
     private bool StartManually(DownloadEntry item)
