@@ -41,6 +41,18 @@ jobs:
           path: artifact/benchmark/results.json
           retention-days: 7
           if-no-files-found: warn
+      - name: Controlled loopback HTTP range benchmark (strong ETag and 1/4/8 connections)
+        if: github.head_ref == 'feature/rangedesk-v5-postaction-controlled-bench'
+        shell: pwsh
+        run: dotnet run --project tools/RangeDesk.Benchmark/RangeDesk.Benchmark.csproj --configuration Release -- controlled artifact/controlled-benchmark
+      - name: Upload controlled range benchmark report
+        if: always() && github.head_ref == 'feature/rangedesk-v5-postaction-controlled-bench'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-Controlled-Range-Benchmark
+          path: artifact/controlled-benchmark/controlled-results.json
+          retention-days: 7
+          if-no-files-found: error
       - name: Publish portable Windows build
         run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
       - name: Publish restricted browser native host
