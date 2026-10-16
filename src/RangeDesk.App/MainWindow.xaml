@@ -755,11 +755,13 @@
             <TabControl Background="{StaticResource V5ElevatedBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
               <TabItem Header="General">
                 <StackPanel Margin="7,18,7,7">
-                  <TextBlock Text="Download URL" Foreground="{StaticResource V5MutedBrush}"/>
+                  <TextBlock Text="Download URL (one link, or multiple links on separate lines)" Foreground="{StaticResource V5MutedBrush}"/>
                   <Grid Margin="0,7,0,12">
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBox x:Name="NewUrl" Style="{StaticResource V5Input}" TextChanged="Url_Changed"
-                             ToolTip="Paste a direct HTTP or HTTPS download link"/>
+                             AcceptsReturn="True" TextWrapping="Wrap" Height="60"
+                             VerticalScrollBarVisibility="Auto"
+                             ToolTip="Paste one direct HTTP/HTTPS URL per line (maximum 100)"/>
                     <Button Grid.Column="1" Content="Paste" Click="PasteUrl_Click"
                             Style="{StaticResource V5ToolbarButton}" Margin="7,0,0,0" Padding="8,6"/>
                   </Grid>
