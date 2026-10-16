@@ -21,19 +21,32 @@ public sealed class DownloadEngine : IDisposable
     private readonly SynchronizationContext? _ui;
 
     private sealed record PartialMetadata(string Url, long? TotalBytes, string? StrongETag);
-    public DownloadEngine(SynchronizationContext? ui = null, HttpClient? client = null, int maxConcurrentDownloads = 2)
+    public DownloadEngine(SynchronizationContext? ui = null, HttpClient? client = null, int maxConcurrentDownloads = 2, string? proxyUri = null)
     {
         if (maxConcurrentDownloads is < 1 or > 4)
             throw new ArgumentOutOfRangeException(nameof(maxConcurrentDownloads));
         _slots = new SemaphoreSlim(maxConcurrentDownloads, maxConcurrentDownloads);
         _ui = ui;
-        _http = client ?? new HttpClient(new HttpClientHandler
+        if (client is not null && !string.IsNullOrWhiteSpace(proxyUri))
+            throw new ArgumentException("An explicitly supplied HTTP client already owns its proxy configuration.");
+        if (client is not null) _http = client;
+        else
         {
-            AutomaticDecompression = DecompressionMethods.None,
-            AllowAutoRedirect = true,
-            MaxAutomaticRedirections = 5,
-            MaxConnectionsPerServer = 40
-        });
+            var handler = new HttpClientHandler
+            {
+                AutomaticDecompression = DecompressionMethods.None,
+                AllowAutoRedirect = true,
+                MaxAutomaticRedirections = 5,
+                MaxConnectionsPerServer = 40
+            };
+            if (!string.IsNullOrWhiteSpace(proxyUri))
+            {
+                string validProxy = new RangeDeskPreferences { ProxyUri = proxyUri }.Validate().ProxyUri!;
+                handler.Proxy = new WebProxy(validProxy);
+                handler.UseProxy = true;
+            }
+            _http = new HttpClient(handler);
+        }
         _http.Timeout = Timeout.InfiniteTimeSpan;
     }
 
