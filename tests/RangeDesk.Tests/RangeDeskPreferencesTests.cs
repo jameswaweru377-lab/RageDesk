@@ -12,6 +12,7 @@ public sealed class RangeDeskPreferencesTests
         Assert.Equal(8, settings.DefaultConnections);
         Assert.Equal(0, settings.DefaultBandwidthKiBps);
         Assert.True(settings.StartImmediately);
+        Assert.Equal(2, settings.MaxConcurrentDownloads);
         Assert.True(Path.IsPathFullyQualified(settings.DownloadFolder));
     }
 
@@ -34,6 +35,17 @@ public sealed class RangeDeskPreferencesTests
             (new RangeDeskPreferences { DefaultBandwidthKiBps = rate }).Validate());
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    public void InvalidSimultaneousDownloadLimitIsRejected(int count)
+    {
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            (new RangeDeskPreferences { MaxConcurrentDownloads = count }).Validate());
+        Assert.Throws<ArgumentOutOfRangeException>(() =>
+            new DownloadEngine(maxConcurrentDownloads: count));
+    }
+
     [Fact]
     public void RelativeFolderIsRejected()
     {
@@ -53,7 +65,8 @@ public sealed class RangeDeskPreferencesTests
                 DownloadFolder = Path.Combine(root, "new-downloads"),
                 DefaultConnections = 16,
                 DefaultBandwidthKiBps = 4096,
-                StartImmediately = false
+                StartImmediately = false,
+                MaxConcurrentDownloads = 3
             }.Validate();
             Assert.False(Directory.Exists(expected.DownloadFolder));
             RangeDeskPreferencesStore.Save(file, expected);
