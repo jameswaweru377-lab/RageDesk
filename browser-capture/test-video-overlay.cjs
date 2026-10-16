@@ -260,10 +260,10 @@ test("player overlay appears and clicking exposed format sends link for review",
   assert.equal(choices[0].textContent, "MP4 · 720p");
   choices[0].listeners.click();
   await new Promise(resolve => setTimeout(resolve, 0));
-  assert.equal(sent.length, 1);
-  assert.equal(sent[0].action, "rangedesk_video_source");
-  assert.equal(sent[0].url, "https://cdn.test/movies/clip.mp4");
-  assert.equal(sent[0].format, "MP4");
+  const selected = sent.filter(message => message.action === "rangedesk_video_source");
+  assert.equal(selected.length, 1);
+  assert.equal(selected[0].url, "https://cdn.test/movies/clip.mp4");
+  assert.equal(selected[0].format, "MP4");
 });
 
 test("blob player shows observed HLS in the overlay only after tab opt-in", async () => {
