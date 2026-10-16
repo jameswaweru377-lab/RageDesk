@@ -97,7 +97,7 @@
     <!-- Premium RangeDesk sidebar: uniform icon rail, badges and collapsible sections. -->
     <Border x:Name="SidebarPanel" Grid.Column="0" Background="{StaticResource V5SidebarBrush}"
             BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0,0,1,0">
-      <DockPanel Margin="12,14,12,10" LastChildFill="True">
+      <DockPanel x:Name="SidebarDock" Margin="12,14,12,10" LastChildFill="True">
         <!-- Brand remains visible when all lists scroll. -->
         <Grid DockPanel.Dock="Top" Margin="2,1,0,18" Height="44">
           <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarBrandColumn" Width="43"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

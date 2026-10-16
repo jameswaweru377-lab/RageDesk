@@ -594,11 +594,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _sidebarCollapsed = !_sidebarCollapsed;
         SidebarColumn.Width = new GridLength(_sidebarCollapsed ? 75 : 244);
+        SidebarDock.Margin = _sidebarCollapsed
+            ? new Thickness(4, 14, 4, 10)
+            : new Thickness(12, 14, 12, 10);
         SidebarBrandColumn.Width = new GridLength(_sidebarCollapsed ? 0 : 43);
         SidebarBrand.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SidebarBrandIcon.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
-        SidebarSections.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
-        AutomationNavButton.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+
+        // Keep the group rows reachable as icons in compact mode. Only the
+        // text headers disappear; original dropdown preferences are retained.
+        SidebarSections.Visibility = Visibility.Visible;
+        CategoriesHeader.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        LabelsHeader.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        SitesHeader.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+        AutomationNavButton.Visibility = Visibility.Visible;
+        UpdateSidebarSectionVisibility(); // Reveal group icons before recomputing their compact geometry.
 
         foreach (var caption in Descendants<TextBlock>(SidebarPanel))
         {
@@ -607,6 +617,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
         foreach (var badge in Descendants<Border>(SidebarPanel).Where(x => x.Tag as string == "NavBadge"))
             badge.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+
+        // A three-column nav grid still reserves its first 31px icon rail
+        // when text is hidden. Redistribute that space so every icon is
+        // centered and clickable instead of clipped against the edge.
+        foreach (var button in Descendants<Button>(SidebarPanel))
+        {
+            if (button.Content is not Grid grid || grid.ColumnDefinitions.Count != 3)
+                continue;
+            button.Padding = _sidebarCollapsed
+                ? new Thickness(3, 5, 3, 5)
+                : new Thickness(10, 5, 10, 5);
+            grid.ColumnDefinitions[0].Width = _sidebarCollapsed
+                ? new GridLength(1, GridUnitType.Star)
+                : new GridLength(31);
+            grid.ColumnDefinitions[1].Width = _sidebarCollapsed
+                ? new GridLength(0)
+                : new GridLength(1, GridUnitType.Star);
+            grid.ColumnDefinitions[2].Width = _sidebarCollapsed
+                ? new GridLength(0)
+                : GridLength.Auto;
+        }
 
         SidebarToggle.ToolTip = _sidebarCollapsed ? "Expand navigation" : "Collapse navigation";
         UpdateSidebarSectionVisibility();

@@ -26,9 +26,14 @@ public sealed class SidebarSectionExpansionTests
     {
         var state = new SidebarSectionExpansion().Toggle("categories");
         Assert.False(state.IsVisible("categories", false));
-        Assert.False(state.IsVisible("labels", true));
+        Assert.True(state.IsVisible("categories", true));
+        Assert.True(state.IsVisible("labels", true));
+        Assert.True(state.IsVisible("sites", true));
         Assert.True(state.IsVisible("labels", false));
         Assert.False(state.Toggle("labels").IsExpanded("labels"));
+        // Re-expanding returns to the saved group preferences.
+        Assert.False(state.IsVisible("categories", false));
+        Assert.True(state.IsVisible("sites", false));
     }
 
     [Fact]
