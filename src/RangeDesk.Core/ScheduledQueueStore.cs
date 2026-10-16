@@ -39,12 +39,14 @@ public static class ScheduledQueueStore
             ?? throw new InvalidDataException("The schedule file is empty.");
         if (records.Count > 10000) throw new InvalidDataException("Too many scheduled downloads.");
         var unique = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var normalized = new List<ScheduledDownload>(records.Count);
         foreach (var record in records)
         {
             var valid = record.Validate();
             if (!unique.Add(valid.Destination)) throw new InvalidDataException("Duplicate scheduled destination.");
+            normalized.Add(valid);
         }
-        return records;
+        return normalized;
     }
 
     public static void Save(string file, IEnumerable<ScheduledDownload> items)
