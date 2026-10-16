@@ -622,7 +622,7 @@ test("Video analysis errors show actionable safe code, not private extractor out
   const error=ui.options.children.find(e=>e.className==="hint"&&/RATE_LIMITED/.test(e.textContent));
   assert.ok(error);
   assert.match(error.textContent,/Wait before trying again/);
-  assert.doesNotMatch(error.textContent,/token=|https?:\\/\\//);
+  assert.doesNotMatch(error.textContent,/token=|http/i);
 });
 
 test("New YouTube SPA probe can finish before an older in-flight probe", async () => {
