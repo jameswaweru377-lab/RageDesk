@@ -27,6 +27,7 @@ async function updateBadge() {
 api.runtime.onInstalled.addListener(() => {
   api.contextMenus.create({ id: "rangedesk-link", title: "Download link with RangeDesk", contexts: ["link"] });
   api.contextMenus.create({ id: "rangedesk-media", title: "Download direct media file with RangeDesk", contexts: ["video", "audio"] });
+  api.contextMenus.create({ id: "rangedesk-check", title: "Check RangeDesk connection", contexts: ["action"] });
   void updateBadge();
 });
 if (api.runtime.onStartup) api.runtime.onStartup.addListener(() => void updateBadge());
@@ -38,6 +39,21 @@ api.action.onClicked.addListener(async () => {
 });
 
 api.contextMenus.onClicked.addListener(async info => {
+  if (info.menuItemId === "rangedesk-check") {
+    // A real Chrome -> native-host protocol check, not a registry guess.
+    // Does not request browser history, cookies or download URLs.
+    let available = false;
+    try {
+      const reply = await api.runtime.sendNativeMessage(HOST, { action: "ping" });
+      available = reply && reply.accepted === true;
+    } catch { /* Missing host, disabled extension or invalid registration. */ }
+    await api.action.setBadgeText({ text: available ? "OK" : "!" });
+    await api.action.setBadgeBackgroundColor({ color: available ? "#087EDB" : "#D34A56" });
+    await api.action.setTitle({ title: available
+      ? "RangeDesk native host connected — click to toggle automatic capture"
+      : "RangeDesk is not connected. Use Settings > Chrome browser in RangeDesk." });
+    return;
+  }
   const url = info.menuItemId === "rangedesk-link" ? info.linkUrl :
               info.menuItemId === "rangedesk-media" ? info.srcUrl : null;
   if (typeof url !== "string" || !/^https?:\/\//i.test(url)) return;
