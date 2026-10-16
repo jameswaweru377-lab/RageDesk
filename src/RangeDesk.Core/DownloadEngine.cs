@@ -17,6 +17,7 @@ public sealed class DownloadEngine : IDisposable
     private readonly SemaphoreSlim _slots;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _active = new();
     private readonly ConcurrentDictionary<Guid, DownloadStatus> _stopIntent = new();
+    private readonly ConcurrentDictionary<Guid, SharedBandwidthLimiter> _limiters = new();
     private readonly ConcurrentDictionary<string, Guid> _claimedPaths =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly SynchronizationContext? _ui;
@@ -88,6 +89,14 @@ public sealed class DownloadEngine : IDisposable
         return true;
     }
 
+    public async ValueTask<bool> SetLiveBandwidthLimitAsync(DownloadEntry entry,
+        int limitKiBps, CancellationToken cancellationToken = default)
+    {
+        if (!_limiters.TryGetValue(entry.Id, out var limiter)) return false;
+        await limiter.SetLimitAsync(limitKiBps, cancellationToken);
+        return true;
+    }
+
     public void Pause(DownloadEntry entry) => Stop(entry, DownloadStatus.Paused);
     public void Cancel(DownloadEntry entry) => Stop(entry, DownloadStatus.Canceled);
 
@@ -129,6 +138,8 @@ public sealed class DownloadEngine : IDisposable
                 throw new IOException("The destination already exists. Choose a different filename; existing files are never overwritten.");
 
             var limiter = new SharedBandwidthLimiter(e.BandwidthKiBps);
+            if (!_limiters.TryAdd(e.Id, limiter))
+                throw new InvalidOperationException("Download already has an active limiter.");
             if (!e.Adaptive && Directory.Exists(e.Destination + ".rdadaptive"))
                 throw new InvalidDataException("Adaptive checkpoint exists. Reopen this transfer with adaptive mode to resume safely.");
             if (e.Adaptive && e.RequestedConnections > 1)
@@ -322,6 +333,7 @@ public sealed class DownloadEngine : IDisposable
         finally
         {
             if (slotTaken) _slots.Release();
+            _limiters.TryRemove(e.Id, out _);
             _active.TryRemove(e.Id, out _);
             _claimedPaths.TryRemove(e.Destination, out _);
             _stopIntent.TryRemove(e.Id, out _);
