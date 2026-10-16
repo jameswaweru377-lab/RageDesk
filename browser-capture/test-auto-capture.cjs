@@ -66,9 +66,12 @@ for (const browserFamily of ["chromium", "firefox"]) {
       }
     };
     const source = fs.readFileSync(path.join(__dirname, browserFamily, "background.js"), "utf8");
-    vm.runInNewContext(source, {
+    const discovery = browserFamily === "chromium"
+      ? fs.readFileSync(path.join(__dirname, "chromium", "media-discovery.js"), "utf8")
+      : "";
+    vm.runInNewContext(discovery + "\n" + source, {
       ...(browserFamily === "chromium" ? { chrome: api } : { browser: api }),
-      URL, Number, Set, console
+      importScripts: () => {}, URL, Number, Set, console
     }, { filename: browserFamily + "/background.js" });
     const deliver = async (item = {
       id: 42, state: "in_progress", url: "https://downloads.example.test/setup.zip"
