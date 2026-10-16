@@ -140,6 +140,25 @@ public sealed class DownloadEngine : IDisposable
             var limiter = new SharedBandwidthLimiter(e.BandwidthKiBps);
             if (!_limiters.TryAdd(e.Id, limiter))
                 throw new InvalidOperationException("Download already has an active limiter.");
+            if (HlsPlaylist.IsHlsUrl(e.Url))
+            {
+                if (File.Exists(partial) || File.Exists(journal) ||
+                    Directory.Exists(e.Destination + ".rdsegments") ||
+                    Directory.Exists(e.Destination + ".rdadaptive"))
+                    throw new InvalidDataException("A different download checkpoint already exists at this destination; it was preserved.");
+                var hls = new HlsVodTransfer(_http, _networkIdleTimeout);
+                long complete = await hls.DownloadAsync(e, limiter, (bytes, total, speed, workers) =>
+                {
+                    received = bytes;
+                    expected = total;
+                    Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers);
+                }, token);
+                Publish(e, DownloadStatus.Completed, complete, complete);
+                return;
+            }
+            if (File.Exists(e.Destination + ".rdhls-state") ||
+                File.Exists(e.Destination + ".rdhls-partial"))
+                throw new InvalidDataException("An HLS checkpoint exists. Resume its original HLS playlist rather than replacing the saved media.");
             if (!e.Adaptive && Directory.Exists(e.Destination + ".rdadaptive"))
                 throw new InvalidDataException("Adaptive checkpoint exists. Reopen this transfer with adaptive mode to resume safely.");
             if (e.Adaptive && e.RequestedConnections > 1)
