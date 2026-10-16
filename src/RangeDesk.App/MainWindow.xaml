@@ -950,6 +950,17 @@
             <TabItem Header="Automation" x:Name="SettingsAutomationTab">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,13,10,16">
+                  <Border Margin="0,0,0,17" Padding="12" CornerRadius="9"
+                          Background="{StaticResource V5SurfaceBrush}"
+                          BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1">
+                    <StackPanel>
+                      <TextBlock Text="Start scheduled downloads while RangeDesk is closed" FontSize="13" FontWeight="SemiBold"/>
+                      <TextBlock Text="Optional Windows Task Scheduler integration. It checks every 5 minutes while you're signed in and opens RangeDesk only when a saved download is due. Nothing is enabled automatically."
+                                 Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,7,0,10"/>
+                      <Button Content="Open Windows scheduling setup" Click="OpenSchedulerSetup_Click"
+                              Style="{StaticResource V5ToolbarButton}" HorizontalAlignment="Left" Padding="11,7"/>
+                    </StackPanel>
+                  </Border>
                   <TextBlock Text="Automatic download organization" FontSize="14" FontWeight="SemiBold"/>
                   <TextBlock Text="First matching rule wins. Rules apply to new downloads only, before a transfer starts. No scripts or external programs are executed."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,12"/>
