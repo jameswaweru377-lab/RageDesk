@@ -804,8 +804,8 @@ test("Missing video thumbnail lets form occupy full confirmation width",()=>{
   const stylesheet=ui.elements.find(x=>x.tagName==="STYLE").textContent;
   assert.ok(body.children.includes(thumbnail));
   assert.equal(body.children[1],detail);
-  assert.match(stylesheet,/\\.confirm-thumb\\[hidden\\]\\+\\.confirm-detail\\{grid-column:1\\/-1;\\}/);
-  assert.match(stylesheet,/grid-template-columns:84px minmax\\(0,1fr\\)/);
+  assert.ok(stylesheet.includes(".confirm-thumb[hidden]+.confirm-detail{grid-column:1/-1;}"));
+  assert.ok(stylesheet.includes("grid-template-columns:84px minmax(0,1fr)"));
 });
 
 test("Old video choices cannot be submitted after navigating away", async()=>{
