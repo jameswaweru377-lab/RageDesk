@@ -23,6 +23,37 @@ try
         // Connection test: no URL, permissions, files or user data required.
         WriteResponse(true, "RangeDesk native host is reachable from Chrome.");
     }
+    else if (action == "media_probe")
+    {
+        string url = request.RootElement.GetProperty("url").GetString() ?? "";
+        if (!OptionalMediaExtractor.IsPageCandidate(url))
+            throw new ArgumentException("Unsupported media page URL.");
+        string appFolder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, ".."));
+        var probe = await OptionalMediaExtractor.AnalyzeAsync(appFolder, url);
+        var formats = probe.Formats.Take(60).Select(f => new
+        {
+            id = f.Id,
+            label = f.Label.Length <= 160 ? f.Label : f.Label[..160],
+            height = f.Height,
+            needsAudioMerge = f.NeedsAudioMerge
+        }).ToArray();
+        WriteResponseObject(new { accepted = true, formats });
+    }
+    else if (action == "media_download")
+    {
+        if (System.Diagnostics.Process.GetProcessesByName("RangeDesk").Length == 0)
+            throw new InvalidOperationException("Open RangeDesk before downloading media.");
+        if (!request.RootElement.TryGetProperty("rightsConfirmed", out var consent) ||
+            consent.ValueKind != JsonValueKind.True)
+            throw new ArgumentException("Explicit download permission is required.");
+        string url = request.RootElement.GetProperty("url").GetString() ?? "";
+        string formatId = request.RootElement.GetProperty("formatId").GetString() ?? "";
+        var item = new BrowserMediaRequest("media_download", url, formatId);
+        item.Validate();
+        BrowserMediaInbox.Enqueue(BrowserMediaInbox.DefaultDirectory,
+            JsonSerializer.Serialize(item));
+        WriteResponse(true, "Queued the selected quality in RangeDesk.");
+    }
     else if (action == "capture_download")
     {
         // No hidden service and no silently launched GUI: if RangeDesk is not
@@ -48,9 +79,12 @@ catch (Exception)
     WriteResponse(false, "RangeDesk could not accept this link. Check that the application is installed.");
 }
 
-static void WriteResponse(bool accepted, string message)
+static void WriteResponse(bool accepted, string message) =>
+    WriteResponseObject(new { accepted, message });
+
+static void WriteResponseObject<T>(T value)
 {
-    byte[] json = JsonSerializer.SerializeToUtf8Bytes(new { accepted, message });
+    byte[] json = JsonSerializer.SerializeToUtf8Bytes(value);
     using var output = Console.OpenStandardOutput();
     Span<byte> length = stackalloc byte[4];
     BinaryPrimitives.WriteInt32LittleEndian(length, json.Length);
