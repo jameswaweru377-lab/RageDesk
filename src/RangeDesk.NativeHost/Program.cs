@@ -18,7 +18,12 @@ try
     string json = Encoding.UTF8.GetString(buffer);
     using var request = JsonDocument.Parse(json);
     string? action = request.RootElement.GetProperty("action").GetString();
-    if (action == "capture_download")
+    if (action == "ping")
+    {
+        // Connection test: no URL, permissions, files or user data required.
+        WriteResponse(true, "RangeDesk native host is reachable from Chrome.");
+    }
+    else if (action == "capture_download")
     {
         // No hidden service and no silently launched GUI: if RangeDesk is not
         // already running, tell the extension to resume its browser download.
