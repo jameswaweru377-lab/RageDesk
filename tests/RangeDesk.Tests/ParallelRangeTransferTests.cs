@@ -224,6 +224,44 @@ public sealed class ParallelRangeTransferTests
     }
 
     [Fact]
+    public async Task StalledRangeAutomaticallyResumesAtSavedByteOffsetAndPreservesOutput()
+    {
+        await InFolder(async folder =>
+        {
+            int firstStall = 0;
+            var offsets = new ConcurrentBag<long>();
+            using var handler = new RangeHandler(request =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                long first = range.From!.Value;
+                long last = range.To!.Value;
+                offsets.Add(first);
+                if (first == 0 && last > 0 && Interlocked.Exchange(ref firstStall, 1) == 0)
+                {
+                    var failedResponse = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                    failedResponse.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v1\"");
+                    failedResponse.Content = new StreamContent(new OneChunkThenStallStream(
+                        Source[..((int)last + 1)], 8192));
+                    failedResponse.Content.Headers.ContentRange =
+                        new ContentRangeHeaderValue(first, last, Source.Length);
+                    return failedResponse;
+                }
+                return ValidResponse(request);
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler),
+                networkIdleTimeout: TimeSpan.FromMilliseconds(90));
+            var item = engine.Create("https://example.test/stall.bin",
+                Path.Combine(folder, "stall.bin"), connections: 4);
+            Assert.True(engine.Start(item));
+            await Wait(item);
+            Assert.Equal(DownloadStatus.Completed, item.Status);
+            Assert.Equal(Source, await File.ReadAllBytesAsync(item.Destination));
+            Assert.Contains(8192L, offsets); // continuation uses durable .part length
+            Assert.False(Directory.Exists(item.Destination + ".rdsegments"));
+        });
+    }
+
+    [Fact]
     public async Task WorkerMetricsReflectTheActualRangeCounts()
     {
         await InFolder(async folder =>
@@ -278,6 +316,35 @@ public sealed class ParallelRangeTransferTests
         Directory.CreateDirectory(folder);
         try { await action(folder); }
         finally { Directory.Delete(folder, true); }
+    }
+
+    private sealed class OneChunkThenStallStream(byte[] bytes, int firstChunk) : Stream
+    {
+        private bool _first = true;
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => bytes.Length;
+        public override long Position { get => _first ? 0 : firstChunk; set => throw new NotSupportedException(); }
+
+        public override async ValueTask<int> ReadAsync(Memory<byte> buffer,
+            CancellationToken cancellationToken = default)
+        {
+            if (_first)
+            {
+                _first = false;
+                int n = Math.Min(firstChunk, buffer.Length);
+                bytes.AsMemory(0, n).CopyTo(buffer);
+                return n;
+            }
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            return 0;
+        }
+        public override int Read(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long value) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
     }
 
     private sealed class RangeHandler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler
