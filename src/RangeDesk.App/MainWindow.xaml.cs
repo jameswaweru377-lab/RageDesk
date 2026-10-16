@@ -32,6 +32,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         "RangeDesk", "schedules-v5.json");
     private readonly Dictionary<string, ScheduledDownload> _scheduled =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly string _sitePresetsFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "RangeDesk", "site-presets-v5.json");
+    private readonly Dictionary<string, CustomSitePreset> _customSites =
+        new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _scheduleTimer = new() { Interval = TimeSpan.FromSeconds(10) };
     private string _navigation = "all";
     private string _downloadTab = "all";
@@ -62,6 +67,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         VisibleDownloads.Filter = MatchesFilters;
         DataContext = this;
         LoadCatalog();
+        try
+        {
+            foreach (var site in CustomSitePresetStore.Load(_sitePresetsFile))
+                _customSites.Add(site.Name, site);
+            RenderCustomSitePresets();
+        }
+        catch (Exception ex) { StatusMessage.Text = "Could not load site presets: " + ex.Message; }
         try
         {
             foreach (var scheduled in ScheduledQueueStore.Load(_schedulesFile))
@@ -312,7 +324,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (!Enum.TryParse<DownloadStatus>(_downloadTab, true, out var tabStatus)
                 || item.Status != tabStatus) return false;
         }
-        if (_siteNavigation is not null && !SitePresets.Matches(item.Host, _siteNavigation))
+        if (_siteNavigation is not null && !MatchesSite(item.Host, _siteNavigation))
             return false;
         if (_navigation == "scheduled" && !_scheduled.ContainsKey(item.Destination)) return false;
         return DownloadListVisibility.Matches(item, _navigation == "scheduled" ? "all" : _navigation, GlobalSearch?.Text,
@@ -389,8 +401,97 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _downloadTab = "all";
         _categoryNavigation = null;
         _labelNavigation = null;
-        ViewTitle.Text = _siteNavigation ?? "Downloads";
+        ViewTitle.Text = _siteNavigation?.StartsWith("custom:", StringComparison.Ordinal) == true
+            ? _siteNavigation["custom:".Length..] : _siteNavigation ?? "Downloads";
         RefreshFilter();
+    }
+
+    private bool MatchesSite(string host, string preset)
+    {
+        if (preset.StartsWith("custom:", StringComparison.Ordinal))
+            return _customSites.TryGetValue(preset["custom:".Length..], out var custom)
+                && custom.MatchesHost(host);
+        return SitePresets.Matches(host, preset);
+    }
+
+    private void RenderCustomSitePresets()
+    {
+        CustomSitesPanel.Children.Clear();
+        foreach (var site in _customSites.Values.OrderBy(x => x.Name, StringComparer.OrdinalIgnoreCase))
+        {
+            var button = new Button
+            {
+                Tag = "custom:" + site.Name,
+                ToolTip = site.HostSuffix,
+                Style = (Style)FindResource("V5NavButton")
+            };
+            button.Click += SitePreset_Click;
+            var horizontal = new StackPanel { Orientation = Orientation.Horizontal };
+            horizontal.Children.Add(new TextBlock
+            {
+                Text = "🌐", FontSize = 14, Width = 26, TextAlignment = TextAlignment.Center
+            });
+            horizontal.Children.Add(new TextBlock
+            {
+                Text = site.Name, Tag = "NavCaption", FontSize = 12,
+                Foreground = (Brush)FindResource("V5TextBrush"),
+                TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center
+            });
+            button.Content = horizontal;
+            var menu = new ContextMenu();
+            var remove = new MenuItem { Header = "Remove preset" };
+            remove.Click += (_, _) => RemoveCustomSite(site.Name);
+            menu.Items.Add(remove);
+            button.ContextMenu = menu;
+            CustomSitesPanel.Children.Add(button);
+        }
+        AddSitePresetButton.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    private void AddSitePreset_Click(object sender, RoutedEventArgs e)
+    {
+        CustomSiteName.Clear();
+        CustomSiteDomain.Clear();
+        CustomSiteError.Text = "";
+        CustomSiteOverlay.Visibility = Visibility.Visible;
+        CustomSiteName.Focus();
+    }
+
+    private void CloseSitePreset_Click(object sender, RoutedEventArgs e) =>
+        CustomSiteOverlay.Visibility = Visibility.Collapsed;
+
+    private void SaveSitePreset_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var site = new CustomSitePreset(CustomSiteName.Text, CustomSiteDomain.Text).Validate();
+            if (_customSites.ContainsKey(site.Name))
+                throw new ArgumentException("A site preset with that name already exists.");
+            CustomSitePresetStore.Save(_sitePresetsFile, _customSites.Values.Append(site));
+            _customSites.Add(site.Name, site);
+            RenderCustomSitePresets();
+            CustomSiteOverlay.Visibility = Visibility.Collapsed;
+            StatusMessage.Text = "Site preset saved: " + site.Name;
+        }
+        catch (Exception ex) { CustomSiteError.Text = ex.Message; }
+    }
+
+    private void RemoveCustomSite(string name)
+    {
+        if (!_customSites.ContainsKey(name)) return;
+        if (MessageBox.Show(this, "Remove site filter '" + name + "'? Downloaded files will not be deleted.",
+            "Remove site preset", MessageBoxButton.YesNo, MessageBoxImage.Question) != MessageBoxResult.Yes) return;
+        try
+        {
+            CustomSitePresetStore.Save(_sitePresetsFile,
+                _customSites.Values.Where(x => !x.Name.Equals(name, StringComparison.OrdinalIgnoreCase)));
+            _customSites.Remove(name);
+            if (string.Equals(_siteNavigation, "custom:" + name, StringComparison.OrdinalIgnoreCase))
+                _siteNavigation = null;
+            RenderCustomSitePresets();
+            RefreshFilter();
+        }
+        catch (Exception ex) { StatusMessage.Text = "Cannot remove site preset: " + ex.Message; }
     }
 
     private static IEnumerable<T> Descendants<T>(DependencyObject parent) where T : DependencyObject
@@ -419,6 +520,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var badge in Descendants<Border>(SidebarPanel).Where(x => x.Tag as string == "NavBadge"))
             badge.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
 
+        AddSitePresetButton.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SidebarToggle.ToolTip = _sidebarCollapsed ? "Expand navigation" : "Collapse navigation";
     }
 
