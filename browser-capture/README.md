@@ -349,3 +349,13 @@ This is a development preview, not universal production-certified capture.
   snapshots are kept under the local user's RangeDesk app-data directory.
   This version does not support DRM bypasses, hidden authentication/cookies,
   automatic downloading without user approval or guaranteed YouTube availability.
+
+### YouTube navigation and page-identity repair
+
+Chrome can report a frame URL that lags behind YouTube's in-page video
+navigation. RangeDesk accepts the browser-reported current top-level tab URL
+when it matches the requested video, or a narrowly restricted, same-origin
+YouTube video-route fallback when the browser origin and frame identity agree.
+Cross-origin pages, invented paths and credentialed URLs remain blocked.
+A rejected probe clears its loading indicator and displays an actionable
+error. Changing video pages while a probe is running discards stale results.

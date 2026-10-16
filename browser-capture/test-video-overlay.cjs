@@ -486,3 +486,155 @@ test("media status polling validates sender page and job ID", async () => {
   assert.equal(fake.reply.accepted, false);
   assert.equal(bg.sent.length, 1);
 });
+
+test("YouTube SPA navigation accepts a browser-verified current tab URL, not a forged page", async () => {
+  const oldUrl = "https://www.youtube.com/watch?v=aaaaaaaaaaa";
+  const nextUrl = "https://www.youtube.com/watch?v=bbbbbbbbbbb";
+  const bg = chromeBackground({accepted: true, formats: [
+    {id:"hd1080",label:"1080p · WEBM · hd1080",height:1080,needsAudioMerge:true}
+  ]});
+  const sender = {...bg.sender, frameId: 0, origin: "https://www.youtube.com",
+    url: oldUrl, tab: {id: 19, url: nextUrl}};
+  const probe = await bg.message({action:"rangedesk_media_probe", url:nextUrl}, sender);
+  assert.equal(probe.reply.accepted,true);
+  assert.equal(probe.reply.formats[0].id,"hd1080");
+  assert.equal(bg.sent[0].message.url,nextUrl);
+  const selected = await bg.message({action:"rangedesk_media_download",
+    url:nextUrl, formatId:"hd1080", rightsConfirmed:true}, sender);
+  assert.equal(selected.reply.accepted,true);
+  const advanced = await bg.message({action:"rangedesk_media_page", url:nextUrl}, sender);
+  assert.equal(advanced.reply.accepted,true);
+});
+
+test("YouTube restricted same-origin navigation fallback works without tab URL", async () => {
+  const oldUrl="https://www.youtube.com/watch?v=aaaaaaaaaaa";
+  const nextUrl="https://www.youtube.com/shorts/bbbbbbbbbbb";
+  const bg=chromeBackground({accepted:true,formats:[{id:"720",label:"720p",height:720}]});
+  const sender={...bg.sender,frameId:0,origin:"https://www.youtube.com",url:oldUrl,tab:{id:19}};
+  const result=await bg.message({action:"rangedesk_media_probe",url:nextUrl},sender);
+  assert.equal(result.reply.accepted,true);
+  assert.equal(bg.sent[0].message.url,nextUrl);
+});
+
+test("YouTube embedded players permit verified same-origin iframe navigation only", async () => {
+  const bg=chromeBackground({accepted:true,formats:[{id:"720",label:"720p",height:720}]});
+  const sender={...bg.sender,frameId:3,origin:"https://www.youtube.com",
+    url:"https://www.youtube.com/embed/aaaaaaaaaaa",
+    tab:{id:19,url:"https://news.test/article"}};
+  const next="https://www.youtube.com/embed/bbbbbbbbbbb";
+  assert.equal((await bg.message({action:"rangedesk_media_probe",url:next},sender)).reply.accepted,true);
+  assert.equal((await bg.message({action:"rangedesk_media_probe",url:"https://news.test/article"},sender)).reply.accepted,false);
+  assert.equal(bg.sent.length,1);
+});
+
+test("Video request rejects forged origins, stale tab URLs and arbitrary same-site routes", async () => {
+  const bg=chromeBackground({accepted:true,formats:[{id:"720",label:"720p",height:720}]});
+  const oldUrl="https://www.youtube.com/watch?v=aaaaaaaaaaa";
+  const nextUrl="https://www.youtube.com/watch?v=bbbbbbbbbbb";
+  const origin="https://www.youtube.com";
+  const mismatch={...bg.sender,frameId:0,origin,tab:{id:19,url:oldUrl},url:oldUrl};
+  const cases=[
+    [{action:"rangedesk_media_probe",url:nextUrl},mismatch],
+    [{action:"rangedesk_media_probe",url:nextUrl},{...mismatch,origin:"https://evil.test",tab:{id:19,url:nextUrl}}],
+    [{action:"rangedesk_media_probe",url:"https://www.youtube.com/account"},{...mismatch,tab:{id:19}}],
+    [{action:"rangedesk_media_probe",url:"https://www.youtube.com/watch?v=bbbbbbbbbbb"},
+      {...mismatch,frameId:3,tab:{id:19,url:nextUrl},origin:"https://evil.test"}],
+    [{action:"rangedesk_media_probe",url:"https://youtube.com/watch?v=bbbbbbbbbbb"},
+      {...mismatch,tab:{id:19,url:nextUrl}}],
+    [{action:"rangedesk_media_probe",url:"https://www.youtube.com/watch?v=ccccccccccc"},
+      {...mismatch,url:"https://www.youtube.com/account",tab:{id:19}}],
+    [{action:"rangedesk_media_probe",url:"https://www.youtube.com/watch?v=bbbbbbbbbbb"},
+      {...mismatch,frameId:3,url:"https://www.youtube.com/account",tab:{id:19,url:nextUrl}}]
+  ];
+  for(const [msg,sender] of cases) {
+    const res=await bg.message(msg,sender);
+    assert.equal(res.reply.accepted,false);
+    assert.equal(res.reply.errorCode,"PAGE_IDENTITY_MISMATCH");
+  }
+  assert.equal(bg.sent.length,0);
+});
+
+test("Denied video probe yields a useful rejection instead of a misleading success", async () => {
+  const bg=chromeBackground();
+  const result=await bg.message({action:"rangedesk_media_probe",url:"https://evil.test/watch"});
+  assert.equal(result.reply.accepted,false);
+  assert.equal(result.reply.errorCode,"PAGE_IDENTITY_MISMATCH");
+  assert.match(result.reply.message,/Refresh this video/);
+  assert.equal(bg.sent.length,0);
+});
+
+function mockPlayerOverlay(sendMessage) {
+  const elements=[];
+  class Element {
+    constructor(tag) {
+      this.tagName=tag.toUpperCase(); this.children=[]; this.listeners={};
+      this.attributes={}; this.style={}; this.isConnected=true;
+      this.hidden=false; this.className=""; this.textContent="";
+      elements.push(this);
+    }
+    append(...items){this.children.push(...items);}
+    appendChild(item){this.children.push(item);}
+    replaceChildren(...items){this.children=items;}
+    attachShadow(){return new Element("shadow-root");}
+    setAttribute(key,value){this.attributes[key]=value;}
+    getAttribute(key){return this.attributes[key]??null;}
+    addEventListener(key,cb){this.listeners[key]=cb;}
+    getBoundingClientRect(){return {left:0,top:0,right:750,bottom:400,width:750,height:400};}
+    querySelectorAll(){return [];}
+    contains(x){return x===this||this.children.includes(x);}
+    focus(){}
+  }
+  const video=new Element("video");
+  video.currentSrc="blob:https://www.youtube.com/fake"; video.readyState=1; video.videoHeight=1080;
+  const document={
+    URL:"https://www.youtube.com/watch?v=aaaaaaaaaaa",
+    baseURI:"https://www.youtube.com/watch?v=aaaaaaaaaaa",
+    documentElement:new Element("html"),
+    createElement:type=>new Element(type),
+    querySelectorAll:sel=>sel==="video"?[video]:[],
+    addEventListener:()=>{}
+  };
+  const chrome={runtime:{id:"extension-under-test",sendMessage:async message=>{
+    if(message.action==="rangedesk_media_list")return {enabled:false,sources:[]};
+    return sendMessage(message);
+  }}};
+  const context=vm.createContext({URL,document,window:{innerHeight:800,innerWidth:1400,addEventListener:()=>{}},
+    chrome,Number,Array,Set,MutationObserver:class{observe(){}},
+    requestAnimationFrame:cb=>cb()});
+  vm.runInContext(scripts("video-sources.js"),context);
+  vm.runInContext(scripts("video-overlay.js"),context);
+  return {elements,document,toggle:elements.find(e=>e.className==="toggle"),
+    status:elements.find(e=>e.className==="status"),
+    options:elements.find(e=>e.className==="menu").children[2]};
+}
+
+test("Rejected page probe displays error and clears Finding available qualities status", async () => {
+  const ui=mockPlayerOverlay(async()=>({accepted:false,errorCode:"PAGE_IDENTITY_MISMATCH",
+    message:"The video page changed or its frame could not be verified. Refresh this video and retry."}));
+  assert.ok(ui.toggle);
+  ui.toggle.listeners.click();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  const error=ui.options.children.find(e=>e.className==="hint"&&/Refresh this video/.test(e.textContent));
+  assert.ok(error,"Rejection should display in the qualities section");
+  assert.doesNotMatch(ui.status.textContent,/Finding available/);
+});
+
+test("New YouTube SPA probe can finish before an older in-flight probe", async () => {
+  let resolveOld;
+  const oldProbe=new Promise(resolve=>{resolveOld=resolve;});
+  const ui=mockPlayerOverlay(message=>{
+    if(message.action!=="rangedesk_media_probe")return {accepted:false};
+    if(message.url.includes("aaaaaaaaaaa"))return oldProbe;
+    return {accepted:true,formats:[{id:"hd1080",label:"1080p · WEBM",height:1080}]};
+  });
+  ui.toggle.listeners.click();
+  ui.toggle.listeners.click();
+  ui.document.URL="https://www.youtube.com/watch?v=bbbbbbbbbbb";
+  ui.toggle.listeners.click();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  assert.ok(ui.options.children.some(e=>e.className==="choice quality"&&/1080p/.test(e.textContent)));
+  resolveOld({accepted:false,message:"Old video should not overwrite the new one."});
+  await new Promise(resolve=>setTimeout(resolve,5));
+  assert.equal(ui.options.children.filter(e=>e.className==="choice quality").length,1);
+  assert.ok(!ui.options.children.some(e=>/Old video should not/.test(e.textContent)));
+});

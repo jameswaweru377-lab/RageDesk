@@ -61,6 +61,7 @@
   let mediaFormats = [];
   let mediaAnalyzedUrl = "";
   let mediaLoading = false;
+  let mediaRequestSequence = 0;
   let mediaError = "";
   let rightsConfirmed = false;
   let mediaJobId = null;
@@ -116,8 +117,9 @@
 
   async function analyzePageQualities() {
     const url = currentPageUrl();
-    if (mediaLoading) return;
+    if (mediaLoading && url === mediaAnalyzedUrl) return;
     if (url === mediaAnalyzedUrl && mediaFormats.length > 0) return;
+    const requestId = ++mediaRequestSequence;
     mediaAnalyzedUrl = url;
     mediaFormats = [];
     mediaError = "";
@@ -129,8 +131,8 @@
       const result = await chrome.runtime.sendMessage({
         action: "rangedesk_media_probe", url
       });
-      // Drop stale results when navigation occurs while yt-dlp is probing.
-      if (currentPageUrl() !== url) return;
+      // A YouTube SPA navigation can finish while an older probe is in flight.
+      if (requestId !== mediaRequestSequence || currentPageUrl() !== url) return;
       if (!result?.accepted || !Array.isArray(result.formats)) {
         mediaError = typeof result?.message === "string" && result.message.length <= 240
           ? result.message : "Could not analyze this page. Check RangeDesk Media Tools.";
@@ -142,10 +144,15 @@
       if (mediaFormats.length === 0)
         mediaError = "No downloadable quality was reported for this video.";
     } catch {
-      mediaError = "RangeDesk media analyzer is unavailable.";
+      if (requestId === mediaRequestSequence && currentPageUrl() === url)
+        mediaError = "RangeDesk media analyzer is unavailable.";
     } finally {
-      mediaLoading = false;
-      if (expanded && currentPageUrl() === url) renderChoices();
+      if (requestId === mediaRequestSequence) {
+        mediaLoading = false;
+        if (status.textContent === "Finding available video qualities…")
+          status.textContent = "";
+        if (expanded && currentPageUrl() === url) renderChoices();
+      }
     }
   }
 
