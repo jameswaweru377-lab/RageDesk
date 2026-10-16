@@ -1,5 +1,8 @@
 // RangeDesk automatic direct-file capture is OFF by default. Toolbar button
 // toggles this browser-local preference; right-click manual capture remains.
+importScripts("media-discovery.js");
+const mediaDiscovery = globalThis.RangeDeskMediaDiscovery;
+const MEDIA_STATE_KEY = "rangedeskVideoWatchByTab";
 const HOST = "com.rangedesk.capture";
 const api = typeof browser === "undefined" ? chrome : browser;
 const ELIGIBLE = /\.(zip|7z|rar|tar|gz|bz2|xz|exe|msi|msix|iso|pdf|docx|xlsx|pptx|mp4|mp3|mkv|webm|png|jpg|jpeg|webp|apk)$/i;
@@ -28,6 +31,8 @@ api.runtime.onInstalled.addListener(() => {
   api.contextMenus.create({ id: "rangedesk-link", title: "Download link with RangeDesk", contexts: ["link"] });
   api.contextMenus.create({ id: "rangedesk-media", title: "Download direct media file with RangeDesk", contexts: ["video", "audio"] });
   api.contextMenus.create({ id: "rangedesk-check", title: "Check RangeDesk connection", contexts: ["action"] });
+  api.contextMenus.create({ id: "rangedesk-watch-hls", title: "Detect HLS video on this tab (permission required)", contexts: ["action"] });
+  api.contextMenus.create({ id: "rangedesk-stop-hls", title: "Stop video detection on this tab", contexts: ["action"] });
   void updateBadge();
 });
 if (api.runtime.onStartup) api.runtime.onStartup.addListener(() => void updateBadge());
@@ -38,7 +43,12 @@ api.action.onClicked.addListener(async () => {
   await updateBadge();
 });
 
-api.contextMenus.onClicked.addListener(async info => {
+api.contextMenus.onClicked.addListener(async (info, tab) => {
+  if (info.menuItemId === "rangedesk-watch-hls" ||
+      info.menuItemId === "rangedesk-stop-hls") {
+    await changeMediaWatch(info.menuItemId === "rangedesk-watch-hls", tab);
+    return;
+  }
   if (info.menuItemId === "rangedesk-check") {
     // A real Chrome -> native-host protocol check, not a registry guess.
     // Does not request browser history, cookies or download URLs.
@@ -93,6 +103,18 @@ function allowedVideoHandoff(message, sender) {
 }
 
 api.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message?.action === "rangedesk_media_list") {
+    if (sender?.id !== api.runtime.id || !Number.isInteger(sender.tab?.id) ||
+        !Number.isInteger(sender.frameId)) {
+      reply({ enabled: false, sources: [] });
+      return false;
+    }
+    void watchedTabs().then(state => {
+      reply(mediaDiscovery.listing(state[sender.tab.id], sender.url,
+        sender.frameId, Date.now()));
+    }).catch(() => reply({ enabled: false, sources: [] }));
+    return true;
+  }
   if (!message || message.action !== "rangedesk_video_source") return false;
   if (!allowedVideoHandoff(message, sender)) {
     reply({ accepted: false });
@@ -108,6 +130,107 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
   // Keep the extension message channel open for the native host reply.
   return true;
 });
+
+
+// Chrome grants broad request-URL metadata only after the user explicitly
+// enables detection using the extension's context menu and accepts Chrome's
+// permission prompt. Only the chosen tab is examined; no response bodies,
+// headers, browsing history, cookies or unrelated-tab URLs are saved.
+async function watchedTabs() {
+  if (!api.storage?.session) return {};
+  const data = await api.storage.session.get(MEDIA_STATE_KEY);
+  const value = data?.[MEDIA_STATE_KEY];
+  return value && typeof value === "object" ? value : {};
+}
+
+async function updateWatchedTabs(mutate) {
+  if (!api.storage?.session) return;
+  const tabs = await watchedTabs();
+  await mutate(tabs);
+  await api.storage.session.set({ [MEDIA_STATE_KEY]: tabs });
+}
+
+async function activeMediaTab(tab) {
+  if (Number.isInteger(tab?.id) && typeof tab.url === "string") return tab;
+  const open = await api.tabs.query({ active: true, currentWindow: true });
+  return open.find(item => Number.isInteger(item.id)) || null;
+}
+
+async function changeMediaWatch(enable, clickedTab) {
+  if (!api.tabs || !api.permissions || !api.storage?.session) return;
+  // The permission call must follow a direct browser user gesture. Chrome
+  // presents a prompt; rejection leaves existing download behavior unchanged.
+  if (enable) {
+    const granted = await api.permissions.request({ origins: ["<all_urls>"] })
+      .catch(() => false);
+    if (!granted) return;
+  }
+  const tab = await activeMediaTab(clickedTab);
+  if (!tab) return;
+  const candidate = mediaDiscovery.beginWatch(tab.url, Date.now());
+  await updateWatchedTabs(async state => {
+    if (enable && candidate) state[tab.id] = candidate;
+    else delete state[tab.id];
+  });
+  // When no tabs are being watched, release the broad optional Chrome
+  // permission instead of retaining background network visibility.
+  if (!enable) await revokePermissionWhenIdle();
+  try {
+    await api.tabs.sendMessage(tab.id, { action: "rangedesk_media_updated" });
+  } catch { /* Content script may be absent on restricted pages. */ }
+}
+
+async function rememberObservedHls(details) {
+  if (!api.storage?.session || !Number.isInteger(details?.tabId)) return;
+  const state = await watchedTabs();
+  const watched = state[details.tabId];
+  const next = mediaDiscovery.observe(details, watched, Date.now());
+  if (!next) return;
+  await updateWatchedTabs(async current => {
+    // Do not resurrect expired/stopped watches after an async event.
+    const again = mediaDiscovery.observe(details, current[details.tabId], Date.now());
+    if (again) current[details.tabId] = again;
+  });
+  try {
+    await api.tabs.sendMessage(details.tabId, { action: "rangedesk_media_updated" },
+      { frameId: details.frameId });
+  } catch { /* A background tab/frame may have navigated away. */ }
+}
+
+async function revokePermissionWhenIdle() {
+  const state = await watchedTabs();
+  if (!Object.values(state).some(item => item && item.expiresAt > Date.now())) {
+    try { await api.permissions.remove({ origins: ["<all_urls>"] }); }
+    catch { /* Chrome's site controls remain available to the user. */ }
+  }
+}
+
+async function dropWatch(tabId) {
+  await updateWatchedTabs(async state => { delete state[tabId]; });
+  await revokePermissionWhenIdle();
+}
+
+if (api.webRequest?.onCompleted) {
+  api.webRequest.onCompleted.addListener(details => {
+    // Filtering before accessing any browser storage avoids collecting
+    // unrelated network addresses from tabs not under observation.
+    if (mediaDiscovery.eligibleHls(details?.url))
+      void rememberObservedHls(details).catch(() => {});
+  }, { urls: ["http://*/*", "https://*/*"] });
+}
+if (api.tabs?.onRemoved)
+  api.tabs.onRemoved.addListener(id => { void dropWatch(id).catch(() => {}); });
+if (api.tabs?.onUpdated)
+  api.tabs.onUpdated.addListener((id, changes) => {
+    if (typeof changes?.url !== "string") return;
+    void updateWatchedTabs(async state => {
+      const watched = state[id];
+      if (!watched) return;
+      const origin = mediaDiscovery.originOf(changes.url);
+      if (origin !== watched.origin) delete state[id];
+      else watched.sources = []; // Navigation invalidates old sources.
+    }).then(revokePermissionWhenIdle).catch(() => {});
+  });
 
 api.downloads.onCreated.addListener(item => { void capture(item); });
 
