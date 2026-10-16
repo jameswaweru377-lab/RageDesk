@@ -193,49 +193,71 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
 
         async Task ProcessPiece(Piece piece)
         {
-            var file = PartPath(piece);
-            long existing = piece.Downloaded;
-            long lastAtRequest = piece.To;
-            using var response = await SendRangeAsync(saved.Url,
-                piece.From + existing, lastAtRequest, saved.ETag, allStop.Token);
-            var range = response.Content.Headers.ContentRange;
-            if (response.StatusCode != HttpStatusCode.PartialContent ||
-                range is null || !range.HasLength ||
-                range.From != piece.From + existing ||
-                range.To != lastAtRequest || range.Length != saved.Length ||
-                response.Headers.ETag?.ToString() != saved.ETag ||
-                response.Content.Headers.ContentEncoding.Count != 0)
-                throw new InvalidDataException($"Adaptive range {piece.Id} did not match the strong validator.");
-
-            await using var output = new FileStream(file, FileMode.OpenOrCreate,
-                FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
-            if (output.Length != existing)
-                throw new IOException("Adaptive range file changed during recovery.");
-            output.Position = existing;
-            await using var input = await response.Content.ReadAsStreamAsync(allStop.Token);
             byte[] buffer = new byte[131072];
-            while (piece.Downloaded < piece.To - piece.From + 1)
+            // Restart only a truncated or stalled response body. All other
+            // failures (especially validator/range mismatches) remain fatal.
+            // Each retry uses the durable length of this piece, and must pass
+            // the full strong-ETag and Content-Range checks again.
+            for (int attempt = 1; attempt <= HttpRetryPolicy.MaximumAttempts; attempt++)
             {
-                long remaining = piece.To - piece.From + 1 - piece.Downloaded;
-                int count = await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0,
-                    (int)Math.Min(buffer.Length, remaining)), allStop.Token, networkIdleTimeout);
-                if (count == 0)
-                    throw new EndOfStreamException($"Adaptive range {piece.Id} ended early.");
-                await output.WriteAsync(buffer.AsMemory(0, count), allStop.Token);
-                await limiter.AccountAsync(count, allStop.Token);
-                Interlocked.Add(ref piece.Downloaded, count);
-                Interlocked.Add(ref transferred, count);
-                SplitIfRequested(piece);
+                allStop.Token.ThrowIfCancellationRequested();
+                long existing = Interlocked.Read(ref piece.Downloaded);
+                long lastAtRequest = piece.To;
+                if (existing == lastAtRequest - piece.From + 1) return;
+
+                try
+                {
+                    using var response = await SendRangeAsync(saved.Url,
+                        piece.From + existing, lastAtRequest, saved.ETag, allStop.Token);
+                    var range = response.Content.Headers.ContentRange;
+                    if (response.StatusCode != HttpStatusCode.PartialContent ||
+                        range is null || !range.HasLength ||
+                        range.From != piece.From + existing ||
+                        range.To != lastAtRequest || range.Length != saved.Length ||
+                        response.Headers.ETag?.ToString() != saved.ETag ||
+                        response.Content.Headers.ContentEncoding.Count != 0)
+                        throw new InvalidDataException($"Adaptive range {piece.Id} did not match the strong validator.");
+
+                    await using var output = new FileStream(PartPath(piece), FileMode.OpenOrCreate,
+                        FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
+                    if (output.Length != existing)
+                        throw new IOException("Adaptive range file changed during recovery.");
+                    output.Position = existing;
+                    await using var input = await response.Content.ReadAsStreamAsync(allStop.Token);
+                    while (piece.Downloaded < piece.To - piece.From + 1)
+                    {
+                        long remaining = piece.To - piece.From + 1 - piece.Downloaded;
+                        int count = await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0,
+                            (int)Math.Min(buffer.Length, remaining)), allStop.Token, networkIdleTimeout);
+                        if (count == 0)
+                            throw new EndOfStreamException($"Adaptive range {piece.Id} ended early.");
+                        await output.WriteAsync(buffer.AsMemory(0, count), allStop.Token);
+                        await limiter.AccountAsync(count, allStop.Token);
+                        Interlocked.Add(ref piece.Downloaded, count);
+                        Interlocked.Add(ref transferred, count);
+                        SplitIfRequested(piece);
+                    }
+
+                    // Split donors deliberately end early; unsplit ranges must
+                    // reject extra content, including on every retry.
+                    if (piece.To == lastAtRequest &&
+                        await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, 1),
+                            allStop.Token, networkIdleTimeout) != 0)
+                        throw new InvalidDataException("Server returned bytes beyond its declared range.");
+
+                    await output.FlushAsync(allStop.Token);
+                    output.Flush(true);
+                    return;
+                }
+                catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
+                    attempt < HttpRetryPolicy.MaximumAttempts &&
+                    !allStop.Token.IsCancellationRequested)
+                {
+                    // The response and output stream have been disposed. Never
+                    // re-request already saved bytes or silently restart a piece.
+                    await Task.Delay(HttpRetryPolicy.Delay(attempt, null), allStop.Token);
+                }
             }
-
-            // Split donors deliberately end early; fully downloaded original
-            // ranges must reject extra content.
-            if (piece.To == lastAtRequest &&
-                await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, 1), allStop.Token, networkIdleTimeout) != 0)
-                throw new InvalidDataException("Server returned bytes beyond its declared range.");
-
-            await output.FlushAsync(allStop.Token);
-            output.Flush(true);
         }
 
         async Task WorkerLoop()
