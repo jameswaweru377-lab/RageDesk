@@ -81,9 +81,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 _scheduled.Add(scheduled.Destination, scheduled);
         }
         catch (Exception ex) { StatusMessage.Text = "Could not read schedules: " + ex.Message; }
-        _scheduleTimer.Tick += (_, _) => RunDueSchedules();
+        _scheduleTimer.Tick += (_, _) =>
+        {
+            RunDueSchedules();
+            CheckBrowserInbox();
+        };
         _scheduleTimer.Start();
         RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
+        CheckBrowserInbox(); // Captured links require manual confirmation.
         Closing += (_, _) => { _scheduleTimer.Stop(); _engine.Dispose(); };
         SourceInitialized += (_, _) =>
         {
@@ -793,6 +798,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         base.OnPreviewKeyDown(e);
     }
     private void Filters_Changed(object sender, SelectionChangedEventArgs e) => RefreshFilter();
+
+    /// <summary>
+    /// A browser user gesture queues a URL for review, never auto-starts a
+    /// transfer. The Add Download form is the only handoff destination.
+    /// </summary>
+    private void CheckBrowserInbox()
+    {
+        if (AddOverlay.Visibility == Visibility.Visible ||
+            SettingsOverlay.Visibility == Visibility.Visible ||
+            CustomSiteOverlay.Visibility == Visibility.Visible) return;
+        try
+        {
+            string? url = BrowserLinkInbox.TryTake(BrowserLinkInbox.DefaultDirectory);
+            if (url is null) return;
+            Add_Click(this, new RoutedEventArgs());
+            NewUrl.Text = url;
+            StatusMessage.Text = "Link received from browser. Review the destination and confirm the download.";
+        }
+        catch (Exception ex) { StatusMessage.Text = "Browser handoff failed: " + ex.GetType().Name; }
+    }
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
