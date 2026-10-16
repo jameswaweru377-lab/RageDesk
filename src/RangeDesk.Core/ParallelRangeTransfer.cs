@@ -155,41 +155,67 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     Interlocked.Exchange(ref workerActive[i], 1);
                     try
                     {
-                        using var response = await SendRangeWithRetryAsync(entry.Url,
-                            first + existing, last, state.ETag, workerStop.Token);
-                        var range = response.Content.Headers.ContentRange;
-                        if (response.StatusCode != HttpStatusCode.PartialContent ||
-                            range is null || !range.HasLength ||
-                            range.From != first + existing || range.To != last ||
-                            range.Length != state.Length ||
-                            response.Headers.ETag?.ToString() != state.ETag ||
-                            response.Content.Headers.ContentEncoding.Count > 0)
-                            throw new InvalidDataException($"Worker {i}: server failed the range/validator check.");
-
-                        await using var output = new FileStream(path, FileMode.OpenOrCreate,
-                            FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
-                        if (output.Length != existing)
-                            throw new IOException("Segment changed while preparing to resume.");
-                        output.Position = existing;
-                        await using var input = await response.Content.ReadAsStreamAsync(workerStop.Token);
-                        byte[] buffer = new byte[131072];
-                        long current = existing;
-                        while (current < last - first + 1)
+                        // A slow or stalled HTTP body is retried from the
+                        // actual on-disk segment length, never from an estimated
+                        // in-memory offset. Each request revalidates If-Range
+                        // and the complete Content-Range before writing.
+                        for (int bodyAttempt = 1; ; bodyAttempt++)
                         {
-                            int wanted = (int)Math.Min(buffer.Length, last - first + 1 - current);
-                            int count = await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, wanted), workerStop.Token, networkIdleTimeout);
-                            if (count == 0) throw new EndOfStreamException($"Worker {i}: range ended early.");
-                            await output.WriteAsync(buffer.AsMemory(0, count), workerStop.Token);
-                            await limiter.AccountAsync(count, workerStop.Token);
-                            current += count;
-                            Interlocked.Add(ref measured, count);
-                            Interlocked.Add(ref workerBytes[i], count);
+                            workerStop.Token.ThrowIfCancellationRequested();
+                            long durable = File.Exists(path) ? new FileInfo(path).Length : 0;
+                            long totalSegment = last - first + 1;
+                            if (durable > totalSegment)
+                                throw new InvalidDataException($"Worker {i}: segment exceeds its allocated range.");
+                            if (durable == totalSegment) break;
+                            try
+                            {
+                                using var response = await SendRangeWithRetryAsync(entry.Url,
+                                    first + durable, last, state.ETag, workerStop.Token);
+                                var range = response.Content.Headers.ContentRange;
+                                if (response.StatusCode != HttpStatusCode.PartialContent ||
+                                    range is null || !range.HasLength ||
+                                    range.From != first + durable || range.To != last ||
+                                    range.Length != state.Length ||
+                                    response.Headers.ETag?.ToString() != state.ETag ||
+                                    response.Content.Headers.ContentEncoding.Count > 0)
+                                    throw new InvalidDataException($"Worker {i}: server failed the range/validator check.");
+
+                                await using var output = new FileStream(path, FileMode.OpenOrCreate,
+                                    FileAccess.Write, FileShare.None, 131072, FileOptions.Asynchronous);
+                                if (output.Length != durable)
+                                    throw new IOException("Segment changed while preparing to resume.");
+                                output.Position = durable;
+                                await using var input = await response.Content.ReadAsStreamAsync(workerStop.Token);
+                                byte[] buffer = new byte[131072];
+                                long current = durable;
+                                while (current < totalSegment)
+                                {
+                                    int wanted = (int)Math.Min(buffer.Length, totalSegment - current);
+                                    int count = await TransferInactivityTimeout.ReadAsync(input,
+                                        buffer.AsMemory(0, wanted), workerStop.Token, networkIdleTimeout);
+                                    if (count == 0) throw new EndOfStreamException($"Worker {i}: range ended early.");
+                                    await output.WriteAsync(buffer.AsMemory(0, count), workerStop.Token);
+                                    await limiter.AccountAsync(count, workerStop.Token);
+                                    current += count;
+                                    Interlocked.Add(ref measured, count);
+                                    Interlocked.Add(ref workerBytes[i], count);
+                                }
+                                if (await TransferInactivityTimeout.ReadAsync(input,
+                                    buffer.AsMemory(0, 1), workerStop.Token, networkIdleTimeout) != 0)
+                                    throw new InvalidDataException($"Worker {i}: excess bytes after requested range.");
+                                await output.FlushAsync(workerStop.Token);
+                                output.Flush(true);
+                                break;
+                            }
+                            catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
+                                bodyAttempt < HttpRetryPolicy.MaximumAttempts &&
+                                !workerStop.Token.IsCancellationRequested)
+                            {
+                                // File stream has been disposed and its bytes
+                                // flushed. Backoff before a verified Range resume.
+                                await Task.Delay(HttpRetryPolicy.Delay(bodyAttempt, null), workerStop.Token);
+                            }
                         }
-                        // Do not accept excess content beyond a declared range.
-                        if (await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, 1), workerStop.Token, networkIdleTimeout) != 0)
-                            throw new InvalidDataException($"Worker {i}: excess bytes after requested range.");
-                        await output.FlushAsync(workerStop.Token);
-                        output.Flush(true);
                     }
                     finally
                     {
