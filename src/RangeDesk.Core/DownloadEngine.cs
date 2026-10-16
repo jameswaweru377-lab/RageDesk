@@ -13,7 +13,7 @@ namespace RangeDesk.Core;
 public sealed class DownloadEngine : IDisposable
 {
     private readonly HttpClient _http;
-    private readonly SemaphoreSlim _slots = new(2, 2);
+    private readonly SemaphoreSlim _slots;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _active = new();
     private readonly ConcurrentDictionary<Guid, DownloadStatus> _stopIntent = new();
     private readonly ConcurrentDictionary<string, Guid> _claimedPaths =
@@ -21,8 +21,11 @@ public sealed class DownloadEngine : IDisposable
     private readonly SynchronizationContext? _ui;
 
     private sealed record PartialMetadata(string Url, long? TotalBytes, string? StrongETag);
-    public DownloadEngine(SynchronizationContext? ui = null, HttpClient? client = null)
+    public DownloadEngine(SynchronizationContext? ui = null, HttpClient? client = null, int maxConcurrentDownloads = 2)
     {
+        if (maxConcurrentDownloads is < 1 or > 4)
+            throw new ArgumentOutOfRangeException(nameof(maxConcurrentDownloads));
+        _slots = new SemaphoreSlim(maxConcurrentDownloads, maxConcurrentDownloads);
         _ui = ui;
         _http = client ?? new HttpClient(new HttpClientHandler
         {
