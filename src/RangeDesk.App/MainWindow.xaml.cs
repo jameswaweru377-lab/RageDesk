@@ -43,15 +43,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public MainWindow()
     {
         InitializeComponent();
-        _engine = new DownloadEngine(SynchronizationContext.Current);
-        VisibleDownloads = CollectionViewSource.GetDefaultView(Downloads);
-        VisibleDownloads.Filter = MatchesFilters;
-        DataContext = this;
         try { _preferences = RangeDeskPreferencesStore.Load(_preferencesFile); }
         catch (Exception ex)
         {
             StatusMessage.Text = "Could not read download settings; using defaults: " + ex.Message;
         }
+        _engine = new DownloadEngine(SynchronizationContext.Current,
+            maxConcurrentDownloads: _preferences.MaxConcurrentDownloads);
+        VisibleDownloads = CollectionViewSource.GetDefaultView(Downloads);
+        VisibleDownloads.Filter = MatchesFilters;
+        DataContext = this;
         LoadCatalog();
         Closing += (_, _) => _engine.Dispose();
         SourceInitialized += (_, _) =>
@@ -840,6 +841,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         SettingsDownloadFolder.Text = preferences.DownloadFolder;
         SelectNumericChoice(SettingsConnectionsChoice, preferences.DefaultConnections);
+        SelectNumericChoice(SettingsConcurrentChoice, preferences.MaxConcurrentDownloads);
         SelectNumericChoice(SettingsBandwidthChoice, preferences.DefaultBandwidthKiBps);
         SettingsStartImmediately.IsChecked = preferences.StartImmediately;
         SettingsError.Text = "";
@@ -876,13 +878,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             {
                 DownloadFolder = SettingsDownloadFolder.Text.Trim(),
                 DefaultConnections = GetNumericChoice(SettingsConnectionsChoice, 8),
+                MaxConcurrentDownloads = GetNumericChoice(SettingsConcurrentChoice, 2),
                 DefaultBandwidthKiBps = GetNumericChoice(SettingsBandwidthChoice, 0),
                 StartImmediately = SettingsStartImmediately.IsChecked == true
             }.Validate();
+            bool restartNeeded = updated.MaxConcurrentDownloads != _preferences.MaxConcurrentDownloads;
             RangeDeskPreferencesStore.Save(_preferencesFile, updated);
             _preferences = updated;
             SettingsOverlay.Visibility = Visibility.Collapsed;
-            StatusMessage.Text = "Settings saved. New downloads will use these defaults; active transfers are unchanged.";
+            StatusMessage.Text = restartNeeded
+                ? "Settings saved. Restart RangeDesk to apply the new simultaneous-download limit."
+                : "Settings saved. New downloads will use these defaults; active transfers are unchanged.";
         }
         catch (Exception ex)
         {
