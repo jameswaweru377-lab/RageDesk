@@ -1252,7 +1252,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     /// </summary>
     private void CheckBrowserMediaInbox()
     {
-        if (_mediaOperation is not null) return;
+        // Always dequeue and track browser-confirmed jobs, even while another
+        // media download runs. Accepted Start means visible task, not a hidden file.
         BrowserMediaRequest? request;
         try { request = BrowserMediaInbox.TryTake(BrowserMediaInbox.DefaultDirectory); }
         catch (IOException) { return; }
@@ -1260,24 +1261,46 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (request.JobId is null) return;
 
         string folder = BrowserMediaFolder(request);
-        string title = request.FileStem ?? "Video";
-        string filename = "RangeDesk-" + title.Trim() + "-" + request.JobId[..8] + ".pending";
-        var item = new DownloadEntry(request.Url, Path.Combine(folder, filename), "Videos");
+        var item = new DownloadEntry(request.Url,
+            Path.Combine(folder, request.PendingFileName()), "Videos");
         item.AttachMediaJob(request.JobId, request.FormatId);
         Track(item);
-        if (request.QueueOnly)
+        if (request.QueueOnly || _mediaOperation is not null)
         {
             _queuedBrowserMedia[item.Id] = request;
-            item.UpdateMediaStage("Saved for later · select Resume when ready");
+            var description = request.QueueOnly
+                ? "Saved for later · select Resume when ready"
+                : "Queued · waiting for current media transfer";
+            item.UpdateMediaStage(description);
             BrowserMediaJobState.TryUpdate(request.JobId, "queued",
-                "Saved for later in RangeDesk Downloads.");
-            StatusMessage.Text = "Video saved for later in Downloads.";
+                request.QueueOnly ? "Saved for later in RangeDesk Downloads." :
+                    "Added to Downloads. Waiting for current media transfer.");
+            StatusMessage.Text = request.QueueOnly
+                ? "Video saved for later in Downloads."
+                : "Video added to Downloads queue.";
             SaveCatalog();
             return;
         }
         item.UpdateMediaStage("Preparing verified video quality…");
         SaveCatalog();
         _ = RunBrowserMediaAsync(request, item);
+    }
+
+    // Auto-start only explicitly started browser jobs after the current one ends.
+    // Download Later remains queued until the user chooses Resume in RangeDesk.
+    private void StartNextBrowserMediaJob()
+    {
+        if (_mediaOperation is not null) return;
+        var next = Downloads.FirstOrDefault(d =>
+            d.Status == DownloadStatus.Queued &&
+            _queuedBrowserMedia.TryGetValue(d.Id, out var request) &&
+            !request.QueueOnly);
+        if (next is null) return;
+        var pending = _queuedBrowserMedia[next.Id];
+        _queuedBrowserMedia.Remove(next.Id);
+        next.UpdateMediaStage("Preparing verified video quality…");
+        SaveCatalog();
+        _ = RunBrowserMediaAsync(pending, next);
     }
 
     private string BrowserMediaFolder(BrowserMediaRequest request)
@@ -1362,6 +1385,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             _activeBrowserMediaEntry = null;
             _mediaOperation = null;
             SaveCatalog();
+            StartNextBrowserMediaJob();
         }
     }
 

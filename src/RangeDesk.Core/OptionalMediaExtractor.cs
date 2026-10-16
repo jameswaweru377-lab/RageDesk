@@ -189,7 +189,7 @@ public static class OptionalMediaExtractor
         string selector = format.NeedsAudioMerge ? format.Id + "+ba/" + format.Id : format.Id;
         return ["--ignore-config", "--no-plugin-dirs", "--no-remote-components",
             "--no-playlist", "--no-overwrites", "--windows-filenames",
-            "--restrict-filenames", "--continue", "--newline", "--progress",
+            "--continue", "--newline", "--progress",
             "--progress-template", "download:RangeDeskProgress:%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s",
             "--progress-template", "postprocess:RangeDeskPostprocess:%(progress.status)s",
             "--print", "after_move:RangeDeskFinal:%(filepath)s",

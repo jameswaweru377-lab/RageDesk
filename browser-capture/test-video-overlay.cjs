@@ -264,6 +264,35 @@ test("Chrome rejects unconfirmed, spoofed, malicious and credentialed video page
     {...bg.sender,id:"another-extension"})).reply.accepted, false);
 });
 
+test("Real video title and confirmed quality are accepted with chosen filename", async () => {
+  const id = "0123456789abcdef0123456789abcdef";
+  const bg = chromeBackground({accepted: true, jobId: id});
+  const name = "Maggie N-Ndukareke njetere muno Sms Skiza 6986424 to 811 for skiza";
+  const result = await bg.message({action:"rangedesk_media_download",
+    url:bg.sender.url, formatId:"480p", rightsConfirmed:true,
+    fileStem:name, saveLocation:"videos", queueOnly:false});
+  assert.equal(result.reply.accepted,true);
+  assert.equal(result.reply.jobId,id);
+  assert.equal(bg.sent.length,1);
+  assert.equal(bg.sent[0].message.action,"media_download");
+  assert.equal(bg.sent[0].message.fileStem,name);
+  assert.equal(bg.sent[0].message.saveLocation,"videos");
+});
+
+test("Chrome permits Unicode safe filenames and rejects unsafe stems separately",async()=>{
+  const bg = chromeBackground({accepted:true,jobId:"0123456789abcdef0123456789abcdef"});
+  const accepted = await bg.message({action:"rangedesk_media_download",
+    url:bg.sender.url,formatId:"720p",rightsConfirmed:true,fileStem:"Mûnô Nairobi 2026"});
+  assert.equal(accepted.reply.accepted,true);
+  for(const name of [" ", " bad", "bad ", "bad/path", "bad:name", "x".repeat(81)]) {
+    const rejected = await bg.message({action:"rangedesk_media_download",
+      url:bg.sender.url,formatId:"720p",rightsConfirmed:true,fileStem:name});
+    assert.equal(rejected.reply.accepted,false,name);
+    assert.equal(rejected.reply.errorCode,"INVALID_FILENAME");
+  }
+  assert.equal(bg.sent.length,1);
+});
+
 test("native host rejection or absence does not claim video was queued", async () => {
   for (const rejected of [{ accepted: false }, new Error("no host")]) {
     const bg = chromeBackground(rejected);

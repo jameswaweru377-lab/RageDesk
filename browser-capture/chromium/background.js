@@ -166,16 +166,22 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
       return false;
     }
     if (message.action === "rangedesk_media_download") {
+      if (message.fileStem !== undefined &&
+          (typeof message.fileStem !== "string" ||
+           message.fileStem.length < 1 || message.fileStem.length > 80 ||
+           !message.fileStem.trim() || message.fileStem !== message.fileStem.trim() ||
+           !/^[\p{L}\p{N} _-]+$/u.test(message.fileStem))) {
+        reply({ accepted: false, errorCode: "INVALID_FILENAME",
+          message: "File name must use up to 80 letters, numbers, spaces, _ or -. No leading or trailing spaces." });
+        return false;
+      }
       if (message.rightsConfirmed !== true ||
           typeof message.formatId !== "string" ||
           !/^[A-Za-z0-9_.-]{1,64}$/.test(message.formatId) ||
-          (message.fileStem !== undefined &&
-            (typeof message.fileStem !== "string" ||
-             message.fileStem.length < 1 || message.fileStem.length > 80 ||
-             !/^[\\p{L}\\p{N} _-]+$/u.test(message.fileStem))) ||
           !["default", "videos"].includes(message.saveLocation ?? "default") ||
           (message.queueOnly !== undefined && typeof message.queueOnly !== "boolean")) {
-        reply({ accepted: false, message: "Select a valid quality and confirm permission." });
+        reply({ accepted: false, errorCode: "INVALID_SELECTION",
+          message: "Select a valid quality and confirm permission." });
         return false;
       }
       void api.runtime.sendNativeMessage(HOST, {
