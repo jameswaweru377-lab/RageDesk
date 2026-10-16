@@ -6,7 +6,8 @@
 
   const FORMATS = Object.freeze({
     ".mp4": "MP4", ".m4v": "M4V", ".webm": "WebM",
-    ".ogv": "Ogg video", ".ogg": "Ogg video", ".mov": "MOV"
+    ".ogv": "Ogg video", ".ogg": "Ogg video", ".mov": "MOV",
+    ".m3u8": "HLS"
   });
   const MIME_FORMATS = Object.freeze({
     "video/mp4": "MP4", "video/webm": "WebM",
