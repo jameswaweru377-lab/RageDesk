@@ -906,6 +906,16 @@
             <TabItem Header="Downloads">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
+                  <TextBlock Text="Simultaneous downloads" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
+                  <ComboBox x:Name="SettingsConcurrentChoice" Style="{StaticResource V5Combo}"
+                            Width="230" HorizontalAlignment="Left" Margin="0,0,0,7">
+                    <ComboBoxItem Content="1 download" Tag="1"/>
+                    <ComboBoxItem Content="2 downloads" Tag="2"/>
+                    <ComboBoxItem Content="3 downloads" Tag="3"/>
+                    <ComboBoxItem Content="4 downloads" Tag="4"/>
+                  </ComboBox>
+                  <TextBlock Text="The simultaneous-download limit changes after restarting RangeDesk; active transfers will not be interrupted."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
                   <TextBlock Text="Default connections per download" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
                   <ComboBox x:Name="SettingsConnectionsChoice" Style="{StaticResource V5Combo}"
                             Width="230" HorizontalAlignment="Left" Margin="0,0,0,8">
