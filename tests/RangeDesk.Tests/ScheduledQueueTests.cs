@@ -1,3 +1,4 @@
+using System.Text.Json;
 using RangeDesk.Core;
 using Xunit;
 
@@ -46,6 +47,51 @@ public sealed class ScheduledQueueTests
         var s = new ScheduledDownload(f, DateTimeOffset.UtcNow.AddHours(1));
         Assert.Throws<InvalidDataException>(() =>
             ScheduledQueueStore.Save(Path.Combine(Path.GetTempPath(),"schedule-test-" + Guid.NewGuid(),"schedules.json"),[s,s]));
+    }
+
+
+    [Fact]
+    public void LoadedLegacyPathAliasesMatchTrackedClosedAppSchedules()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rangedesk-schedule-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var alias = Path.Combine(root, "old-folder", "..", "download.bin");
+            var canonical = Path.GetFullPath(alias);
+            var due = new DateTimeOffset(2026, 10, 20, 10, 0, 0, TimeSpan.Zero);
+            var file = Path.Combine(root, "legacy-schedules.json");
+            File.WriteAllText(file, JsonSerializer.Serialize(new[] { new ScheduledDownload(alias, due) }));
+
+            var loaded = Assert.Single(ScheduledQueueStore.Load(file));
+            Assert.Equal(canonical, loaded.Destination);
+            var tracked = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { canonical };
+            Assert.True(ScheduledWakeDecision.ShouldWake([loaded], tracked,
+                _ => false, due.AddMinutes(2), false));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
+    [Fact]
+    public void LoadedLegacyAliasesCannotBypassDuplicateScheduleProtection()
+    {
+        var root = Path.Combine(Path.GetTempPath(), "rangedesk-schedule-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        try
+        {
+            var canonical = Path.Combine(root, "duplicate.bin");
+            var alias = Path.Combine(root, "old-folder", "..", "duplicate.bin");
+            var due = new DateTimeOffset(2026, 10, 20, 10, 0, 0, TimeSpan.Zero);
+            var file = Path.Combine(root, "legacy-schedules.json");
+            File.WriteAllText(file, JsonSerializer.Serialize(new[]
+            {
+                new ScheduledDownload(canonical, due),
+                new ScheduledDownload(alias, due)
+            }));
+
+            Assert.Throws<InvalidDataException>(() => ScheduledQueueStore.Load(file));
+        }
+        finally { Directory.Delete(root, true); }
     }
 
     [Fact]
