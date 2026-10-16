@@ -65,7 +65,8 @@
       result.push({
         url: source.url,
         format: source.format,
-        label: source.format + (playing && height ? " · " + height + "p" : "")
+        label: source.format === "HLS" ? "HLS · VOD auto quality (.ts)" :
+          source.format + (playing && height ? " · " + height + "p" : "")
       });
     }
 
