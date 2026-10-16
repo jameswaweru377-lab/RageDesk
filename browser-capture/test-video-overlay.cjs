@@ -263,3 +263,80 @@ test("player overlay appears and clicking exposed format sends link for review",
   assert.equal(sent[0].url, "https://cdn.test/movies/clip.mp4");
   assert.equal(sent[0].format, "MP4");
 });
+
+test("blob player shows observed HLS in the overlay only after tab opt-in", async () => {
+  const els = [];
+  class Element {
+    constructor(tag) {
+      this.tagName = tag.toUpperCase(); this.children = [];
+      this.listeners = {}; this.attributes = {}; this.style = {};
+      this.isConnected = true; this.hidden = false;
+      this.className = ""; this.textContent = "";
+      els.push(this);
+    }
+    append(...nodes) { this.children.push(...nodes); }
+    appendChild(node) { this.children.push(node); }
+    replaceChildren(...nodes) { this.children = nodes; }
+    attachShadow() { return new Element("shadow-root"); }
+    setAttribute(k, v) { this.attributes[k] = v; }
+    getAttribute(k) { return this.attributes[k] ?? null; }
+    addEventListener(k, listener) { this.listeners[k] = listener; }
+    querySelectorAll() { return []; }
+    getBoundingClientRect() {
+      return { left: 5, top: 20, right: 700, bottom: 380, width: 695, height: 360 };
+    }
+    contains(node) { return node === this || this.children.includes(node); }
+    focus() {}
+  }
+  const video = new Element("video");
+  video.currentSrc = "blob:https://site.test/some-media-source";
+  video.videoHeight = 1080;
+  const document = {
+    baseURI: "https://site.test/watch",
+    documentElement: new Element("html"),
+    createElement: type => new Element(type),
+    querySelectorAll: selector => selector === "video" ? [video] : [],
+    addEventListener: () => {}
+  };
+  const sent = []; const listeners = {};
+  const chrome = { runtime: {
+    id: "under-test",
+    onMessage: { addListener: fn => { listeners.message = fn; } },
+    sendMessage: async message => {
+      sent.push(message);
+      if (message.action === "rangedesk_media_list") return {
+        enabled: true,
+        sources: [{
+          url: "https://cdn.test/stream/master.m3u8?sig=secret",
+          format: "HLS", label: "Observed HLS · stream 1 (.ts)"
+        }]
+      };
+      return { accepted: true };
+    }
+  }};
+  const scope = vm.createContext({
+    document, window: { innerHeight: 800, innerWidth: 1300, addEventListener: () => {} },
+    chrome, URL, Number, Array, Set,
+    requestAnimationFrame: callback => callback(),
+    MutationObserver: class { observe() {} }
+  });
+  vm.runInContext(scripts("video-sources.js"), scope);
+  vm.runInContext(scripts("video-overlay.js"), scope);
+  await new Promise(resolve => setTimeout(resolve, 1));
+  const overlay = els.find(x => x.getAttribute("data-rangedesk-video-controls") === "");
+  assert.ok(overlay);
+  assert.equal(overlay.style.display, "block");
+  const toggle = els.find(x => x.className === "toggle");
+  toggle.listeners.click();
+  const choices = els.filter(x => x.className === "choice");
+  assert.equal(choices.length, 1);
+  assert.match(choices[0].textContent, /Observed HLS/);
+  choices[0].listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 1));
+  const handoffs = sent.filter(x => x.action === "rangedesk_video_source");
+  assert.equal(handoffs.length, 1);
+  assert.equal(handoffs[0].format, "HLS");
+  assert.equal(handoffs[0].url, "https://cdn.test/stream/master.m3u8?sig=secret");
+  // The observed URL is never automatically sent just because a player exists.
+  assert.ok(sent.filter(x => x.action === "rangedesk_media_list").length >= 1);
+});
