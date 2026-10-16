@@ -953,9 +953,14 @@
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,12"/>
                   <ListBox x:Name="AutomationRuleList" Height="104" Background="{StaticResource V5SurfaceBrush}"
                            Foreground="{StaticResource V5TextBrush}" BorderBrush="{StaticResource V5OutlineBrush}"/>
-                  <Button Content="Remove selected rule" Click="RemoveAutomationRule_Click"
-                          Style="{StaticResource V5ToolbarButton}" HorizontalAlignment="Right"
-                          Margin="0,7,0,12" Padding="12,5"/>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,7,0,12">
+                    <Button Content="Move up" Tag="-1" Click="ReorderAutomationRule_Click"
+                            Style="{StaticResource V5ToolbarButton}" Padding="11,5" Margin="0,0,6,0"/>
+                    <Button Content="Move down" Tag="1" Click="ReorderAutomationRule_Click"
+                            Style="{StaticResource V5ToolbarButton}" Padding="11,5" Margin="0,0,6,0"/>
+                    <Button Content="Remove selected" Click="RemoveAutomationRule_Click"
+                            Style="{StaticResource V5ToolbarButton}" Padding="11,5"/>
+                  </StackPanel>
                   <Grid>
                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Margin="0,0,8,0">
@@ -1041,6 +1046,42 @@
           <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Cancel" Click="CloseSitePreset_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,10,0" Padding="13,8"/>
             <Button Content="Save site" Click="SaveSitePreset_Click" Style="{StaticResource V5PrimaryButton}" Padding="19,8"/>
+          </StackPanel>
+        </StackPanel>
+      </Border>
+    </Grid>
+    <!-- Edit or remove an existing queued download's recurrence without creating a new transfer. -->
+    <Grid x:Name="ScheduledEditOverlay" Grid.ColumnSpan="2" Panel.ZIndex="20"
+          Background="#D8030B1A" Visibility="Collapsed">
+      <Border Width="500" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+              BorderThickness="1" CornerRadius="12" Padding="22">
+        <StackPanel>
+          <TextBlock Text="Scheduled start" FontSize="19" FontWeight="SemiBold"/>
+          <TextBlock x:Name="ScheduledEditTarget" TextTrimming="CharacterEllipsis"
+                     Foreground="{StaticResource V5AccentLightBrush}" Margin="0,5,0,15"/>
+          <TextBlock Text="Local date and 24-hour start time" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,6"/>
+          <StackPanel Orientation="Horizontal">
+            <DatePicker x:Name="ScheduledEditDate" Width="170" Margin="0,0,12,0"/>
+            <TextBox x:Name="ScheduledEditTime" Style="{StaticResource V5Input}" Width="110"/>
+          </StackPanel>
+          <TextBlock Text="Repeat while the download remains queued" Foreground="{StaticResource V5MutedBrush}" Margin="0,14,0,6"/>
+          <ComboBox x:Name="ScheduledEditRecurrence" SelectedIndex="0" Style="{StaticResource V5Combo}" Width="260" HorizontalAlignment="Left">
+            <ComboBoxItem Content="Once (start if overdue)" Tag="Once"/>
+            <ComboBoxItem Content="Daily" Tag="Daily"/>
+            <ComboBoxItem Content="Weekdays (Mon–Fri)" Tag="Weekdays"/>
+            <ComboBoxItem Content="Weekly (same weekday)" Tag="Weekly"/>
+          </ComboBox>
+          <TextBlock Text="Recurring windows run for one hour when RangeDesk is open. Missed days wait for the next window."
+                     Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,12,0,14"/>
+          <TextBlock x:Name="ScheduledEditError" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap" Margin="0,0,0,9"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Remove schedule" Click="RemoveEditedSchedule_Click"
+                    Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,8,0"/>
+            <Button Content="Cancel" Click="CloseEditedSchedule_Click"
+                    Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,8,0"/>
+            <Button Content="Save schedule" Click="SaveEditedSchedule_Click"
+                    Style="{StaticResource V5PrimaryButton}" Padding="15,8"/>
           </StackPanel>
         </StackPanel>
       </Border>
