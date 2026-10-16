@@ -11,7 +11,7 @@ namespace RangeDesk.Core;
 /// If byte ranges or strong validators are unsupported, new downloads fall back
 /// to the existing direct-stream path without creating segment files.
 /// </summary>
-public sealed class ParallelRangeTransfer(HttpClient http)
+public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdleTimeout = null)
 {
     private sealed record Manifest(string Url, long Length, string ETag, int Connections);
     private static readonly JsonSerializerOptions JsonOptions = new() { WriteIndented = true };
@@ -177,7 +177,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                         while (current < last - first + 1)
                         {
                             int wanted = (int)Math.Min(buffer.Length, last - first + 1 - current);
-                            int count = await input.ReadAsync(buffer.AsMemory(0, wanted), workerStop.Token);
+                            int count = await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, wanted), workerStop.Token, networkIdleTimeout);
                             if (count == 0) throw new EndOfStreamException($"Worker {i}: range ended early.");
                             await output.WriteAsync(buffer.AsMemory(0, count), workerStop.Token);
                             await limiter.AccountAsync(count, workerStop.Token);
@@ -186,7 +186,7 @@ public sealed class ParallelRangeTransfer(HttpClient http)
                             Interlocked.Add(ref workerBytes[i], count);
                         }
                         // Do not accept excess content beyond a declared range.
-                        if (await input.ReadAsync(buffer.AsMemory(0, 1), workerStop.Token) != 0)
+                        if (await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, 1), workerStop.Token, networkIdleTimeout) != 0)
                             throw new InvalidDataException($"Worker {i}: excess bytes after requested range.");
                         await output.FlushAsync(workerStop.Token);
                         output.Flush(true);
@@ -264,9 +264,10 @@ public sealed class ParallelRangeTransfer(HttpClient http)
             HttpResponseMessage response;
             try
             {
-                response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+                response = await TransferInactivityTimeout.SendAsync(http, request, token, networkIdleTimeout);
             }
-            catch (HttpRequestException) when (attempt < HttpRetryPolicy.MaximumAttempts)
+            catch (Exception ex) when ((ex is HttpRequestException or TimeoutException) &&
+                attempt < HttpRetryPolicy.MaximumAttempts && !token.IsCancellationRequested)
             {
                 await Task.Delay(HttpRetryPolicy.Delay(attempt, null), token);
                 continue;
