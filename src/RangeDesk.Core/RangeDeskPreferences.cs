@@ -13,6 +13,7 @@ public sealed record RangeDeskPreferences
     public int DefaultConnections { get; init; } = 8;
     public int DefaultBandwidthKiBps { get; init; }
     public bool StartImmediately { get; init; } = true;
+    public int MaxConcurrentDownloads { get; init; } = 2;
 
     public RangeDeskPreferences Validate()
     {
@@ -27,6 +28,9 @@ public sealed record RangeDeskPreferences
             throw new ArgumentException("The default download folder is not a valid path.", ex);
         }
 
+        if (MaxConcurrentDownloads is < 1 or > 4)
+            throw new ArgumentOutOfRangeException(nameof(MaxConcurrentDownloads),
+                "Simultaneous downloads must be between 1 and 4.");
         if (DefaultConnections is not (1 or 2 or 4 or 8 or 16 or 32))
             throw new ArgumentOutOfRangeException(nameof(DefaultConnections),
                 "Connections must be 1, 2, 4, 8, 16 or 32.");
