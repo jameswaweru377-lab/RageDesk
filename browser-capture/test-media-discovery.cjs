@@ -177,6 +177,8 @@ test("Stop explicitly disables media observation while retaining normal file cap
   b.events.completed(DETAILS); await b.pause();
   assert.equal((await b.list()).sources.length, 1);
   await b.stop();
+  assert.ok(b.writes.some(item => item[0] === "remove"),
+    "The broad optional Chrome permission should be revoked after stopping the last tab");
   assert.equal((await b.list()).enabled, false);
   b.events.completed(DETAILS); await b.pause();
   assert.equal((await b.list()).sources.length, 0);
