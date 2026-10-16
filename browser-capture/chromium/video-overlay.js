@@ -7,7 +7,7 @@
 
   const host = document.createElement("div");
   host.setAttribute("data-rangedesk-video-controls", "");
-  host.style.cssText = "all:initial!important;position:fixed!important;z-index:2147483646!important;pointer-events:none!important;display:none;";
+  host.style.cssText = "position:fixed!important;z-index:2147483646!important;pointer-events:none!important;display:none;";
   const shadow = host.attachShadow({ mode: "closed" });
   const style = document.createElement("style");
   style.textContent = [
