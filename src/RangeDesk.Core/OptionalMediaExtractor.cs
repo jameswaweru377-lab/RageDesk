@@ -183,8 +183,9 @@ public static class OptionalMediaExtractor
         string selector = format.NeedsAudioMerge ? format.Id + "+ba/" + format.Id : format.Id;
         return ["--ignore-config", "--no-plugin-dirs", "--no-remote-components",
             "--no-playlist", "--no-overwrites", "--windows-filenames",
-            "--restrict-filenames", "--continue", "--newline",
+            "--restrict-filenames", "--continue", "--newline", "--progress",
             "--progress-template", "download:RangeDeskProgress:%(progress.downloaded_bytes)s|%(progress.total_bytes)s|%(progress.total_bytes_estimate)s",
+            "--progress-template", "postprocess:RangeDeskPostprocess:%(progress.status)s",
             "--print", "after_move:RangeDeskFinal:%(filepath)s",
             "--format", selector, "--merge-output-format", "mkv",
             "--ffmpeg-location", ffmpegExecutable,
@@ -354,9 +355,10 @@ public static class OptionalMediaExtractor
                     onProgress?.Invoke(new MediaProgress(bytes, total, estimated));
                 }
             }
-            else if (line.StartsWith("[Merger]", StringComparison.Ordinal) ||
+            else if (line.StartsWith("RangeDeskPostprocess:", StringComparison.Ordinal) ||
+                     line.StartsWith("[Merger]", StringComparison.Ordinal) ||
                      line.StartsWith("[VideoRemuxer]", StringComparison.Ordinal))
-                status("Merging and finalizing video/audio…");
+                status("Processing and merging downloaded media…");
         }
         return output;
     }

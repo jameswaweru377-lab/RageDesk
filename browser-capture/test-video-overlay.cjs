@@ -448,7 +448,7 @@ test("media probe exposes a structured safe analyzer error", async () => {
   assert.equal(result.reply.accepted, false);
   assert.equal(result.reply.errorCode, "JS_RUNTIME_MISSING");
   assert.match(result.reply.message, /Deno/);
-  assert.deepEqual(result.reply.formats, []);
+  assert.equal(result.reply.formats.length, 0);
 });
 
 test("queued media acceptance returns a job ID, never completion", async () => {

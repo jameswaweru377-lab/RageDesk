@@ -65,6 +65,8 @@ public sealed class OptionalMediaExtractorTests
         Assert.Contains("--ignore-config", argv);
         Assert.Contains("--no-plugin-dirs", argv);
         Assert.Contains("--no-remote-components", argv);
+        Assert.Contains("--progress", argv);
+        Assert.Contains("after_move:RangeDeskFinal:%(filepath)s", argv);
         Assert.Equal(Example, argv[^1]);
         Assert.Equal("--", argv[^2]);
     }
