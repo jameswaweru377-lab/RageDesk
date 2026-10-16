@@ -28,6 +28,11 @@ jobs:
         run: dotnet test RangeDesk.slnx --configuration Release --no-restore --logger "trx;LogFileName=RangeDesk.trx"
       - name: Publish portable Windows build
         run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
+      - name: Publish restricted browser native host
+        run: dotnet publish src/RangeDesk.NativeHost/RangeDesk.NativeHost.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk/NativeHost
+      - name: Package opt-in browser extensions and setup
+        shell: pwsh
+        run: Copy-Item -Path browser-capture -Destination artifact/RangeDesk/BrowserCapture -Recurse -Force
       - name: Zip portable build
         shell: pwsh
         run: Compress-Archive -Path artifact/RangeDesk/* -DestinationPath artifact/RangeDesk-Preview-win-x64.zip -Force
