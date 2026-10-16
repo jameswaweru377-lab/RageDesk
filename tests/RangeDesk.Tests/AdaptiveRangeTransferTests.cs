@@ -132,6 +132,39 @@ public sealed class AdaptiveRangeTransferTests
     }
 
     [Fact]
+    public async Task MissingEndOfResponseNeverPublishesAdaptiveOutput()
+    {
+        await WithFolder(async folder =>
+        {
+            using var handler = new RangeHandler((request, _) =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                long first = range.From!.Value;
+                long last = range.To ?? Content.LongLength - 1;
+                if (first == 0 && last > 0)
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                    response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v2\"");
+                    response.Content = new StreamContent(new StallsAfterPayloadStream(Content[..((int)last + 1)]));
+                    response.Content.Headers.ContentRange = new ContentRangeHeaderValue(first, last, Content.LongLength);
+                    return Task.FromResult(response);
+                }
+                return Task.FromResult(Reply(request));
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler),
+                networkIdleTimeout: TimeSpan.FromMilliseconds(100));
+            var entry = engine.Create("https://example.test/stalled-eof.bin",
+                Path.Combine(folder, "stalled-eof.bin"), connections: 2, adaptive: true);
+
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Failed, entry.Status);
+            Assert.False(File.Exists(entry.Destination));
+            Assert.True(Directory.Exists(entry.Destination + ".rdadaptive"));
+        });
+    }
+
+    [Fact]
     public async Task ExistingAdaptiveCheckpointResumesSuffixesWithoutErasingPrefixes()
     {
         await WithFolder(async folder =>
@@ -275,6 +308,46 @@ public sealed class AdaptiveRangeTransferTests
             await Task.Delay(40);
         }
         throw new TimeoutException("Adaptive work scheduler did not complete in time.");
+    }
+
+    private sealed class StallsAfterPayloadStream(byte[] payload) : Stream
+    {
+        private readonly MemoryStream _stream = new(payload);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int count = _stream.Read(buffer.Span);
+            return count > 0 ? ValueTask.FromResult(count) : WaitForCancellation(cancellationToken);
+        }
+
+        private static async ValueTask<int> WaitForCancellation(CancellationToken token)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return 0;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken token) =>
+            ReadAsync(buffer.AsMemory(offset, count), token).AsTask();
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long length) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _stream.Dispose();
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class RangeHandler(
