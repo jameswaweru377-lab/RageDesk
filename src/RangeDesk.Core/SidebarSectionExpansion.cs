@@ -23,6 +23,7 @@ public sealed record SidebarSectionExpansion(
         _ => throw new ArgumentOutOfRangeException(nameof(section))
     };
 
+    // In icon-only mode, keep every group navigable; full mode remembers the dropdown states.
     public bool IsVisible(string section, bool sidebarCollapsed) =>
-        !sidebarCollapsed && IsExpanded(section);
+        sidebarCollapsed || IsExpanded(section);
 }
