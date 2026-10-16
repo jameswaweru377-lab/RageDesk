@@ -947,6 +947,55 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
+            <TabItem Header="Bandwidth calendar">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10,14,10,15">
+                  <TextBlock Text="Daily bandwidth windows" FontSize="14" FontWeight="SemiBold"/>
+                  <TextBlock Text="Limits apply to active downloads by local clock time, without pausing or restarting them. First matching window wins. An existing per-file limit is never increased."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,12"/>
+                  <ListBox x:Name="BandwidthCalendarList" Height="103" Background="{StaticResource V5SurfaceBrush}"
+                           Foreground="{StaticResource V5TextBrush}" BorderBrush="{StaticResource V5OutlineBrush}"/>
+                  <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,12">
+                    <Button Content="Move up" Tag="-1" Click="ReorderBandwidthRule_Click" Style="{StaticResource V5ToolbarButton}"
+                            Padding="10,6" Margin="0,0,6,0"/>
+                    <Button Content="Move down" Tag="1" Click="ReorderBandwidthRule_Click" Style="{StaticResource V5ToolbarButton}"
+                            Padding="10,6" Margin="0,0,6,0"/>
+                    <Button Content="Remove selected" Click="RemoveBandwidthRule_Click"
+                            Style="{StaticResource V5ToolbarButton}" Padding="10,6"/>
+                  </StackPanel>
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Margin="0,0,9,0">
+                      <TextBlock Text="Rule name" Foreground="{StaticResource V5MutedBrush}"/>
+                      <TextBox x:Name="BandwidthRuleName" MaxLength="48" Style="{StaticResource V5Input}" Margin="0,4,0,11"/>
+                      <TextBlock Text="Domain (optional, blank = all)" Foreground="{StaticResource V5MutedBrush}"/>
+                      <TextBox x:Name="BandwidthRuleDomain" Style="{StaticResource V5Input}" Margin="0,4,0,11"/>
+                      <TextBlock Text="Start time (24-hour HH:mm)" Foreground="{StaticResource V5MutedBrush}"/>
+                      <TextBox x:Name="BandwidthStart" Text="22:00" Style="{StaticResource V5Input}" Margin="0,4,0,11"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Margin="9,0,0,0">
+                      <TextBlock Text="Daily speed cap" Foreground="{StaticResource V5MutedBrush}"/>
+                      <ComboBox x:Name="BandwidthWindowCap" Style="{StaticResource V5Combo}" SelectedIndex="2" Margin="0,4,0,11">
+                        <ComboBoxItem Content="128 KiB/s" Tag="128"/>
+                        <ComboBoxItem Content="256 KiB/s" Tag="256"/>
+                        <ComboBoxItem Content="512 KiB/s" Tag="512"/>
+                        <ComboBoxItem Content="1 MiB/s" Tag="1024"/>
+                        <ComboBoxItem Content="4 MiB/s" Tag="4096"/>
+                        <ComboBoxItem Content="10 MiB/s" Tag="10240"/>
+                      </ComboBox>
+                      <TextBlock Text="End time (24-hour HH:mm)" Foreground="{StaticResource V5MutedBrush}"/>
+                      <TextBox x:Name="BandwidthEnd" Text="06:00" Style="{StaticResource V5Input}" Margin="0,4,0,11"/>
+                      <TextBlock Text="Overnight windows are supported, e.g. 22:00–06:00."
+                                 Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,10"/>
+                    </StackPanel>
+                  </Grid>
+                  <TextBlock x:Name="BandwidthCalendarError" Foreground="{StaticResource V5DangerBrush}"
+                             TextWrapping="Wrap" Margin="0,0,0,8"/>
+                  <Button Content="Add bandwidth window" Click="AddBandwidthRule_Click"
+                          Style="{StaticResource V5PrimaryButton}" Padding="15,8" HorizontalAlignment="Right"/>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
             <TabItem Header="Automation" x:Name="SettingsAutomationTab">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,13,10,16">
