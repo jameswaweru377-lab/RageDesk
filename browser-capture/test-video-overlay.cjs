@@ -139,7 +139,9 @@ function chromeBackground(nativeReply = { accepted: true }) {
     storage: { local: { get: async () => ({}), set: async () => {} } },
     downloads: { onCreated: event("created") }
   };
-  vm.runInNewContext(scripts("background.js"), { chrome, URL, Number, Set, console });
+  vm.runInNewContext(scripts("media-discovery.js") + "\n" + scripts("background.js"), {
+    chrome, importScripts: () => {}, URL, Number, Set, console
+  });
   const sender = { id: chrome.runtime.id, tab: { id: 19 }, url: "https://site.test/watch" };
   async function message(payload, source = sender) {
     let reply;
