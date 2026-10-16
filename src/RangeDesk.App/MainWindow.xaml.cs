@@ -608,6 +608,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         LabelsHeader.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         SitesHeader.Visibility = _sidebarCollapsed ? Visibility.Collapsed : Visibility.Visible;
         AutomationNavButton.Visibility = Visibility.Visible;
+        UpdateSidebarSectionVisibility(); // Reveal group icons before recomputing their compact geometry.
 
         foreach (var caption in Descendants<TextBlock>(SidebarPanel))
         {
