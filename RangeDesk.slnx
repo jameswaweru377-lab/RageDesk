@@ -2,6 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/RangeDesk.Core/RangeDesk.Core.csproj" />
     <Project Path="src/RangeDesk.App/RangeDesk.App.csproj" />
+    <Project Path="src/RangeDesk.NativeHost/RangeDesk.NativeHost.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RangeDesk.Tests/RangeDesk.Tests.csproj" />
