@@ -47,5 +47,6 @@ if ($EdgeExtensionId) {
 if ($Firefox) {
   Write-Manifest "firefox" @{ allowed_extensions = @("rangedesk-capture@local") } "HKCU:\Software\Mozilla\NativeMessagingHosts\com.rangedesk.capture"
 }
-Write-Host "Restart the selected browser, then right-click a direct downloadable link."
-Write-Host "No browser data is captured automatically. RangeDesk will request confirmation."
+Write-Host "Restart the selected browser. Right-click links for manual capture."
+Write-Host "To opt in to automatic direct-file capture, click the RangeDesk extension toolbar icon (ON badge)."
+Write-Host "Keep RangeDesk open; unsupported or unaccepted downloads continue in the browser."
