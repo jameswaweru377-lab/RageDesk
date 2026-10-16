@@ -229,7 +229,7 @@ if (api.tabs?.onUpdated)
       const origin = mediaDiscovery.originOf(changes.url);
       if (origin !== watched.origin) delete state[id];
       else watched.sources = []; // Navigation invalidates old sources.
-    }).catch(() => {});
+    }).then(revokePermissionWhenIdle).catch(() => {});
   });
 
 api.downloads.onCreated.addListener(item => { void capture(item); });
