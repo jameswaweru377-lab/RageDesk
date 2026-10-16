@@ -43,6 +43,8 @@ $good = Invoke-NativeMessage '{"action":"add_link","url":"https://example.com/ma
 if (-not $good.accepted) { throw 'Native host rejected valid link' }
 $bad = Invoke-NativeMessage '{"action":"read_cookies","url":"https://example.com/"}'
 if ($bad.accepted) { throw 'Native host accepted forbidden action' }
+$autoWithoutGui = Invoke-NativeMessage '{"action":"capture_download","url":"https://example.com/installer.zip"}'
+if ($autoWithoutGui.accepted) { throw 'Native host accepted automatic takeover without running GUI' }
 $inbox = Join-Path $env:LOCALAPPDATA 'RangeDesk\browser-inbox'
 $captured = Join-Path $inbox '*.json'
 $files = @(Get-ChildItem -Path $captured -ErrorAction SilentlyContinue)
