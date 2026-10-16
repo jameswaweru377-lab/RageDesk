@@ -849,19 +849,115 @@
       </Border>
     </Grid>
 
-    <Grid x:Name="SettingsOverlay" Grid.ColumnSpan="2" Panel.ZIndex="9" Background="#BB030B1A" Visibility="Collapsed">
-      <Border Width="510" HorizontalAlignment="Center" VerticalAlignment="Center"
+    <!-- Real, local-first preferences. Defaults affect new downloads only. -->
+    <Grid x:Name="SettingsOverlay" Grid.ColumnSpan="2" Panel.ZIndex="9" Background="#D8030B1A" Visibility="Collapsed">
+      <Border Width="700" MaxHeight="625" HorizontalAlignment="Center" VerticalAlignment="Center"
               Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
-              BorderThickness="1" CornerRadius="9" Padding="22">
-        <StackPanel>
-          <TextBlock Text="⚙   RangeDesk Settings" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/>
-          <TextBlock Text="Independent, local-first Windows download manager."/>
-          <TextBlock Text="RangeDesk can run two downloads concurrently. Each download can request 1–32 range connections when the server safely supports them."
-                     Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,10,0,0"/>
-          <TextBlock Text="Automatic segment redistribution, shared bandwidth limits, scheduled queues, and browser capture are not yet ready for release."
-                     Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,10,0,17"/>
-          <Button Content="Close" Click="CloseSettings_Click" Style="{StaticResource V5PrimaryButton}" HorizontalAlignment="Right"/>
-        </StackPanel>
+              BorderThickness="1" CornerRadius="12" Padding="22">
+        <DockPanel LastChildFill="True">
+          <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel>
+              <TextBlock Text="RangeDesk Settings" FontSize="21" FontWeight="SemiBold"/>
+              <TextBlock Text="Your download preferences, saved privately on this PC."
+                         Foreground="{StaticResource V5MutedBrush}" FontSize="11" Margin="0,5,0,0"/>
+            </StackPanel>
+            <Button Grid.Column="1" Content="&#x2715;" Click="CloseSettings_Click" ToolTip="Close Settings"
+                    Style="{StaticResource V5ToolbarButton}" Padding="11,6" VerticalAlignment="Top"/>
+          </Grid>
+          <StackPanel DockPanel.Dock="Bottom" Margin="0,13,0,0">
+            <TextBlock x:Name="SettingsError" Foreground="{StaticResource V5DangerBrush}"
+                       TextWrapping="Wrap" Margin="0,0,0,9"/>
+            <Grid>
+              <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+              <Button Content="Restore defaults" Click="RestoreSettings_Click" HorizontalAlignment="Left"
+                      Style="{StaticResource V5ToolbarButton}" Padding="11,8"/>
+              <Button Grid.Column="1" Content="Cancel" Click="CloseSettings_Click"
+                      Style="{StaticResource V5ToolbarButton}" Padding="17,8" Margin="0,0,9,0"/>
+              <Button Grid.Column="2" Content="Save settings" Click="SaveSettings_Click"
+                      Style="{StaticResource V5PrimaryButton}" Padding="21,9"/>
+            </Grid>
+          </StackPanel>
+          <TabControl>
+            <TabItem Header="General">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10,16,10,16">
+                  <TextBlock Text="Default download folder" FontSize="13" FontWeight="SemiBold"/>
+                  <TextBlock Text="New downloads use this location. Existing download paths are never changed."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,9"/>
+                  <Grid>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <TextBox x:Name="SettingsDownloadFolder" Style="{StaticResource V5Input}"
+                             ToolTip="Full local path, for example D:\Downloads"/>
+                    <Button Grid.Column="1" Content="Browse…" Click="BrowseSettingsFolder_Click"
+                            Style="{StaticResource V5ToolbarButton}" Margin="9,0,0,0" Padding="13,7"/>
+                  </Grid>
+                  <Border Margin="0,19,0,0" Padding="14" CornerRadius="8"
+                          Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1">
+                    <StackPanel>
+                      <TextBlock Text="File protection" FontWeight="SemiBold"/>
+                      <TextBlock Text="RangeDesk never silently overwrites an existing file. Paused downloads keep their safe checkpoints. Settings cannot change a running transfer."
+                                 Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,7,0,0"/>
+                    </StackPanel>
+                  </Border>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem Header="Downloads">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10,16,10,16">
+                  <TextBlock Text="Default connections per download" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
+                  <ComboBox x:Name="SettingsConnectionsChoice" Style="{StaticResource V5Combo}"
+                            Width="230" HorizontalAlignment="Left" Margin="0,0,0,8">
+                    <ComboBoxItem Content="1 connection" Tag="1"/>
+                    <ComboBoxItem Content="2 connections" Tag="2"/>
+                    <ComboBoxItem Content="4 connections" Tag="4"/>
+                    <ComboBoxItem Content="8 connections" Tag="8"/>
+                    <ComboBoxItem Content="16 connections" Tag="16"/>
+                    <ComboBoxItem Content="32 connections" Tag="32"/>
+                  </ComboBox>
+                  <TextBlock Text="A connection is opened only if the server supports safe ranged transfers. More connections do not guarantee higher speeds."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,18"/>
+                  <TextBlock Text="Default speed limit per download" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
+                  <ComboBox x:Name="SettingsBandwidthChoice" Style="{StaticResource V5Combo}"
+                            Width="230" HorizontalAlignment="Left" Margin="0,0,0,8">
+                    <ComboBoxItem Content="Unlimited" Tag="0"/>
+                    <ComboBoxItem Content="256 KiB/s" Tag="256"/>
+                    <ComboBoxItem Content="512 KiB/s" Tag="512"/>
+                    <ComboBoxItem Content="1 MiB/s" Tag="1024"/>
+                    <ComboBoxItem Content="4 MiB/s" Tag="4096"/>
+                    <ComboBoxItem Content="10 MiB/s" Tag="10240"/>
+                  </ComboBox>
+                  <TextBlock Text="One limit is shared across that download's workers. Unlimited does not remove limits imposed by the network or server."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,17"/>
+                  <CheckBox x:Name="SettingsStartImmediately"
+                            Content="Start new downloads immediately (otherwise add to queue)"
+                            Margin="0,0,0,6"/>
+                  <TextBlock Text="You can override every default in the New Download dialog. Saved downloads keep their original options."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+            <TabItem Header="About &amp; roadmap">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10,16,10,16">
+                  <TextBlock Text="RangeDesk v5 preview" FontWeight="SemiBold" FontSize="15"/>
+                  <TextBlock Text="Independent, local-first Windows download manager."
+                             Foreground="{StaticResource V5MutedBrush}" Margin="0,6,0,17"/>
+                  <TextBlock Text="Working now" FontWeight="SemiBold"/>
+                  <TextBlock Text="Parallel HTTP/HTTPS ranges, shared speed limits, safe pause/resume, SHA-256 verification, compact download list, queue ordering, categories and labels."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,17"/>
+                  <TextBlock Text="Still planned" FontWeight="SemiBold"/>
+                  <TextBlock Text="Timed scheduling, editable website presets, browser capture, authentication and proxy management, and richer automation rules. These are not enabled by these Settings controls."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,17"/>
+                  <TextBlock Text="Privacy" FontWeight="SemiBold"/>
+                  <TextBlock Text="Preferences and the download catalog are stored locally. Browser monitoring and cloud sync are not enabled."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,0"/>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
+          </TabControl>
+        </DockPanel>
       </Border>
     </Grid>
   </Grid>
