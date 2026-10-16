@@ -59,7 +59,7 @@ public sealed class OptionalMediaExtractorTests
         var ffmpeg = Path.Combine(outDir, "ffmpeg.exe");
         var argv = OptionalMediaExtractor.DownloadArguments(Example, selected, outDir, ffmpeg);
         Assert.Equal("hd1080+ba/hd1080", argv[argv.ToList().IndexOf("--format") + 1]);
-        Assert.Equal("mkv", argv[argv.IndexOf("--merge-output-format") + 1]);
+        Assert.Equal("mkv", argv[argv.ToList().IndexOf("--merge-output-format") + 1]);
         Assert.Contains("--no-playlist", argv);
         Assert.Contains("--no-overwrites", argv);
         Assert.Contains("--ignore-config", argv);
