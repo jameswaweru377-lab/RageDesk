@@ -14,6 +14,8 @@ public sealed record RangeDeskPreferences
     public int DefaultBandwidthKiBps { get; init; }
     public bool StartImmediately { get; init; } = true;
     public int MaxConcurrentDownloads { get; init; } = 2;
+    /// <summary>Optional unauthenticated HTTP proxy. Applied only after restart.</summary>
+    public string? ProxyUri { get; init; }
 
     public RangeDeskPreferences Validate()
     {
@@ -38,7 +40,17 @@ public sealed record RangeDeskPreferences
             throw new ArgumentOutOfRangeException(nameof(DefaultBandwidthKiBps),
                 "The default speed limit must be from 0 to 1,048,576 KiB/s.");
 
-        return this with { DownloadFolder = folder };
+        string? proxy = string.IsNullOrWhiteSpace(ProxyUri) ? null : ProxyUri.Trim();
+        if (proxy is not null)
+        {
+            if (!Uri.TryCreate(proxy, UriKind.Absolute, out var parsed) ||
+                parsed.Scheme != Uri.UriSchemeHttp || parsed.UserInfo.Length != 0 ||
+                parsed.Host.Length == 0 || parsed.AbsolutePath != "/" ||
+                parsed.Query.Length != 0 || parsed.Fragment.Length != 0)
+                throw new ArgumentException("Use an HTTP proxy address like http://proxy.example:8080, without credentials, paths or query strings.");
+            proxy = parsed.ToString();
+        }
+        return this with { DownloadFolder = folder, ProxyUri = proxy };
     }
 }
 
