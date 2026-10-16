@@ -172,6 +172,9 @@ async function changeMediaWatch(enable, clickedTab) {
     if (enable && candidate) state[tab.id] = candidate;
     else delete state[tab.id];
   });
+  // When no tabs are being watched, release the broad optional Chrome
+  // permission instead of retaining background network visibility.
+  if (!enable) await revokePermissionWhenIdle();
   try {
     await api.tabs.sendMessage(tab.id, { action: "rangedesk_media_updated" });
   } catch { /* Content script may be absent on restricted pages. */ }
@@ -194,8 +197,17 @@ async function rememberObservedHls(details) {
   } catch { /* A background tab/frame may have navigated away. */ }
 }
 
+async function revokePermissionWhenIdle() {
+  const state = await watchedTabs();
+  if (!Object.values(state).some(item => item && item.expiresAt > Date.now())) {
+    try { await api.permissions.remove({ origins: ["<all_urls>"] }); }
+    catch { /* Chrome's site controls remain available to the user. */ }
+  }
+}
+
 async function dropWatch(tabId) {
   await updateWatchedTabs(async state => { delete state[tabId]; });
+  await revokePermissionWhenIdle();
 }
 
 if (api.webRequest?.onCompleted) {
