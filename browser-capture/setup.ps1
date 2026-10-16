@@ -20,7 +20,7 @@ New-Item -ItemType Directory -Path $manifestDir -Force | Out-Null
 function Write-Manifest([string]$Browser, [object]$Extra, [string]$RegistryPath) {
   $manifest = [ordered]@{
     name = "com.rangedesk.capture"
-    description = "User-initiated direct-link capture for RangeDesk"
+    description = "Opt-in direct-download handoff with GUI acknowledgement for RangeDesk"
     path = (Resolve-Path -LiteralPath $hostExe).Path
     type = "stdio"
   }
