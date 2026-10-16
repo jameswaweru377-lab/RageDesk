@@ -90,7 +90,7 @@ public static class ChromeIntegrationSetup
                    origins[0].GetString() == "chrome-extension://" + ExtensionId + "/";
         }
         catch (Exception ex) when (ex is JsonException or IOException or ArgumentException
-            or KeyNotFoundException or NullReferenceException) { return false; }
+            or KeyNotFoundException or NullReferenceException or InvalidOperationException) { return false; }
     }
 
     [SupportedOSPlatform("windows")]
