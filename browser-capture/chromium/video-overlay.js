@@ -58,6 +58,79 @@
   let queuedRefresh = false;
   let observed = [];
   let detecting = false;
+  let mediaFormats = [];
+  let mediaAnalyzedUrl = "";
+  let mediaLoading = false;
+  let mediaError = "";
+  let rightsConfirmed = false;
+
+  function currentPageUrl() {
+    return typeof document.URL === "string" ? document.URL : document.baseURI;
+  }
+
+  async function analyzePageQualities() {
+    const url = currentPageUrl();
+    if (mediaLoading) return;
+    if (url === mediaAnalyzedUrl && mediaFormats.length > 0) return;
+    mediaAnalyzedUrl = url;
+    mediaFormats = [];
+    mediaError = "";
+    rightsConfirmed = false;
+    mediaLoading = true;
+    status.textContent = "Finding available video qualities…";
+    if (expanded) renderChoices();
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: "rangedesk_media_probe", url
+      });
+      // Drop stale results when navigation occurs while yt-dlp is probing.
+      if (currentPageUrl() !== url) return;
+      if (!result?.accepted || !Array.isArray(result.formats)) {
+        mediaError = "Could not analyze this page. Check yt-dlp, connection and video permissions.";
+        return;
+      }
+      mediaFormats = result.formats.filter(f =>
+        typeof f?.id === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(f.id) &&
+        typeof f.label === "string").slice(0, 60);
+      if (mediaFormats.length === 0)
+        mediaError = "No downloadable quality was reported for this video.";
+    } catch {
+      mediaError = "RangeDesk media analyzer is unavailable.";
+    } finally {
+      mediaLoading = false;
+      if (expanded && currentPageUrl() === url) renderChoices();
+    }
+  }
+
+  async function downloadQuality(format, button) {
+    if (pending || mediaLoading) return;
+    if (!rightsConfirmed) {
+      status.textContent = "Confirm that you have permission to save this video.";
+      return;
+    }
+    if (mediaAnalyzedUrl !== currentPageUrl() ||
+        !mediaFormats.some(item => item.id === format.id)) {
+      status.textContent = "The page has changed. Reopen Download video to analyze it.";
+      return;
+    }
+    pending = true;
+    button.disabled = true;
+    status.textContent = "Queueing selected quality in RangeDesk…";
+    try {
+      const result = await chrome.runtime.sendMessage({
+        action: "rangedesk_media_download", url: currentPageUrl(),
+        formatId: format.id, rightsConfirmed: true
+      });
+      status.textContent = result?.accepted
+        ? "Queued in RangeDesk. View its Media tab for progress."
+        : "Download not queued. Open RangeDesk and check the MediaTools setup.";
+    } catch {
+      status.textContent = "RangeDesk could not accept this video selection.";
+    } finally {
+      pending = false;
+      button.disabled = false;
+    }
+  }
 
   function available(video) {
     const direct = sources.list(video, document.baseURI);
@@ -211,6 +284,46 @@
       button.addEventListener("click", () => { void sendVideo(source, button); });
       options.appendChild(button);
     });
+    if (mediaFormats.length > 0) {
+      const title = document.createElement("div");
+      title.className = "header";
+      title.textContent = "Available qualities";
+      options.appendChild(title);
+      const consentLabel = document.createElement("label");
+      consentLabel.style.cssText =
+        "display:flex;align-items:center;gap:7px;color:#d8e8fa;font-size:11px;padding:6px 3px";
+      const consent = document.createElement("input");
+      consent.type = "checkbox";
+      consent.checked = rightsConfirmed;
+      consent.addEventListener("change", () => {
+        rightsConfirmed = consent.checked === true;
+      });
+      const wording = document.createElement("span");
+      wording.textContent = "I have permission to save this video";
+      consentLabel.append(consent, wording);
+      options.appendChild(consentLabel);
+      mediaFormats.forEach(format => {
+        const option = document.createElement("button");
+        option.type = "button";
+        option.className = "choice quality";
+        option.textContent = "↓ " + format.label;
+        option.title = "Download this exact reported quality to RangeDesk";
+        option.addEventListener("click", () => {
+          void downloadQuality(format, option);
+        });
+        options.appendChild(option);
+      });
+    } else if (mediaLoading) {
+      const loading = document.createElement("div");
+      loading.className = "hint";
+      loading.textContent = "Finding available qualities…";
+      options.appendChild(loading);
+    } else if (mediaError) {
+      const error = document.createElement("div");
+      error.className = "hint";
+      error.textContent = mediaError;
+      options.appendChild(error);
+    }
     // Page-based extractors handle sites whose video uses MSE/blob rather
     // than exposing a direct file or HLS manifest. Explicit user gesture.
     const page = document.createElement("button");
@@ -230,7 +343,12 @@
     toggle.setAttribute("aria-expanded", String(expanded));
     if (expanded) {
       status.textContent = "";
+      if (mediaAnalyzedUrl !== currentPageUrl()) {
+        mediaFormats = [];
+        rightsConfirmed = false;
+      }
       renderChoices();
+      void analyzePageQualities();
     }
   });
   panel.addEventListener("keydown", event => {
