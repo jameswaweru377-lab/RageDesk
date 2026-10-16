@@ -1,4 +1,4 @@
-# RangeDesk Browser Capture — opt-in preview (v0.6)
+# RangeDesk Browser Capture — opt-in preview (v0.7)
 
 RangeDesk supports Chrome, Edge and Firefox desktop browser extensions through
 the existing native messaging bridge. The approved Windows GUI is unchanged.
@@ -110,6 +110,56 @@ requires login cookies, short-lived tokens or special headers. Some sites
 may prevent showing the overlay or conceal actual video URLs. No
 unconsented background page scanning or media conversion is implemented.
 These are preview features and still require testing against real pages.
+
+## Chrome v0.7 + Windows Media tab: authorized page video extraction
+
+This adds a separate, explicitly user-initiated path for video pages that do
+not expose a direct URL, such as pages using MediaSource/blob video. It
+integrates two **external, optional tools**: the open-source yt-dlp extractor
+and FFmpeg for audio/video merging. RangeDesk itself **does not bundle or
+silently install either executable**, nor does it reverse-engineer DRM.
+
+**One-time setup (Windows preview):**
+
+1. Download the official Windows yt-dlp.exe release from
+   https://github.com/yt-dlp/yt-dlp/releases and check its published SHA256
+   against the official release checksum list. Review the tool's third-party
+   executable licenses before use.
+2. Download a reputable Windows FFmpeg distribution via
+   https://ffmpeg.org/download.html and verify its publisher/source.
+3. In RangeDesk, open **Add Download → Media → Open tool folder**. Put
+   **yt-dlp.exe** and **ffmpeg.exe** directly in that MediaTools folder (not
+   inside additional ZIP subdirectories).
+4. In Chrome, reload the unpacked BrowserCapture/chromium extension so
+   **RangeDesk Browser Capture 0.7.0** appears. Reload the video webpage.
+5. On an ordinary video player, select **Download video → Analyze this webpage
+   (Media tools)**. The page URL (not cookies or tokens from the player) goes
+   to RangeDesk's **Add Download → Media** tab.
+6. Click **Analyze available formats**. The quality dropdown shows **only
+   actual formats reported by yt-dlp**, including formats with separate audio.
+   Check **I have permission to save this video**, choose a format and click
+   **Download selected quality**. The media tools save into the configured
+   downloads folder, and FFmpeg merges separate video/audio into an MKV
+   container when compatible. Use **Stop** to cancel the running process.
+   The result retains the real extension returned by yt-dlp.
+
+You can also paste an authorized page URL directly into Add Download → Media.
+If a webpage requires authentication, private playback rights, paywall
+access, DRM, video decryption or server-side authorization not available to
+the local extractor, RangeDesk reports failure rather than extracting
+browser secrets. Some YouTube videos may work using yt-dlp, but availability
+depends on site permissions, current extractor versions and runtime
+requirements. This is **not** universal YouTube access.
+
+**Differences from native RangeDesk transfers:** the external media process
+runs while the app is open and has its own yt-dlp partial-file support. It
+does not yet appear in RangeDesk's native transfer catalog, scheduler,
+adaptive connection worker cards or native pause/resume checkpoints. The
+Media tab shows broad status, not guaranteed throughput/progress, and
+cancelled transfers may leave resumable .part files. No credentials, cookies,
+YouTube login session, unsigned scripts or remote plugin components are
+automatically imported. A title/format is obtained only from a user-clicked
+page URL, and the extractor must run with its local capabilities.
 
 ## Chrome v0.6: optional HLS discovery for streaming video players
 
