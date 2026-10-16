@@ -1,0 +1,16 @@
+{
+  "manifest_version": 3,
+  "name": "RangeDesk Link Capture",
+  "version": "0.1.0",
+  "description": "Send a link to RangeDesk only when you choose its browser context menu. No automatic monitoring.",
+  "permissions": [
+    "contextMenus",
+    "nativeMessaging"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "RangeDesk — manually capture a download"
+  }
+}
