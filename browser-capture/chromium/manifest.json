@@ -1,16 +1,18 @@
 {
   "manifest_version": 3,
-  "name": "RangeDesk Link Capture",
-  "version": "0.1.0",
-  "description": "Send a link to RangeDesk only when you choose its browser context menu. No automatic monitoring.",
+  "name": "RangeDesk Browser Capture",
+  "version": "0.2.0",
+  "description": "Opt-in automatic direct-file handoff with browser fallback, plus manual right-click links. No cookies or browsing history.",
   "permissions": [
     "contextMenus",
-    "nativeMessaging"
+    "nativeMessaging",
+    "downloads",
+    "storage"
   ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "RangeDesk — manually capture a download"
+    "default_title": "RangeDesk — click to enable automatic capture"
   }
 }
