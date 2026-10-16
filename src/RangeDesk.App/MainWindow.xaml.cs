@@ -1051,7 +1051,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         if (AddOverlay.Visibility == Visibility.Visible ||
             SettingsOverlay.Visibility == Visibility.Visible ||
-            CustomSiteOverlay.Visibility == Visibility.Visible) return;
+            CustomSiteOverlay.Visibility == Visibility.Visible ||
+            ScheduledEditOverlay.Visibility == Visibility.Visible) return;
         try
         {
             string? url = BrowserLinkInbox.TryTake(BrowserLinkInbox.DefaultDirectory);
