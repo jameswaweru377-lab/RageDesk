@@ -215,7 +215,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (ReferenceEquals(_selected, value)) return;
             _selected = value;
-            InspectorPanel.Visibility = value is null ? Visibility.Collapsed : Visibility.Visible;
+            if (value is null && DetailsOverlay.Visibility == Visibility.Visible)
+                DetailsOverlay.Visibility = Visibility.Collapsed;
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SelectedDownload)));
         }
     }
@@ -609,6 +610,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         if (sender is not Button { DataContext: DownloadEntry entry }) return;
         SelectedDownload = entry;
         DownloadsGrid.SelectedItem = entry;
+        ShowDownloadDetails();
     }
 
     private void SortChooser_Changed(object sender, SelectionChangedEventArgs e)
@@ -683,6 +685,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             BorderBrush = (Brush)FindResource("V5OutlineBrush"),
             Foreground = (Brush)FindResource("V5TextBrush")
         };
+        var details = new MenuItem { Header = "View details..." };
+        details.Click += (_, _) => { SelectedDownload = entry; ShowDownloadDetails(); };
+        menu.Items.Add(details);
+        menu.Items.Add(new Separator());
         var resume = new MenuItem { Header = "Resume", IsEnabled = entry.Status != DownloadStatus.Completed };
         resume.Click += (_, _) => StartManually(entry);
         var pause = new MenuItem { Header = "Pause", IsEnabled = entry.Status == DownloadStatus.Downloading };
@@ -787,8 +793,40 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             : "There are no queued transfers to start.";
     }
 
+    private void ShowDownloadDetails()
+    {
+        if (SelectedDownload is null) return;
+        DetailsOverlay.Visibility = Visibility.Visible;
+        DetailsCloseButton.Focus();
+    }
+
+    private void CloseDetails_Click(object sender, RoutedEventArgs e) =>
+        DetailsOverlay.Visibility = Visibility.Collapsed;
+
+    private void DownloadGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+    {
+        if (DownloadsGrid.SelectedItem is not DownloadEntry entry) return;
+        SelectedDownload = entry;
+        ShowDownloadDetails();
+        e.Handled = true;
+    }
+
     protected override void OnPreviewKeyDown(KeyEventArgs e)
     {
+        if (DetailsOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape)
+        {
+            DetailsOverlay.Visibility = Visibility.Collapsed;
+            DownloadsGrid.Focus();
+            e.Handled = true;
+            return;
+        }
+        if (DetailsOverlay.Visibility != Visibility.Visible && e.Key == Key.Enter &&
+            DownloadsGrid.IsKeyboardFocusWithin && SelectedDownload is not null)
+        {
+            ShowDownloadDetails();
+            e.Handled = true;
+            return;
+        }
         if (e.Key == Key.L && Keyboard.Modifiers == ModifierKeys.Control)
         {
             GlobalSearch.Focus();
