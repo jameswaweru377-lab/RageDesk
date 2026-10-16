@@ -26,19 +26,21 @@
     ".choice.selected{background:#245b89;outline:1px solid #8bd1ff;}",
     ".confirm-mask{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;",
     "padding:18px;background:#000a;pointer-events:auto;z-index:2147483647;box-sizing:border-box;}",
-    ".confirm{width:min(670px,95vw);max-height:93vh;overflow:auto;box-sizing:border-box;",
+    ".confirm{width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;box-sizing:border-box;",
     "background:linear-gradient(140deg,#0e2439,#091725);border:1px solid #2e5174;",
     "box-shadow:0 16px 65px #000c;border-radius:15px;padding:22px;color:#eaf4ff;",
     "font:14px/1.5 system-ui,Segoe UI,sans-serif;}",
     ".confirm-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px;}",
     ".confirm-brand{font-size:21px;font-weight:750;}",
-    ".confirm-body{display:grid;grid-template-columns:132px 1fr;gap:19px;}",
-    ".confirm-thumb{height:92px;border-radius:9px;background:#163755;object-fit:cover;width:132px;}",
+    ".confirm-body{display:grid;grid-template-columns:112px minmax(0,1fr);gap:14px;}",
+    ".confirm-thumb{height:80px;border-radius:9px;background:#163755;object-fit:cover;width:112px;}",
+    ".confirm-thumb[hidden]+.confirm-detail{grid-column:1/-1;}",
+    ".confirm-detail{min-width:0;}",
     ".confirm-title{font-size:16px;font-weight:700;overflow-wrap:anywhere;}",
     ".confirm-sub{color:#adbfce;font-size:12px;margin:2px 0 12px;}",
-    ".confirm-form{display:grid;grid-template-columns:84px 1fr;gap:9px;align-items:center;}",
+    ".confirm-form{display:grid;grid-template-columns:84px minmax(0,1fr);gap:9px;align-items:center;}",
     ".confirm-label{font-size:12px;color:#d0e1f1;}",
-    ".confirm-field{box-sizing:border-box;width:100%;min-height:37px;background:#12283b;",
+    ".confirm-field{box-sizing:border-box;width:100%;min-width:0;min-height:37px;background:#12283b;",
     "border:1px solid #48647d;border-radius:6px;color:#f1f7fc;padding:7px 9px;font:13px system-ui;}",
     ".confirm-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;",
     "gap:9px;margin-top:19px;}",
@@ -49,6 +51,15 @@
     ".confirm-btn:focus-visible,.confirm-field:focus-visible{outline:2px solid #8ed5ff;outline-offset:2px;}",
     ".confirm-note{font-size:12px;color:#b6c9db;margin-top:10px;overflow-wrap:anywhere;}",
     ".confirm-rights{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;}",
+    ".job-pill{position:absolute;right:0;top:43px;box-sizing:border-box;width:min(325px,calc(100vw - 18px));",
+    "pointer-events:auto;color:#eaf4ff;background:#0d2236;border:1px solid #396585;",
+    "border-radius:11px;box-shadow:0 8px 26px #000b;padding:9px;}",
+    ".job-pill-row{display:flex;align-items:center;gap:7px;}",
+    ".job-pill-toggle{all:unset;cursor:pointer;flex:1;min-width:0;padding:5px;",
+    "color:#eaf4ff;font:600 12px/1.35 system-ui,Segoe UI,sans-serif;}",
+    ".job-pill-close{all:unset;cursor:pointer;padding:3px 8px;color:#c8d9e8;font-size:20px;}",
+    ".job-pill-toggle:focus-visible,.job-pill-close:focus-visible{outline:2px solid #9ddcff;outline-offset:2px;}",
+    ".job-pill-detail{padding:4px 6px 3px;color:#c0d6e7;font:12px/1.4 system-ui,Segoe UI,sans-serif;overflow-wrap:anywhere;}",
     "@media(max-width:560px){.confirm{padding:14px}.confirm-body{grid-template-columns:1fr;}",
     ".confirm-thumb{display:none}.confirm-form{grid-template-columns:1fr;gap:5px}}",
     ".status{font-size:11px;color:#b3c7df;margin:7px 5px 3px;max-width:235px;overflow-wrap:break-word;}",
@@ -101,6 +112,7 @@
   thumb.className = "confirm-thumb";
   thumb.alt = "";
   const detail = document.createElement("div");
+  detail.className = "confirm-detail";
   const confirmTitle = document.createElement("div");
   confirmTitle.className = "confirm-title";
   const confirmSource = document.createElement("div");
@@ -165,7 +177,29 @@
   actions.append(laterButton, startButton, cancelButton);
   confirmPanel.append(confirmHead, confirmBody, confirmInfo, actions);
   confirmMask.appendChild(confirmPanel);
-  shadow.append(style, panel, confirmMask);
+  const jobPill = document.createElement("div");
+  jobPill.className = "job-pill";
+  jobPill.hidden = true;
+  const jobPillRow = document.createElement("div");
+  jobPillRow.className = "job-pill-row";
+  const jobPillToggle = document.createElement("button");
+  jobPillToggle.type = "button";
+  jobPillToggle.className = "job-pill-toggle";
+  jobPillToggle.textContent = "↓ RangeDesk · Queued";
+  jobPillToggle.setAttribute("aria-expanded", "false");
+  jobPillToggle.setAttribute("aria-label", "Expand RageDesk download progress");
+  const jobPillClose = document.createElement("button");
+  jobPillClose.type = "button";
+  jobPillClose.className = "job-pill-close";
+  jobPillClose.textContent = "×";
+  jobPillClose.setAttribute("aria-label", "Hide progress panel, keep download running");
+  jobPillRow.append(jobPillToggle, jobPillClose);
+  const jobPillDetail = document.createElement("div");
+  jobPillDetail.className = "job-pill-detail";
+  jobPillDetail.setAttribute("role", "status");
+  jobPillDetail.hidden = true;
+  jobPill.append(jobPillRow, jobPillDetail);
+  shadow.append(style, panel, confirmMask, jobPill);
   document.documentElement.appendChild(host);
 
   let active = null;
@@ -191,6 +225,41 @@
   let mediaJobTimer = null;
   let mediaJobDone = false;
 
+  jobPillToggle.addEventListener("click", () => {
+    jobPillDetail.hidden = !jobPillDetail.hidden;
+    jobPillToggle.setAttribute("aria-expanded", String(!jobPillDetail.hidden));
+  });
+  jobPillClose.addEventListener("click", () => {
+    jobPill.hidden = true; // This only hides the browser panel, not the RangeDesk job.
+    if (!expanded && mediaJobTimer !== null) {
+      clearTimeout(mediaJobTimer);
+      mediaJobTimer = null;
+    }
+  });
+  function showMinimizedJob(queueOnly) {
+    confirmMask.hidden = true;
+    closeMenu();
+    jobPillToggle.textContent = queueOnly
+      ? "↓ RangeDesk · Saved for later" : "↓ RangeDesk · Download queued";
+    jobPillDetail.textContent = queueOnly
+      ? "Saved in RangeDesk Downloads. Use Resume there to start."
+      : "Accepted by RangeDesk. Checking the download status…";
+    jobPillDetail.hidden = true;
+    jobPillToggle.setAttribute("aria-expanded", "false");
+    jobPill.hidden = false;
+    jobPillToggle.focus();
+  }
+  function updateJobPill(reply) {
+    const phase = {
+      queued: "Queued", validating: "Validating", starting: "Starting",
+      downloading: "Downloading", merging: "Merging", finalizing: "Finishing",
+      completed: "Completed", failed: "Failed", cancelled: "Cancelled"
+    };
+    jobPillToggle.textContent = "↓ RangeDesk · " +
+      (phase[reply?.state] || "Checking");
+    jobPillDetail.textContent = jobStatusText(reply);
+  }
+
   function jobStatusText(reply) {
     const stage = String(reply?.state || "");
     const safe = typeof reply?.message === "string" ? reply.message.slice(0, 200) : "Checking media status…";
@@ -208,9 +277,10 @@
   function pollJob() {
     if (mediaJobTimer !== null) clearTimeout(mediaJobTimer);
     mediaJobTimer = null;
-    if ((!expanded && confirmMask.hidden) || mediaJobDone || !mediaJobId) return;
+    if ((!expanded && confirmMask.hidden && jobPill.hidden) || mediaJobDone || !mediaJobId) return;
     if (mediaJobUrl !== currentPageUrl()) {
       mediaJobId = null; // The job still runs in RangeDesk; never associate it with another page.
+      jobPill.hidden = true;
       return;
     }
     mediaJobTimer = setTimeout(async () => {
@@ -218,17 +288,22 @@
         const result = await chrome.runtime.sendMessage({
           action: "rangedesk_media_status", url: mediaJobUrl, jobId: mediaJobId
         });
-        if ((!expanded && confirmMask.hidden) || mediaJobUrl !== currentPageUrl()) return;
+        if ((!expanded && confirmMask.hidden && jobPill.hidden) || mediaJobUrl !== currentPageUrl()) return;
         if (result?.accepted && result?.jobId === mediaJobId) {
           status.textContent = jobStatusText(result);
           if (!confirmMask.hidden) confirmInfo.textContent = jobStatusText(result);
+          if (!jobPill.hidden) updateJobPill(result);
           mediaJobDone = ["completed", "failed", "cancelled"].includes(result.state);
         } else {
-          status.textContent = typeof result?.message === "string"
+          const problem = typeof result?.message === "string"
             ? result.message : "Checking RangeDesk connection; the download may still be running.";
+          status.textContent = problem;
+          if (!jobPill.hidden) jobPillDetail.textContent = problem;
         }
       } catch {
-        if (expanded) status.textContent = "RangeDesk connection interrupted. Check the Media tab.";
+        const message = "RangeDesk connection interrupted. Check the Downloads page.";
+        if (expanded) status.textContent = message;
+        if (!jobPill.hidden) jobPillDetail.textContent = message;
       }
       if (!mediaJobDone) pollJob();
     }, 1500);
@@ -391,13 +466,15 @@
         ? "Saved for later in RangeDesk Downloads. Use Resume there to start."
         : "Accepted by RangeDesk. Checking real download progress…";
       status.textContent = confirmInfo.textContent;
-      cancelButton.textContent = "Close";
       if (rememberFolder.checked) {
         const hostname = new URL(confirmPageUrl).hostname;
         const key = "rangedesk_media_folder:" + hostname;
         try { await chrome.storage?.local?.set({ [key]: folderField.value }); } catch {}
       }
-      if (!queueOnly) pollJob();
+      if (currentPageUrl() === mediaJobUrl) {
+        showMinimizedJob(queueOnly);
+        if (!queueOnly) pollJob();
+      }
     } catch {
       confirmInfo.textContent = "RangeDesk is unavailable. Keep the app open and retry.";
     } finally {

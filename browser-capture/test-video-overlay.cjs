@@ -555,7 +555,7 @@ test("Denied video probe yields a useful rejection instead of a misleading succe
   assert.equal(bg.sent.length,0);
 });
 
-function mockPlayerOverlay(sendMessage) {
+function mockPlayerOverlay(sendMessage, { fastPoll = false } = {}) {
   const elements=[];
   class Element {
     constructor(tag) {
@@ -592,7 +592,8 @@ function mockPlayerOverlay(sendMessage) {
     return sendMessage(message);
   }}};
   const context=vm.createContext({URL,document,window:{innerHeight:800,innerWidth:1400,addEventListener:()=>{}},
-    chrome,Number,Array,Set,setTimeout,clearTimeout,MutationObserver:class{observe(){}},
+    chrome,Number,Array,Set,setTimeout:(fn,ms)=>setTimeout(fn,fastPoll&&ms===1500?12:ms),clearTimeout,
+    MutationObserver:class{observe(){}},
     requestAnimationFrame:cb=>cb()});
   vm.runInContext(scripts("video-sources.js"),context);
   vm.runInContext(scripts("video-overlay.js"),context);
@@ -681,6 +682,10 @@ test("one quality click opens a browser-native confirmation without a native dow
   assert.equal(sent[0].queueOnly,false);
   assert.equal(sent[0].rightsConfirmed,true);
   assert.equal(sent[0].saveLocation,"default");
+  assert.equal(modal.hidden,true,"Accepted Start should minimize the full confirmation");
+  const pill=ui.elements.find(x=>x.className==="job-pill");
+  assert.equal(pill.hidden,false,"A compact progress panel remains visible");
+  assert.match(ui.elements.find(x=>x.className==="job-pill-toggle").textContent,/Download queued/);
   start.listeners.click();await new Promise(r=>setTimeout(r,2));
   assert.equal(messages.filter(m=>m.action==="rangedesk_media_download").length,1);
 });
@@ -724,6 +729,83 @@ test("Download Later creates a queue-only request and no started claim", async()
   assert.equal(sent[0].queueOnly,true);
   const note=ui.elements.find(x=>x.className==="confirm-note"&&x.attributes.role==="status");
   assert.match(note.textContent,/Saved for later/);
+  assert.equal(ui.elements.find(x=>x.className==="confirm-mask").hidden,true);
+  assert.equal(ui.elements.find(x=>x.className==="job-pill").hidden,false);
+  assert.match(ui.elements.find(x=>x.className==="job-pill-toggle").textContent,/Saved for later/);
+});
+
+
+test("Compact progress panel polls while full confirmation and menu are closed", async()=>{
+  const jobId="0123456789abcdef0123456789abcdef", actions=[];
+  const ui=mockPlayerOverlay(async message=>{
+    actions.push(message.action);
+    if(message.action==="rangedesk_media_probe")
+      return {accepted:true,formats:[{id:"720",label:"720p · MP4",height:720}]};
+    if(message.action==="rangedesk_media_download")return {accepted:true,jobId};
+    if(message.action==="rangedesk_media_status")return {
+      accepted:true,jobId,state:"downloading",message:"Receiving media",downloadedBytes:512000,totalBytes:1024000
+    };
+    return {accepted:false};
+  },{fastPoll:true});
+  ui.toggle.listeners.click();await new Promise(r=>setTimeout(r,5));
+  ui.options.children.find(x=>x.className.startsWith("choice quality")).listeners.click();
+  await new Promise(r=>setTimeout(r,2));
+  const permission=ui.elements.find(x=>x.className==="confirm-rights" &&
+    x.children.some(y=>y.textContent==="I have permission to save this video")).children[0];
+  permission.checked=true;
+  ui.elements.find(x=>x.className==="confirm-btn primary").listeners.click();
+  await new Promise(r=>setTimeout(r,35));
+  const modal=ui.elements.find(x=>x.className==="confirm-mask");
+  const menu=ui.elements.find(x=>x.className==="menu");
+  const pill=ui.elements.find(x=>x.className==="job-pill");
+  const title=ui.elements.find(x=>x.className==="job-pill-toggle");
+  const detail=ui.elements.find(x=>x.className==="job-pill-detail");
+  assert.equal(modal.hidden,true);
+  assert.equal(menu.hidden,true);
+  assert.equal(pill.hidden,false);
+  assert.ok(actions.includes("rangedesk_media_status"),"Closed menu must not stop polling while pill is visible");
+  assert.match(title.textContent,/Downloading/);
+  assert.equal(detail.hidden,true,"Progress starts minimized");
+  title.listeners.click();
+  assert.equal(detail.hidden,false,"Status can be expanded without reopening the full form");
+  assert.match(detail.textContent,/Receiving media/);
+  ui.elements.find(x=>x.className==="job-pill-close").listeners.click();
+  assert.equal(pill.hidden,true,"User may hide the pill without cancelling the download");
+  assert.equal(actions.filter(x=>x==="rangedesk_media_download").length,1);
+});
+
+test("Rejected Start leaves full confirmation visible and never shows a queued pill",async()=>{
+  const actions=[];
+  const ui=mockPlayerOverlay(async message=>{
+    actions.push(message.action);
+    if(message.action==="rangedesk_media_probe")
+      return {accepted:true,formats:[{id:"720",label:"720p",height:720}]};
+    return {accepted:false,errorCode:"NATIVE_REQUEST_FAILED",message:"Could not queue media."};
+  });
+  ui.toggle.listeners.click();await new Promise(r=>setTimeout(r,5));
+  ui.options.children.find(x=>x.className.startsWith("choice quality")).listeners.click();
+  await new Promise(r=>setTimeout(r,2));
+  const permission=ui.elements.find(x=>x.className==="confirm-rights" &&
+    x.children.some(y=>y.textContent==="I have permission to save this video")).children[0];
+  permission.checked=true;
+  ui.elements.find(x=>x.className==="confirm-btn primary").listeners.click();
+  await new Promise(r=>setTimeout(r,3));
+  assert.equal(ui.elements.find(x=>x.className==="confirm-mask").hidden,false);
+  assert.equal(ui.elements.find(x=>x.className==="job-pill").hidden,true);
+  assert.match(ui.elements.find(x=>x.className==="confirm-note"&&x.attributes.role==="status").textContent,/Could not queue/);
+  assert.equal(actions.filter(x=>x==="rangedesk_media_download").length,1);
+});
+
+test("Missing video thumbnail lets form occupy full confirmation width",()=>{
+  const ui=mockPlayerOverlay(async()=>({accepted:false}));
+  const body=ui.elements.find(x=>x.className==="confirm-body");
+  const thumbnail=ui.elements.find(x=>x.className==="confirm-thumb");
+  const detail=ui.elements.find(x=>x.className==="confirm-detail");
+  const stylesheet=ui.elements.find(x=>x.tagName==="STYLE").textContent;
+  assert.ok(body.children.includes(thumbnail));
+  assert.equal(body.children[1],detail);
+  assert.ok(stylesheet.includes(".confirm-thumb[hidden]+.confirm-detail{grid-column:1/-1;}"));
+  assert.ok(stylesheet.includes("grid-template-columns:84px minmax(0,1fr)"));
 });
 
 test("Old video choices cannot be submitted after navigating away", async()=>{
