@@ -1,4 +1,4 @@
-# RangeDesk Browser Capture — opt-in preview (v0.5)
+# RangeDesk Browser Capture — opt-in preview (v0.6)
 
 RangeDesk supports Chrome, Edge and Firefox desktop browser extensions through
 the existing native messaging bridge. The approved Windows GUI is unchanged.
@@ -92,8 +92,9 @@ reconnect Chrome from RangeDesk Settings if the executable path moved.
 regular HTTP(S) pages to display the button inside the page, so Chrome
 may display broad site-access permissions. Detection inspects only
 HTML5 video element source attributes and player dimensions locally.
-No browsing history, video bytes, cookies, authentication headers,
-network traffic, page text or detected URL lists are transmitted.
+No browsing history, video bytes, cookies, authentication headers or
+page text are transmitted. Optional v0.6 per-tab HLS request metadata
+observation is described separately below.
 **Only a direct video URL the user explicitly clicks is sent to the
 RangeDesk Windows account through native messaging.** If this broad
 in-page access is unacceptable, leave the video overlay feature
@@ -107,8 +108,49 @@ Cross-origin frames require Chrome permission and content-script access.
 A source URL may not be downloadable outside its site if the server
 requires login cookies, short-lived tokens or special headers. Some sites
 may prevent showing the overlay or conceal actual video URLs. No
-background page scanning, playlist parsing or conversion is implemented.
+unconsented background page scanning or media conversion is implemented.
 These are preview features and still require testing against real pages.
+
+## Chrome v0.6: optional HLS discovery for streaming video players
+
+On many websites the HTML5 video element uses a blob URL and does not expose
+a downloadable media URL. RangeDesk can now observe **only HLS .m3u8 request
+URLs** for a single tab after the user explicitly opts in:
+
+1. Open RangeDesk and Chrome. Pin the RangeDesk extension.
+2. Right-click the RangeDesk toolbar icon and choose
+   **Detect HLS video on this tab (permission required)**.
+3. Chrome asks for broad website request access because streaming video may
+   load from a different media/CDN domain than the webpage. **Do not approve
+   if you do not want that permission.** The extension does not silently
+   grant itself access.
+4. Start playback or reload the permitted tab, and click the floating
+   **Download video** overlay where it is available.
+5. If a public HLS manifest URL was observed, it appears as **Observed HLS**
+   without a fabricated resolution. Click it to queue a link for explicit
+   review in RangeDesk. The Windows app still rejects unsupported streams.
+6. Right-click the extension again and select
+   **Stop video detection on this tab** to clear it. When no tabs are
+   watched, the optional broad website permission is also relinquished.
+
+Detection is limited to the explicitly watched tab, the exact observed
+website origin and the initiating frame. It lasts at most **15 minutes**
+and stores at most **8 playlist URLs** in **session-only extension state**
+(which disappears when the browser session ends). Playlist URLs can contain
+short-lived or sensitive signed tokens; **only the URL you click** is sent
+to the local RangeDesk native host. No request bodies, cookies, custom
+authorization headers, full browser history or video file data are copied
+into RangeDesk. Chrome still grants network-request visibility broadly
+while the optional permission is active; this is why it requires consent.
+
+This discovers HLS URLs, not hidden video files universally. It does not
+decrypt DRM, extract from YouTube's protected playback endpoints, enumerate
+DASH (.mpd) video/audio tracks, convert streams, or guarantee that a
+detected playlist can be downloaded. Some websites use query-only or
+non-.m3u8 streaming endpoints, so they remain unsupported. Cross-origin
+frames whose initiator differs from the enabled tab's origin are not
+currently matched. Chrome/Edge Chromium preview only; Firefox support is
+separate.
 
 ## Experimental HLS MPEG-TS VOD downloads — Phase 3 foundation
 
@@ -134,7 +176,8 @@ not universal streaming support.
   hidden MediaSource players. Those require separate tested features.
 - Some sites present an HLS URL on a video element; many Chrome websites
   use JavaScript MediaSource playback instead, so the in-page button will
-  not appear there yet. No network sniffing or cookie forwarding.
+  not appear there unless optional tab-scoped HLS discovery is enabled.
+There is no cookie forwarding or captured response-body inspection.
 
 Test on a user-owned unencrypted HLS sample before wider site support.
 Only download videos you have the rights and permission to save.
