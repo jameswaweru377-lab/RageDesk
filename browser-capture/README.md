@@ -1,4 +1,4 @@
-# RangeDesk Browser Capture — opt-in preview (v0.2)
+# RangeDesk Browser Capture — opt-in preview (v0.5)
 
 RangeDesk supports Chrome, Edge and Firefox desktop browser extensions through
 the existing native messaging bridge. The approved Windows GUI is unchanged.
