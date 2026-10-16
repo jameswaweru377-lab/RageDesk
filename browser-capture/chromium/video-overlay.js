@@ -283,7 +283,7 @@
 
   function sanitizeFileStem(title) {
     const clean = String(title || "Video").replace(/ - YouTube$/i, "")
-      .replace(/[^\\p{L}\\p{N} _-]/gu, " ").replace(/\\s+/g, " ").trim().slice(0, 80);
+      .replace(/[^\p{L}\p{N} _-]/gu, " ").replace(/\s+/g, " ").trim().slice(0, 80);
     return clean || "Video";
   }
 
@@ -317,7 +317,7 @@
       ? document.title.slice(0, 160) : "Video";
     confirmSource.textContent = new URL(confirmPageUrl).hostname + " · Selected video format";
     const poster = typeof active?.poster === "string" ? active.poster : "";
-    if (/^https?:\\/\\//i.test(poster)) { thumb.src = poster; thumb.hidden = false; }
+    if (/^https?:\/\//i.test(poster)) { thumb.src = poster; thumb.hidden = false; }
     else { thumb.hidden = true; }
     qualityField.replaceChildren();
     for (const candidate of mediaFormats) {
@@ -327,7 +327,7 @@
     }
     qualityField.value = format.id;
     nameField.value = sanitizeFileStem(confirmTitle.textContent);
-    confirmPermission.checked = rightsConfirmed;
+    confirmPermission.checked = false;
     let hostName = "";
     try { hostName = new URL(confirmPageUrl).hostname; } catch {}
     const key = "rangedesk_media_folder:" + hostName;
@@ -360,7 +360,7 @@
     }
     const fileStem = nameField.value.trim();
     if (!fileStem || [...fileStem].length > 80 ||
-        !/^[\\p{L}\\p{N} _-]+$/u.test(fileStem)) {
+        !/^[\p{L}\p{N} _-]+$/u.test(fileStem)) {
       confirmInfo.textContent = "File name must contain only letters, numbers, spaces, _ or - (80 characters maximum).";
       return;
     }
@@ -575,19 +575,6 @@
       selectionHint.className = "hint";
       selectionHint.textContent = "Click a quality to open RangeDesk download options";
       options.appendChild(selectionHint);
-      const consentLabel = document.createElement("label");
-      consentLabel.style.cssText =
-        "display:flex;align-items:center;gap:7px;color:#d8e8fa;font-size:11px;padding:6px 3px";
-      const consent = document.createElement("input");
-      consent.type = "checkbox";
-      consent.checked = rightsConfirmed;
-      consent.addEventListener("change", () => {
-        rightsConfirmed = consent.checked === true;
-      });
-      const wording = document.createElement("span");
-      wording.textContent = "I have permission to save this video";
-      consentLabel.append(consent, wording);
-      options.appendChild(consentLabel);
       mediaFormats.forEach(format => {
         const option = document.createElement("button");
         option.type = "button";

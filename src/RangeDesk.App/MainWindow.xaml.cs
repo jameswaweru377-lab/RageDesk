@@ -30,7 +30,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private OptionalMediaExtractor.Probe? _mediaProbe;
     private string? _mediaAnalyzedUrl;
     private CancellationTokenSource? _mediaOperation;
-    private BrowserMediaRequest? _pendingBrowserMediaRequest;
     private DownloadEntry? _activeBrowserMediaEntry;
     private readonly Dictionary<Guid, BrowserMediaRequest> _queuedBrowserMedia = new();
 
@@ -1485,16 +1484,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private async void StartMedia_Click(object sender, RoutedEventArgs e)
     {
-        if (_pendingBrowserMediaRequest is BrowserMediaRequest request)
-        {
-            if (MediaFormatChoice.SelectedItem is not OptionalMediaExtractor.Format browserSelected)
-            {
-                FormError.Text = "Wait for the selected quality to finish verification.";
-                return;
-            }
-            await StartBrowserMediaFromPopupAsync(request, browserSelected);
-            return;
-        }
         if (_mediaOperation is not null)
         {
             MediaStatus.Text = "An operation is already running. Stop it first.";
@@ -1558,13 +1547,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     }
     private void CloseAdd_Click(object sender, RoutedEventArgs e)
     {
-        if (_pendingBrowserMediaRequest is BrowserMediaRequest request)
-        {
-            _pendingBrowserMediaRequest = null;
-            _mediaOperation?.Cancel();
-            BrowserMediaJobState.TryUpdate(request.JobId, "cancelled",
-                "Download cancelled in RangeDesk popup.");
-        }
         AddOverlay.Visibility = Visibility.Collapsed;
         BrowserMediaNotice.Visibility = Visibility.Collapsed;
         AddDownloadTitle.Text = "Add Download";
@@ -1675,11 +1657,6 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void StartDownload_Click(object sender, RoutedEventArgs e)
     {
-        if (_pendingBrowserMediaRequest is not null)
-        {
-            StartMedia_Click(sender, e);
-            return;
-        }
         try
         {
             if (NewUrl.Text.Contains('\n') || NewUrl.Text.Contains('\r'))
