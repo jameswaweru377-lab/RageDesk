@@ -235,7 +235,14 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                         await limiter.AccountAsync(count, allStop.Token);
                         Interlocked.Add(ref piece.Downloaded, count);
                         Interlocked.Add(ref transferred, count);
-                        SplitIfRequested(piece);
+                        if (Volatile.Read(ref piece.SplitRequested) != 0)
+                        {
+                            // Before narrowing the donor's committed interval, ensure
+                            // the received prefix has reached durable storage.
+                            await output.FlushAsync(allStop.Token);
+                            output.Flush(true);
+                            SplitIfRequested(piece);
+                        }
                     }
 
                     // Split donors deliberately end early; unsplit ranges must

@@ -284,6 +284,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     else if (File.Exists(item.Destination + ".rdpartial"))
                         item.Report(DownloadStatus.Paused,
                             new FileInfo(item.Destination + ".rdpartial").Length, null);
+                    else
+                    {
+                        try
+                        {
+                            if (DownloadCheckpointInspector.Read(item) is { } checkpoint)
+                                item.Report(DownloadStatus.Paused, checkpoint.Received, checkpoint.Total);
+                        }
+                        catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
+                        {
+                            // Keep the entry visible so users can inspect the failure.
+                            // Do not delete or silently discard any saved segment files.
+                            item.Report(DownloadStatus.Failed, 0, null,
+                                error: "Saved segment checkpoint is damaged. Original files were preserved.");
+                        }
+                    }
                     Track(item);
                 }
                 catch (Exception) { /* One malformed catalog entry must not block startup. */ }

@@ -128,6 +128,32 @@ public sealed class DownloadEngine : IDisposable
         long received = 0;
         long? expected = null;
         bool slotTaken = false;
+        void SegmentProgress(long bytes, long total, double speed, int workers)
+        {
+            received = bytes;
+            expected = total;
+            Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers);
+        }
+
+        // Use the durable piece lengths when an interruption occurs before the next
+        // telemetry tick. A paused job must not jump back to zero in the UI.
+        void RestoreSegmentProgress()
+        {
+            try
+            {
+                if (DownloadCheckpointInspector.Read(e) is { } checkpoint)
+                {
+                    received = checkpoint.Received;
+                    expected = checkpoint.Total;
+                }
+            }
+            catch (Exception ex) when (ex is IOException or JsonException or InvalidDataException)
+            {
+                // The transfer already handles invalid checkpoints as failures.
+                // Do not conceal its original exception with a second inspection error.
+            }
+        }
+
         try
         {
             await _slots.WaitAsync(token);
@@ -165,8 +191,7 @@ public sealed class DownloadEngine : IDisposable
             {
                 var adaptive = new AdaptiveRangeTransfer(_http, _networkIdleTimeout);
                 bool completed = await adaptive.TryDownloadAsync(e, limiter,
-                    (bytes, total, speed, workers) =>
-                        Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
+                    SegmentProgress,
                     metrics =>
                     {
                         void Update() => e.ReportWorkers(metrics);
@@ -187,8 +212,7 @@ public sealed class DownloadEngine : IDisposable
             {
                 var parallel = new ParallelRangeTransfer(_http, _networkIdleTimeout);
                 bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections, limiter,
-                    (bytes, total, speed, workers) =>
-                        Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
+                    SegmentProgress,
                     token,
                     metrics =>
                     {
@@ -204,6 +228,11 @@ public sealed class DownloadEngine : IDisposable
                 }
             }
 
+            for (int attempt = 1; ; attempt++)
+            {
+            RetryConditionHeaderValue? retryAfter = null;
+            try
+            {
             string? validator = null;
             if (File.Exists(partial) && File.Exists(journal))
             {
@@ -238,6 +267,7 @@ public sealed class DownloadEngine : IDisposable
 
             Publish(e, DownloadStatus.Downloading, received, expected);
             using var response = await TransferInactivityTimeout.SendAsync(_http, request, token, _networkIdleTimeout);
+            retryAfter = response.Headers.RetryAfter;
 
             bool resuming = received > 0 && validator is not null;
             if (resuming && response.StatusCode == HttpStatusCode.PartialContent)
@@ -333,20 +363,36 @@ public sealed class DownloadEngine : IDisposable
             }
 
             if (expected is long length && received != length)
-                throw new InvalidDataException($"Download ended early ({received} of {length} bytes). Partial data was preserved.");
+                throw new EndOfStreamException($"Download ended early ({received} of {length} bytes). Partial data was preserved.");
             token.ThrowIfCancellationRequested();
             await Sha256Verification.VerifyAsync(partial, e.ExpectedSha256, token);
             File.Move(partial, e.Destination, false);
             if (File.Exists(journal)) File.Delete(journal);
             Publish(e, DownloadStatus.Completed, received, expected ?? received);
+            break;
+            }
+            catch (Exception ex) when (attempt < HttpRetryPolicy.MaximumAttempts &&
+                !token.IsCancellationRequested &&
+                (ex is TimeoutException or EndOfStreamException ||
+                 ex is HttpRequestException httpError &&
+                 (httpError.StatusCode is null || HttpRetryPolicy.IsTemporary(httpError.StatusCode.Value))))
+            {
+                // Retry only recoverable transport failures. Each subsequent attempt
+                // reopens the on-disk journal and resumes with If-Range, or safely
+                // restarts the private partial if no strong validator exists.
+                await Task.Delay(HttpRetryPolicy.Delay(attempt, retryAfter), token);
+            }
+            }
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
+            RestoreSegmentProgress();
             var wanted = _stopIntent.TryGetValue(e.Id, out var requested) ? requested : DownloadStatus.Paused;
             Publish(e, wanted, received, expected);
         }
         catch (Exception ex)
         {
+            RestoreSegmentProgress();
             Publish(e, DownloadStatus.Failed, received, expected, error: ex.Message);
         }
         finally

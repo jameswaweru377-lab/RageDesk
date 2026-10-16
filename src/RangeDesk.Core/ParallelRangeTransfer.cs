@@ -209,6 +209,7 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                             }
                             catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
                                 bodyAttempt < HttpRetryPolicy.MaximumAttempts &&
+                                Interlocked.Read(ref workerBytes[i]) < totalSegment &&
                                 !workerStop.Token.IsCancellationRequested)
                             {
                                 // File stream has been disposed and its bytes
