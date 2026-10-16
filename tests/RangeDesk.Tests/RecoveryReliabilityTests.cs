@@ -253,7 +253,7 @@ public sealed class RecoveryReliabilityTests
                 int to = (int)(range.To ?? (content.Length - 1));
                 var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
                 response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable\"");
-                if (to > 0 && from == 0)
+                if (to == content.Length / 2 - 1)
                     response.Content = new StreamContent(new StallsAtEof(content[from..(to + 1)]));
                 else
                     response.Content = new ByteArrayContent(content[from..(to + 1)]);
@@ -269,6 +269,77 @@ public sealed class RecoveryReliabilityTests
             Assert.Equal(DownloadStatus.Failed, entry.Status);
             Assert.False(File.Exists(entry.Destination));
             Assert.True(Directory.Exists(entry.Destination + ".rdsegments"));
+        });
+    }
+
+    [Fact]
+    public async Task FixedSegmentRetriesUnconfirmedFinalByteAndCompletesSafely()
+    {
+        await InFolder(async folder =>
+        {
+            byte[] content = Content(4_194_304);
+            int firstStall = 0;
+            long resumedAt = -1;
+            using var handler = new ScriptedHandler(request =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                int from = (int)range.From!.Value;
+                int to = (int)(range.To ?? content.Length - 1);
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable\"");
+                if (from == 0 && to == content.Length / 2 - 1 &&
+                    Interlocked.Exchange(ref firstStall, 1) == 0)
+                    response.Content = new StreamContent(new StallsAtEof(content[from..(to + 1)]));
+                else
+                    response.Content = new ByteArrayContent(content[from..(to + 1)]);
+                if (from == content.Length / 2 - 1) resumedAt = from;
+                response.Content.Headers.ContentRange =
+                    new ContentRangeHeaderValue(from, to, content.Length);
+                return response;
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler),
+                networkIdleTimeout: TimeSpan.FromMilliseconds(90));
+            var entry = engine.Create(Url, Path.Combine(folder, "recovered.bin"), connections: 2);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.Equal((long)content.Length / 2 - 1, resumedAt);
+            Assert.Equal(content, await File.ReadAllBytesAsync(entry.Destination));
+            Assert.False(Directory.Exists(entry.Destination + ".rdsegments"));
+        });
+    }
+
+    [Fact]
+    public async Task AdaptiveEofTimeoutRevalidatesTailBeforeSuccess()
+    {
+        await InFolder(async folder =>
+        {
+            byte[] content = Content(4_194_304);
+            int firstStall = 0;
+            using var handler = new ScriptedHandler(request =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                int from = (int)range.From!.Value;
+                int to = (int)(range.To ?? content.Length - 1);
+                var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable\"");
+                if (from == 0 && to > 0 && Interlocked.Exchange(ref firstStall, 1) == 0)
+                    response.Content = new StreamContent(new StallsAtEof(content[from..(to + 1)]));
+                else
+                    response.Content = new ByteArrayContent(content[from..(to + 1)]);
+                response.Content.Headers.ContentRange =
+                    new ContentRangeHeaderValue(from, to, content.Length);
+                return response;
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler),
+                networkIdleTimeout: TimeSpan.FromMilliseconds(90));
+            var entry = engine.Create(Url, Path.Combine(folder, "adaptive-recover.bin"),
+                connections: 2, adaptive: true);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.Equal(content, await File.ReadAllBytesAsync(entry.Destination));
+            Assert.False(Directory.Exists(entry.Destination + ".rdadaptive"));
         });
     }
 
