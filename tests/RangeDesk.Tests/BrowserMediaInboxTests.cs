@@ -25,6 +25,47 @@ public sealed class BrowserMediaInboxTests
         }
     }
 
+    [Fact]
+    public void BrowserConfirmationPersistsChosenNameAndCreatesDownloadTaskIdentity()
+    {
+        string folder = Path.Combine(Path.GetTempPath(),
+            "rd-media-inbox-" + Guid.NewGuid().ToString("N"));
+        const string name = "Maggie N-Ndukareke njetere muno 6986424 to 811";
+        const string jobId = "0123456789abcdef0123456789abcdef";
+        try
+        {
+            BrowserMediaInbox.Enqueue(folder,
+                System.Text.Json.JsonSerializer.Serialize(new BrowserMediaRequest(
+                    "media_download", "https://www.youtube.com/watch?v=abcdefghijk",
+                    "480p", jobId, false, name, "videos")));
+            var queued = BrowserMediaInbox.TryTake(folder);
+            Assert.NotNull(queued);
+            Assert.False(queued.QueueOnly);
+            Assert.Equal(name, queued.FileStem);
+            Assert.Equal("videos", queued.SaveLocation);
+            var fileName = queued.PendingFileName();
+            Assert.Equal("RangeDesk-" + name + "-01234567.pending", fileName);
+            var entry = new DownloadEntry(queued.Url, Path.Combine(folder, fileName), "Videos");
+            entry.AttachMediaJob(queued.JobId!, queued.FormatId);
+            Assert.True(entry.IsMedia);
+            Assert.Equal(jobId, entry.MediaJobId);
+            Assert.Equal(fileName, entry.Name);
+            Assert.Null(BrowserMediaInbox.TryTake(folder));
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, true); }
+    }
+
+    [Theory]
+    [InlineData(" ")]
+    [InlineData(" bad")]
+    [InlineData("bad ")]
+    [InlineData("bad:name")]
+    [InlineData("bad/path")]
+    public void RejectsInvalidOrBlankBrowserFilename(string name)
+    {
+        Assert.False(BrowserMediaRequest.IsValidStem(name));
+    }
+
     [Theory]
     [InlineData("""{"action":"read_cookies","url":"https://example.org/watch","formatId":"720"}""")]
     [InlineData("""{"action":"media_download","url":"file:///etc/passwd","formatId":"720"}""")]

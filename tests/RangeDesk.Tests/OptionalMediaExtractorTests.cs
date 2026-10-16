@@ -72,6 +72,20 @@ public sealed class OptionalMediaExtractorTests
     }
 
     [Fact]
+    public void ChosenFilenameKeepsSpacesAndUnicodeInNativeOutputTemplate()
+    {
+        var format = OptionalMediaExtractor.ParseProbe(Probe).Formats[0];
+        string folder = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "RangeDeskTests"));
+        var args = OptionalMediaExtractor.DownloadArguments(Example, format,
+            folder, Path.Combine(folder, "ffmpeg.exe"), "deadbeef", "Mûnô Nairobi 2026");
+        int at = args.ToList().IndexOf("--output");
+        Assert.True(at >= 0);
+        Assert.Equal("Mûnô Nairobi 2026-%(format_id)s-deadbeef.%(ext)s", args[at + 1]);
+        Assert.Contains("--windows-filenames", args);
+        Assert.DoesNotContain("--restrict-filenames", args);
+    }
+
+    [Fact]
     public void BrowserMediaOutputsUseDistinctValidatedJobSuffixes()
     {
         var selected = OptionalMediaExtractor.ParseProbe(Probe).Formats[0];

@@ -27,7 +27,18 @@ public sealed record BrowserMediaRequest(string Action, string Url, string Forma
 
     public static bool IsValidStem(string? value) =>
         value is null || (value.Length is >= 1 and <= 80 &&
+            !string.IsNullOrWhiteSpace(value) &&
+            value.Trim() == value &&
             value.All(c => char.IsLetterOrDigit(c) || c is ' ' or '-' or '_'));
+
+    /// <summary>Visible, safe temporary name until yt-dlp reports verified output.</summary>
+    public string PendingFileName()
+    {
+        Validate();
+        if (JobId is null)
+            throw new InvalidOperationException("A browser media job needs an identity.");
+        return "RangeDesk-" + (FileStem ?? "Video") + "-" + JobId[..8] + ".pending";
+    }
 }
 
 public static class BrowserMediaInbox
