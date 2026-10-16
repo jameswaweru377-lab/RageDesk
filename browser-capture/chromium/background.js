@@ -102,7 +102,68 @@ function allowedVideoHandoff(message, sender) {
   } catch { return false; }
 }
 
+function allowedPageAction(message, sender) {
+  if (!message || typeof message.url !== "string" ||
+      message.url.length > 4096 || sender?.id !== api.runtime.id ||
+      !Number.isInteger(sender?.tab?.id)) return false;
+  try {
+    const incoming = new URL(message.url);
+    const actual = new URL(sender.url);
+    incoming.hash = "";
+    actual.hash = "";
+    return incoming.href === actual.href &&
+      ["http:", "https:"].includes(incoming.protocol) &&
+      !incoming.username && !incoming.password;
+  } catch { return false; }
+}
+
 api.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message?.action === "rangedesk_media_probe" ||
+      message?.action === "rangedesk_media_download") {
+    if (!allowedPageAction(message, sender)) {
+      reply({ accepted: false, message: "Not an allowed video page." });
+      return false;
+    }
+    if (message.action === "rangedesk_media_download") {
+      if (message.rightsConfirmed !== true ||
+          typeof message.formatId !== "string" ||
+          !/^[A-Za-z0-9_.-]{1,64}$/.test(message.formatId)) {
+        reply({ accepted: false, message: "Select a valid quality and confirm permission." });
+        return false;
+      }
+      void api.runtime.sendNativeMessage(HOST, {
+        action: "media_download", url: message.url,
+        formatId: message.formatId, rightsConfirmed: true
+      }).then(result => reply({
+        accepted: result?.accepted === true,
+        message: result?.accepted ? "Selected quality queued in RangeDesk." :
+          "Open RangeDesk and verify the MediaTools setup."
+      })).catch(() => reply({ accepted: false,
+        message: "Cannot reach RangeDesk's native host." }));
+      return true;
+    }
+    void api.runtime.sendNativeMessage(HOST, {
+      action: "media_probe", url: message.url
+    }).then(result => {
+      if (result?.accepted !== true || !Array.isArray(result.formats)) {
+        reply({ accepted: false, formats: [],
+          message: "Media analysis unavailable. Check yt-dlp and RangeDesk." });
+        return;
+      }
+      const formats = result.formats.filter(f =>
+        typeof f?.id === "string" && /^[A-Za-z0-9_.-]{1,64}$/.test(f.id) &&
+        typeof f.label === "string" && f.label.length <= 160
+      ).slice(0, 60).map(f => ({
+        id: f.id, label: f.label,
+        height: Number.isInteger(f.height) ? f.height : 0,
+        needsAudioMerge: f.needsAudioMerge === true
+      }));
+      reply({ accepted: formats.length > 0, formats,
+        message: formats.length ? "" : "No usable formats found for this page." });
+    }).catch(() => reply({ accepted: false, formats: [],
+      message: "RangeDesk analysis failed. Check its native connection." }));
+    return true;
+  }
   if (message?.action === "rangedesk_media_page") {
     // User clicked "Analyze this page" on the visible player. Accept
     // only the exact frame URL reported independently by Chrome, so site

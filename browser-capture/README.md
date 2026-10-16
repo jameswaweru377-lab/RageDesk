@@ -1,4 +1,4 @@
-# RangeDesk Browser Capture — opt-in preview (v0.7)
+# RangeDesk Browser Capture — opt-in preview (v0.8)
 
 RangeDesk supports Chrome, Edge and Firefox desktop browser extensions through
 the existing native messaging bridge. The approved Windows GUI is unchanged.
@@ -110,6 +110,50 @@ requires login cookies, short-lived tokens or special headers. Some sites
 may prevent showing the overlay or conceal actual video URLs. No
 unconsented background page scanning or media conversion is implemented.
 These are preview features and still require testing against real pages.
+
+## Chrome v0.8: choose qualities directly over the video player
+
+No more copying page links or manually using Add Download → Media for
+compatible videos. The yt-dlp/FFmpeg prerequisites remain exactly the same as
+in v0.7; the installed tools **must still be in MediaTools** beside the
+RangeDesk application.
+
+1. Start the current RangeDesk Windows executable and verify Chrome is
+   connected under Settings → Chrome browser. Reload the unpacked extension
+   under chrome://extensions and confirm **version 0.8.0**.
+2. On a webpage with a visible HTML5 video player, click the floating
+   **↓ Download video** button. That **user click** sends the page URL to
+   the native host for one non-DRM yt-dlp format analysis. The actual reported
+   qualities are shown inside Chrome, along with optional direct/HLS links.
+3. Check **I have permission to save this video** and click the quality you
+   want. RangeDesk queues that format in the existing Windows application,
+   re-analyzes the URL to validate the format choice, then downloads it to
+   your configured downloads directory. If video/audio arrive as separate
+   streams, yt-dlp and FFmpeg merge them where supported.
+4. Watch **RangeDesk → Add Download → Media** for status and Stop. This
+   route still uses yt-dlp's independent temporary files, not the native
+   transfer catalog, adaptive workers or native pause/resume checkpoints.
+5. If the site provides no eligible formats, shows a protected player, or
+   the yt-dlp/FFmpeg tools are missing or incompatible, Chrome reports
+   that analysis failed. **Open advanced Media options** is retained as a
+   fallback; it should no longer be necessary for normal successful flows.
+
+**Permissions/privacy:** the page is analyzed only after the user clicks
+the floating Download video control. The media-format list contains
+yt-dlp's actual reported formats; no website login cookies, browser history,
+Authorization headers or decrypted DRM content are sent. Selecting a
+quality requires an explicit checkbox in the video menu. The native host
+verifies a supported HTTP(S) URL and only accepts known format-ID
+characters. The app then re-analyzes the webpage before executing any
+external download. Queued links remain only in the Windows user profile.
+A large or changing site may take time to analyze and Chrome/yt-dlp may
+report an error; these preview features need real-browser acceptance.
+
+This improvement is designed for videos the user may legitimately save.
+YouTube and many other sites can change extraction behavior or impose
+separate content and download restrictions; **not every video is
+downloadable, and DRM decryption is not provided**. Firefox and other
+browser-family extensions still require additional integration work.
 
 ## Chrome v0.7 + Windows Media tab: authorized page video extraction
 

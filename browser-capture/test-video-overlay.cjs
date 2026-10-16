@@ -218,6 +218,52 @@ test("Chrome media page handoff rejects spoofed or credentialed URLs", async () 
   assert.equal(bg.sent.length, 0);
 });
 
+test("Chrome shows actual extracted qualities from its native yt-dlp bridge", async () => {
+  const bg = chromeBackground({ accepted: true, formats: [
+    { id: "1080webm", label: "1080p · WEBM · 1080webm (merge separate audio)", height: 1080, needsAudioMerge: true },
+    { id: "720mp4", label: "720p · MP4 · 720mp4 (video + audio)", height: 720, needsAudioMerge: false }
+  ] });
+  const actual = await bg.message({
+    action: "rangedesk_media_probe", url: bg.sender.url
+  });
+  assert.equal(actual.reply.accepted, true);
+  assert.equal(actual.reply.formats.length, 2);
+  assert.equal(actual.reply.formats[0].id, "1080webm");
+  assert.equal(bg.sent[0].message.action, "media_probe");
+  assert.equal(bg.sent[0].message.url, bg.sender.url);
+});
+
+test("Chrome queues user-confirmed quality, never downloads silently", async () => {
+  const bg = chromeBackground();
+  const msg = { action: "rangedesk_media_download",
+    url: bg.sender.url, formatId: "1080webm", rightsConfirmed: true };
+  const result = await bg.message(msg);
+  assert.equal(result.reply.accepted, true);
+  assert.equal(bg.sent[0].message.action, "media_download");
+  assert.equal(bg.sent[0].message.formatId, "1080webm");
+  assert.equal(bg.sent[0].message.rightsConfirmed, true);
+});
+
+test("Chrome rejects unconfirmed, spoofed, malicious and credentialed video page requests", async () => {
+  const bg = chromeBackground();
+  const cases = [
+    { action: "rangedesk_media_probe", url: "https://other.test/watch" },
+    { action: "rangedesk_media_probe", url: "file:///tmp/video" },
+    { action: "rangedesk_media_download", url: bg.sender.url,
+      formatId: "1080webm", rightsConfirmed: false },
+    { action: "rangedesk_media_download", url: bg.sender.url,
+      formatId: "../../bad", rightsConfirmed: true },
+    { action: "rangedesk_media_download", url: "https://user:pass@site.test/watch",
+      formatId: "720mp4", rightsConfirmed: true }
+  ];
+  for (const invalid of cases) {
+    assert.equal((await bg.message(invalid)).reply.accepted, false);
+  }
+  assert.equal(bg.sent.length, 0);
+  assert.equal((await bg.message({action:"rangedesk_media_probe",url:bg.sender.url},
+    {...bg.sender,id:"another-extension"})).reply.accepted, false);
+});
+
 test("native host rejection or absence does not claim video was queued", async () => {
   for (const rejected of [{ accepted: false }, new Error("no host")]) {
     const bg = chromeBackground(rejected);
@@ -279,7 +325,8 @@ test("player overlay appears and clicking exposed format sends link for review",
   const toggle = elements.find(el => el.className === "toggle");
   assert.ok(toggle);
   toggle.listeners.click();
-  const choices = elements.filter(el => el.className === "choice");
+  const visibleOptions = elements.find(el => el.className === "menu").children[2];
+  const choices = visibleOptions.children.filter(el => el.className === "choice");
   assert.equal(choices.length, 1);
   assert.equal(choices[0].textContent, "MP4 · 720p");
   choices[0].listeners.click();
@@ -337,6 +384,15 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
           format: "HLS", label: "Observed HLS · stream 1 (.ts)"
         }]
       };
+      if (message.action === "rangedesk_media_probe") return {
+        accepted: true,
+        formats: [
+          { id: "hd1080", label: "1080p · WEBM · hd1080 (merge separate audio)",
+            height: 1080, needsAudioMerge: true },
+          { id: "sd720", label: "720p · MP4 · sd720 (video + audio)",
+            height: 720, needsAudioMerge: false }
+        ]
+      };
       return { accepted: true };
     }
   }};
@@ -354,7 +410,8 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
   assert.equal(overlay.style.display, "block");
   const toggle = els.find(x => x.className === "toggle");
   toggle.listeners.click();
-  const choices = els.filter(x => x.className === "choice");
+  const visibleOptions = els.find(el => el.className === "menu").children[2];
+  const choices = visibleOptions.children.filter(x => x.className === "choice");
   assert.equal(choices.length, 1);
   assert.match(choices[0].textContent, /Observed HLS/);
   choices[0].listeners.click();
@@ -365,4 +422,21 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
   assert.equal(handoffs[0].url, "https://cdn.test/stream/master.m3u8?sig=secret");
   // The observed URL is never automatically sent just because a player exists.
   assert.ok(sent.filter(x => x.action === "rangedesk_media_list").length >= 1);
+  const qualities = visibleOptions.children.filter(x => x.className === "choice quality");
+  assert.equal(qualities.length, 2);
+  assert.match(qualities[0].textContent, /1080p/);
+  // Explicit checkbox is required before queueing user-selected quality.
+  qualities[0].listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 1));
+  assert.equal(sent.filter(x => x.action === "rangedesk_media_download").length, 0);
+  const permission = els.find(x => x.tagName === "INPUT" && x.type === "checkbox");
+  assert.ok(permission);
+  permission.checked = true;
+  permission.listeners.change();
+  qualities[0].listeners.click();
+  await new Promise(resolve => setTimeout(resolve, 1));
+  const queued = sent.filter(x => x.action === "rangedesk_media_download");
+  assert.equal(queued.length, 1);
+  assert.equal(queued[0].formatId, "hd1080");
+  assert.equal(queued[0].rightsConfirmed, true);
 });

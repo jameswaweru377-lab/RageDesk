@@ -117,7 +117,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await ApplyBandwidthCalendarAsync();
         };
         _scheduleTimer.Start();
-        _browserCaptureTimer.Tick += (_, _) => CheckAutomaticBrowserCaptures();
+        _browserCaptureTimer.Tick += (_, _) =>
+        {
+            CheckAutomaticBrowserCaptures();
+            CheckBrowserMediaInbox();
+        };
         _browserCaptureTimer.Start();
         CheckAutomaticBrowserCaptures();
         RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
@@ -1168,6 +1172,76 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     /// A browser user gesture queues a URL for review, never auto-starts a
     /// transfer. The Add Download form is the only handoff destination.
     /// </summary>
+    /// <summary>
+    /// Accept only a user-clicked format choice from the Chrome bridge.
+    /// Re-analyze the page on Windows; never trust an unverified format ID
+    /// or allow an extension message to launch an arbitrary executable.
+    /// Media operations are serialized and visible in the Media tab.
+    /// </summary>
+    private async void CheckBrowserMediaInbox()
+    {
+        if (_mediaOperation is not null ||
+            AddOverlay.Visibility == Visibility.Visible ||
+            SettingsOverlay.Visibility == Visibility.Visible) return;
+        BrowserMediaRequest? request;
+        try { request = BrowserMediaInbox.TryTake(BrowserMediaInbox.DefaultDirectory); }
+        catch (IOException) { return; }
+        if (request is null) return;
+
+        Add_Click(this, new RoutedEventArgs());
+        MediaPageUrl.Text = request.Url;
+        AddDownloadTabs.SelectedIndex = 4;
+        MediaFormatChoice.ItemsSource = null;
+        MediaStatus.Text = "Checking the selected video quality…";
+        StatusMessage.Text = "Chrome video format received. Verifying before download.";
+        MediaAnalyzeButton.IsEnabled = false;
+        MediaDownloadButton.IsEnabled = false;
+        using var cancel = new CancellationTokenSource();
+        _mediaOperation = cancel;
+        try
+        {
+            if (!OptionalMediaExtractor.IsReady(AppContext.BaseDirectory))
+                throw new FileNotFoundException(
+                    "Install yt-dlp.exe and ffmpeg.exe in MediaTools first.");
+            var probe = await OptionalMediaExtractor.AnalyzeAsync(
+                AppContext.BaseDirectory, request.Url, cancel.Token);
+            var selected = probe.Formats.FirstOrDefault(f =>
+                string.Equals(f.Id, request.FormatId, StringComparison.Ordinal));
+            if (selected is null)
+                throw new NotSupportedException(
+                    "This quality is no longer available. Reopen the Chrome video menu.");
+            _mediaProbe = probe;
+            _mediaAnalyzedUrl = request.Url;
+            MediaFormatChoice.ItemsSource = probe.Formats;
+            MediaFormatChoice.SelectedItem = selected;
+            MediaRightsConfirm.IsChecked = true; // Confirmed in the Chrome UI.
+            await OptionalMediaExtractor.DownloadAsync(
+                AppContext.BaseDirectory, request.Url, selected,
+                _preferences.DownloadFolder,
+                message => Dispatcher.Invoke(() =>
+                {
+                    MediaStatus.Text = message;
+                    StatusMessage.Text = message;
+                }), cancel.Token);
+        }
+        catch (OperationCanceledException)
+        {
+            MediaStatus.Text = "Browser media download stopped.";
+            StatusMessage.Text = MediaStatus.Text;
+        }
+        catch (Exception ex)
+        {
+            MediaStatus.Text = "Browser media download failed: " + ex.Message;
+            StatusMessage.Text = MediaStatus.Text;
+        }
+        finally
+        {
+            _mediaOperation = null;
+            MediaAnalyzeButton.IsEnabled = true;
+            MediaDownloadButton.IsEnabled = true;
+        }
+    }
+
     private void CheckBrowserInbox()
     {
         if (AddOverlay.Visibility == Visibility.Visible ||
