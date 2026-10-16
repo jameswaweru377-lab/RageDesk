@@ -33,16 +33,16 @@
   toggle.type = "button";
   toggle.textContent = "↓ Download video";
   toggle.setAttribute("aria-expanded", "false");
-  toggle.setAttribute("aria-label", "Show direct video downloads in RangeDesk");
+  toggle.setAttribute("aria-label", "Show video qualities and available downloads");
   const menu = document.createElement("div");
   menu.className = "menu";
   menu.hidden = true;
   const heading = document.createElement("div");
   heading.className = "header";
-  heading.textContent = "Available direct sources";
+  heading.textContent = "Download video";
   const hint = document.createElement("div");
   hint.className = "hint";
-  hint.textContent = "Direct sources and HLS streams you chose to detect";
+  hint.textContent = "Real video qualities and available direct streams";
   const options = document.createElement("div");
   const status = document.createElement("div");
   status.className = "status";
@@ -331,7 +331,7 @@
     page.type = "button";
     page.className = "page-choice";
     page.style.cssText = "cursor:pointer;display:block;width:100%;color:#eaf4ff;background:#245682;border:0;border-radius:7px;padding:9px 7px;margin-top:8px";
-    page.textContent = "Analyze this webpage (Media tools)";
+    page.textContent = "Open advanced Media options";
     page.title = "Analyze permitted video formats in RangeDesk; no automatic download";
     page.addEventListener("click", () => { void sendPageForAnalysis(page); });
     options.appendChild(page);
