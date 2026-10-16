@@ -53,6 +53,25 @@ public sealed class RangeDeskPreferencesTests
             (new RangeDeskPreferences { DownloadFolder = "relative/downloads" }).Validate());
     }
 
+    [Theory]
+    [InlineData("http://user:pass@proxy.example:8080")]
+    [InlineData("https://proxy.example:8080")]
+    [InlineData("http://proxy.example/path")]
+    [InlineData("http://proxy.example/?token=abc")]
+    public void UnsafeProxyConfigurationsAreRejected(string proxy)
+    {
+        Assert.Throws<ArgumentException>(() =>
+            (new RangeDeskPreferences { ProxyUri = proxy }).Validate());
+    }
+
+    [Fact]
+    public void SafeUnauthenticatedProxyIsAccepted()
+    {
+        var valid = new RangeDeskPreferences { ProxyUri = "http://127.0.0.1:8080" }.Validate();
+        Assert.StartsWith("http://127.0.0.1:8080", valid.ProxyUri);
+        using var engine = new DownloadEngine(proxyUri: valid.ProxyUri);
+    }
+
     [Fact]
     public void SettingsSurviveRestartWithoutTouchingTheDownloadCatalog()
     {
@@ -66,7 +85,8 @@ public sealed class RangeDeskPreferencesTests
                 DefaultConnections = 16,
                 DefaultBandwidthKiBps = 4096,
                 StartImmediately = false,
-                MaxConcurrentDownloads = 3
+                MaxConcurrentDownloads = 3,
+                ProxyUri = "http://127.0.0.1:8080"
             }.Validate();
             Assert.False(Directory.Exists(expected.DownloadFolder));
             RangeDeskPreferencesStore.Save(file, expected);
