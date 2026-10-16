@@ -1,3 +1,4 @@
+using Xunit;
 using RangeDesk.Core;
 
 namespace RangeDesk.Tests;
