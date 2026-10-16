@@ -42,6 +42,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<string, CustomSitePreset> _customSites =
         new(StringComparer.OrdinalIgnoreCase);
     private readonly DispatcherTimer _scheduleTimer = new() { Interval = TimeSpan.FromSeconds(10) };
+    private readonly DispatcherTimer _browserCaptureTimer = new() { Interval = TimeSpan.FromSeconds(1) };
     private readonly string _bandwidthCalendarFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "bandwidth-calendar-v5.json");
@@ -112,9 +113,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             await ApplyBandwidthCalendarAsync();
         };
         _scheduleTimer.Start();
+        _browserCaptureTimer.Tick += (_, _) => CheckAutomaticBrowserCaptures();
+        _browserCaptureTimer.Start();
+        CheckAutomaticBrowserCaptures();
         RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
         CheckBrowserInbox(); // Captured links require manual confirmation.
-        Closing += (_, _) => { _scheduleTimer.Stop(); _engine.Dispose(); };
+        Closing += (_, _) => { _scheduleTimer.Stop(); _browserCaptureTimer.Stop(); _engine.Dispose(); };
         SourceInitialized += (_, _) =>
         {
             int enabled = 1;
@@ -283,7 +287,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void SaveCatalog()
+    private bool SaveCatalog()
     {
         try
         {
@@ -292,8 +296,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
+            return true;
         }
-        catch (Exception ex) { StatusMessage.Text = "Could not save download history: " + ex.Message; }
+        catch (Exception ex) { StatusMessage.Text = "Could not save download history: " + ex.Message; return false; }
     }
 
     private void Track(DownloadEntry item)
@@ -1087,6 +1092,73 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         base.OnPreviewKeyDown(e);
     }
     private void Filters_Changed(object sender, SelectionChangedEventArgs e) => RefreshFilter();
+
+    /// <summary>
+    /// Opt-in extension-only takeover: acknowledge to the browser ONLY if
+    /// RangeDesk has persisted a new entry and started the download engine.
+    /// Errors leave the browser paused until native host rejects/resumes it.
+    /// </summary>
+    private void CheckAutomaticBrowserCaptures()
+    {
+        for (int attempt = 0; attempt < 3; attempt++)
+        {
+            BrowserAutomaticCaptureJob? job;
+            try { job = BrowserAutomaticCapture.TryTake(BrowserAutomaticCapture.DefaultDirectory); }
+            catch (Exception) { return; }
+            if (job is null) return;
+
+            bool accepted = false;
+            try
+            {
+                if (DateTimeOffset.UtcNow >= job.ExpiresAtUtc) continue;
+                var candidate = BatchDownloadPlanner.Plan(job.Url, _preferences.DownloadFolder,
+                    Downloads.Select(d => d.Destination)).Single();
+                var decision = DownloadAutomationPolicy.Apply(candidate.Url, candidate.Destination,
+                    DownloadCategory.Guess(Path.GetFileName(candidate.Destination)), "",
+                    _preferences.DownloadFolder, _automationRules);
+                if (Downloads.Any(d => string.Equals(d.Destination, decision.Destination,
+                        StringComparison.OrdinalIgnoreCase)) ||
+                    File.Exists(decision.Destination) ||
+                    File.Exists(decision.Destination + ".rdpartial") ||
+                    Directory.Exists(decision.Destination + ".rdsegments") ||
+                    Directory.Exists(decision.Destination + ".rdadaptive"))
+                    throw new IOException("Automatic download destination is already in use.");
+
+                var item = _engine.Create(job.Url, decision.Destination, decision.Category,
+                    decision.Labels, _preferences.DefaultConnections, _preferences.DefaultBandwidthKiBps);
+                if (DateTimeOffset.UtcNow >= job.ExpiresAtUtc) continue;
+                Track(item);
+                if (!SaveCatalog())
+                {
+                    Downloads.Remove(item);
+                    _lastStatuses.Remove(item.Id);
+                    RefreshCounters();
+                    continue;
+                }
+                if (!_engine.Start(item))
+                {
+                    Downloads.Remove(item);
+                    _lastStatuses.Remove(item.Id);
+                    SaveCatalog();
+                    RefreshCounters();
+                    continue;
+                }
+                accepted = true;
+                SelectedDownload = item;
+                StatusMessage.Text = "Browser download started in RangeDesk: " + item.Name;
+            }
+            catch (Exception)
+            {
+                // Never log full URLs (may contain signed query parameters).
+                StatusMessage.Text = "Browser capture could not be started; browser download remains available.";
+            }
+            finally
+            {
+                try { BrowserAutomaticCapture.Complete(BrowserAutomaticCapture.DefaultDirectory, job, accepted); }
+                catch (IOException) { } // Native host will time out and resume browser.
+            }
+        }
+    }
 
     /// <summary>
     /// A browser user gesture queues a URL for review, never auto-starts a

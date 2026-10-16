@@ -15,8 +15,27 @@ try
         throw new InvalidDataException("Invalid browser request size.");
     var buffer = new byte[bytes];
     input.ReadExactly(buffer);
-    BrowserLinkInbox.Enqueue(BrowserLinkInbox.DefaultDirectory, Encoding.UTF8.GetString(buffer));
-    WriteResponse(true, "Sent to RangeDesk for confirmation. Open RangeDesk to review the link.");
+    string json = Encoding.UTF8.GetString(buffer);
+    using var request = JsonDocument.Parse(json);
+    string? action = request.RootElement.GetProperty("action").GetString();
+    if (action == "capture_download")
+    {
+        // No hidden service and no silently launched GUI: if RangeDesk is not
+        // already running, tell the extension to resume its browser download.
+        if (System.Diagnostics.Process.GetProcessesByName("RangeDesk").Length == 0)
+            throw new InvalidOperationException("The visible RangeDesk app is not running.");
+        var job = BrowserAutomaticCapture.Queue(BrowserAutomaticCapture.DefaultDirectory, json);
+        bool started = await BrowserAutomaticCapture.WaitForDecisionAsync(
+            BrowserAutomaticCapture.DefaultDirectory, job);
+        WriteResponse(started, started
+            ? "RangeDesk accepted and started the transfer."
+            : "RangeDesk did not start the transfer. Continue in the browser.");
+    }
+    else
+    {
+        BrowserLinkInbox.Enqueue(BrowserLinkInbox.DefaultDirectory, json);
+        WriteResponse(true, "Sent to RangeDesk for confirmation. Open RangeDesk to review the link.");
+    }
 }
 catch (Exception)
 {

@@ -60,6 +60,8 @@ jobs:
       - name: Verify browser native messaging framing
         shell: pwsh
         run: ./browser-capture/test-native-host.ps1
+      - name: Verify browser automatic capture and safe fallback (Chromium/Firefox)
+        run: node --test browser-capture/test-auto-capture.cjs
       - name: Publish opt-in Windows scheduler wake companion
         run: dotnet publish src/RangeDesk.SchedulerWake/RangeDesk.SchedulerWake.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk/SchedulerWake
       - name: Verify scheduler wake exits safely without enrolled Windows task

@@ -1,16 +1,21 @@
 {
   "manifest_version": 3,
-  "name": "RangeDesk Link Capture",
-  "version": "0.1.0",
-  "description": "User-initiated direct-link handoff to RangeDesk; no passive browser monitoring.",
+  "name": "RangeDesk Browser Capture",
+  "version": "0.2.0",
+  "description": "Opt-in automatic direct-file handoff with safe fallback and manual right-click capture.",
   "permissions": [
     "contextMenus",
-    "nativeMessaging"
+    "nativeMessaging",
+    "downloads",
+    "storage"
   ],
   "background": {
     "scripts": [
       "background.js"
     ]
+  },
+  "action": {
+    "default_title": "RangeDesk — click to enable automatic capture"
   },
   "browser_specific_settings": {
     "gecko": {
