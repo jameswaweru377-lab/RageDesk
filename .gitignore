@@ -1,0 +1,13 @@
+# Generated files and local user state
+**/bin/
+**/obj/
+.vs/
+work/
+artifact/
+TestResults/
+*.user
+*.suo
+*.rdpartial
+*.rdstate
+*.msi
+*.pdb

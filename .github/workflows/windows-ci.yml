@@ -1,8 +1,10 @@
 name: RangeDesk Windows build and tests
 
+# Feature branches build on their PR; main builds on push. Avoid duplicate
+# expensive Windows jobs for the same commit.
 on:
   push:
-    branches: [main, "recover/**", "feature/**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -26,6 +28,47 @@ jobs:
         run: dotnet test RangeDesk.slnx --configuration Release --no-restore --logger "trx;LogFileName=RangeDesk.trx"
       - name: Publish portable Windows build
         run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
+      - name: Publish restricted browser native host
+        run: dotnet publish src/RangeDesk.NativeHost/RangeDesk.NativeHost.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk/NativeHost
+      - name: Verify browser native messaging framing
+        shell: pwsh
+        run: ./browser-capture/test-native-host.ps1
+      - name: Package opt-in browser extensions and setup
+        shell: pwsh
+        run: Copy-Item -Path browser-capture -Destination artifact/RangeDesk/BrowserCapture -Recurse -Force
+      - name: Build unsigned installer preview (installer branch only)
+        if: github.head_ref == 'feature/rangedesk-v5-installer'
+        shell: pwsh
+        run: |
+          $paths = @("${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe", "$env:ProgramFiles\\Inno Setup 6\\ISCC.exe")
+          $iscc = $paths | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            $iscc = $paths | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          }
+          if (-not $iscc) { throw "Inno Setup compiler is unavailable" }
+          $source = (Resolve-Path 'artifact/RangeDesk').Path
+          & $iscc 'installer/RangeDesk.iss' "/DSourceDir=$source"
+          if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed" }
+          if (-not (Test-Path 'artifact/RangeDesk-Setup-Preview.exe')) { throw "Installer was not created" }
+      - name: Test per-user install, uninstall and state preservation
+        if: github.head_ref == 'feature/rangedesk-v5-installer'
+        shell: pwsh
+        run: |
+          $stateFolder = Join-Path $env:LOCALAPPDATA 'RangeDesk'
+          New-Item -ItemType Directory -Path $stateFolder -Force | Out-Null
+          $sentinel = Join-Path $stateFolder 'installer-preservation-smoke.txt'
+          [IO.File]::WriteAllText($sentinel, 'preserve-this-user-data')
+          $install = Join-Path $env:TEMP 'RangeDesk-ci-install'
+          $setup = (Resolve-Path 'artifact/RangeDesk-Setup-Preview.exe').Path
+          $proc = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$install") -PassThru -Wait
+          if ($proc.ExitCode -ne 0 -or -not (Test-Path (Join-Path $install 'RangeDesk.exe'))) { throw "Silent install failed" }
+          $uninstall = Join-Path $install 'unins000.exe'
+          if (-not (Test-Path $uninstall)) { throw "Uninstaller missing" }
+          $proc = Start-Process -FilePath $uninstall -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
+          if ($proc.ExitCode -ne 0) { throw "Uninstall failed" }
+          if (-not (Test-Path $sentinel)) { throw "User data was removed during uninstall" }
+          Remove-Item -LiteralPath $sentinel -Force
       - name: Zip portable build
         shell: pwsh
         run: Compress-Archive -Path artifact/RangeDesk/* -DestinationPath artifact/RangeDesk-Preview-win-x64.zip -Force
@@ -34,6 +77,14 @@ jobs:
         with:
           name: RangeDesk-Preview-win-x64
           path: artifact/RangeDesk-Preview-win-x64.zip
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload unsigned Windows installer preview
+        if: github.head_ref == 'feature/rangedesk-v5-installer'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-Setup-Preview-win-x64
+          path: artifact/RangeDesk-Setup-Preview.exe
           retention-days: 7
           if-no-files-found: error
       - name: Upload test reports
