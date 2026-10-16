@@ -182,6 +182,65 @@ public sealed class RecoveryReliabilityTests
     }
 
     [Fact]
+    public async Task DirectRetryWithoutStrongValidatorRestartsPrivatePartialFromZero()
+    {
+        await InFolder(async folder =>
+        {
+            byte[] content = Content(80_000);
+            int attempts = 0;
+            using var handler = new ScriptedHandler(request =>
+            {
+                Assert.Null(request.Headers.Range);
+                if (Interlocked.Increment(ref attempts) == 1)
+                {
+                    var shortResponse = new HttpResponseMessage(HttpStatusCode.OK);
+                    shortResponse.Content = new ByteArrayContent(content[..20_000]);
+                    shortResponse.Content.Headers.ContentLength = content.Length;
+                    return shortResponse;
+                }
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new ByteArrayContent(content)
+                };
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create(Url, Path.Combine(folder, "no-etag.bin"));
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.Equal(2, attempts);
+            Assert.Equal(content, await File.ReadAllBytesAsync(entry.Destination));
+        });
+    }
+
+    [Fact]
+    public async Task Resume404DoesNotRetryOrDestroyExistingPartial()
+    {
+        await InFolder(async folder =>
+        {
+            string target = Path.Combine(folder, "resume-404.bin");
+            await File.WriteAllBytesAsync(target + ".rdpartial", Content(12_000));
+            await File.WriteAllTextAsync(target + ".rdstate", JsonSerializer.Serialize(
+                new { Url, TotalBytes = (long?)50_000, StrongETag = "\"v1\"" }));
+            int requests = 0;
+            using var handler = new ScriptedHandler(request =>
+            {
+                Assert.NotNull(request.Headers.Range);
+                Interlocked.Increment(ref requests);
+                return new HttpResponseMessage(HttpStatusCode.NotFound);
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create(Url, target);
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Failed, entry.Status);
+            Assert.Equal(1, requests);
+            Assert.Equal(12_000, new FileInfo(target + ".rdpartial").Length);
+            Assert.False(File.Exists(target));
+        });
+    }
+
+    [Fact]
     public async Task FixedSegmentCannotCompleteWhenResponseNeverTerminates()
     {
         await InFolder(async folder =>

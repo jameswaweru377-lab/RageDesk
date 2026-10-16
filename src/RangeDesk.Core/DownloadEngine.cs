@@ -233,6 +233,10 @@ public sealed class DownloadEngine : IDisposable
             RetryConditionHeaderValue? retryAfter = null;
             try
             {
+            // Every request starts with a fresh reading of the durable state.
+            // Without a strong validator, a retry must re-download from byte zero.
+            received = 0;
+            expected = null;
             string? validator = null;
             if (File.Exists(partial) && File.Exists(journal))
             {
@@ -288,7 +292,9 @@ public sealed class DownloadEngine : IDisposable
                 validator = null;
             }
             else if (resuming)
-                throw new HttpRequestException($"Cannot safely resume: server returned {(int)response.StatusCode}.");
+                throw new HttpRequestException(
+                    $"Cannot safely resume: server returned {(int)response.StatusCode}.",
+                    null, response.StatusCode);
 
             response.EnsureSuccessStatusCode();
             if (!resuming && response.StatusCode != HttpStatusCode.OK)
