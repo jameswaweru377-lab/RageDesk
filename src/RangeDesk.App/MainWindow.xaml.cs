@@ -32,6 +32,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         "RangeDesk", "schedules-v5.json");
     private readonly Dictionary<string, ScheduledDownload> _scheduled =
         new(StringComparer.OrdinalIgnoreCase);
+    private readonly string _automationFile = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "RangeDesk", "automation-rules-v5.json");
+    private readonly List<DownloadAutomationRule> _automationRules = new();
     private readonly string _sitePresetsFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "site-presets-v5.json");
@@ -69,6 +73,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         VisibleDownloads.Filter = MatchesFilters;
         DataContext = this;
         LoadCatalog();
+        try
+        {
+            _automationRules.AddRange(DownloadAutomationRuleStore.Load(_automationFile));
+            RefreshAutomationRules();
+        }
+        catch (Exception ex) { StatusMessage.Text = "Could not load automation rules: " + ex.Message; }
         try
         {
             foreach (var site in CustomSitePresetStore.Load(_sitePresetsFile))
@@ -877,20 +887,22 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             bool changed = false;
             foreach (var scheduled in _scheduled.Values.ToArray())
             {
-                if (!ScheduledQueueStore.IsDue(scheduled, DateTimeOffset.Now)) continue;
                 var item = Downloads.FirstOrDefault(d =>
                     string.Equals(d.Destination, scheduled.Destination, StringComparison.OrdinalIgnoreCase));
+                if (item is null || item.Status is DownloadStatus.Completed or DownloadStatus.Canceled)
+                {
+                    _scheduled.Remove(scheduled.Destination);
+                    changed = true;
+                    continue;
+                }
+                if (!ScheduledQueueStore.IsDue(scheduled, DateTimeOffset.Now)) continue;
                 if (item?.Status == DownloadStatus.Queued && _engine.Start(item))
                 {
                     _scheduled.Remove(scheduled.Destination);
                     changed = true;
                     StatusMessage.Text = "Scheduled download started: " + item.Name;
                 }
-                else if (item is not null && item.Status is DownloadStatus.Completed or DownloadStatus.Canceled)
-                {
-                    _scheduled.Remove(scheduled.Destination);
-                    changed = true;
-                }
+                // A missed recurring window remains queued until its next matching window.
             }
             if (changed) { SaveSchedules(); RefreshFilter(); }
         }
@@ -977,6 +989,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         FormError.Text = "";
         ApplyNewDownloadDefaults();
         ScheduleDownload.IsChecked = false;
+        ScheduledRecurrence.SelectedIndex = 0;
         var localFuture = DateTime.Now.AddMinutes(30);
         ScheduledDate.SelectedDate = localFuture.Date;
         ScheduledTime.Text = localFuture.ToString("HH:mm", CultureInfo.InvariantCulture);
@@ -1135,8 +1148,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (checksum.Length == 0)
                     throw new ArgumentException("Enter the expected SHA-256 or disable verification.");
             }
-            var item = _engine.Create(NewUrl.Text.Trim(), NewDestination.Text.Trim(), category,
-                NewLabels.Text.Trim(), connections, bandwidth, checksum,
+            var decision = DownloadAutomationPolicy.Apply(
+                NewUrl.Text.Trim(), NewDestination.Text.Trim(), category, NewLabels.Text.Trim(),
+                _preferences.DownloadFolder, _automationRules);
+            if (Downloads.Any(d => string.Equals(d.Destination, decision.Destination,
+                    StringComparison.OrdinalIgnoreCase)))
+                throw new IOException("That destination is already tracked. Choose another filename.");
+            var item = _engine.Create(NewUrl.Text.Trim(), decision.Destination, decision.Category,
+                decision.Labels, connections, bandwidth, checksum,
                 AdaptiveWorkers.IsChecked == true);
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
@@ -1148,7 +1167,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         CultureInfo.InvariantCulture, out var clock))
                     throw new ArgumentException("Choose a date and a 24-hour time (HH:mm).");
                 var dueAt = ScheduledQueueStore.FromLocal(day, clock, TimeZoneInfo.Local, DateTimeOffset.Now);
-                schedule = new ScheduledDownload(item.Destination, dueAt).Validate();
+                ScheduleRecurrence recurrence = Enum.Parse<ScheduleRecurrence>(
+                    (ScheduledRecurrence.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Once");
+                schedule = RecurringSchedulePolicy.Configure(
+                    new ScheduledDownload(item.Destination, dueAt), recurrence, TimeZoneInfo.Local);
             }
             bool queued = schedule is not null || QueueOnly.IsChecked == true;
             ShowSubmittedDownload(queued);
@@ -1199,10 +1221,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         int bandwidth = GetNumericChoice(BandwidthChoice, 0);
         bool queued = QueueOnly.IsChecked == true;
         var items = candidates.Select(candidate =>
-            _engine.Create(candidate.Url, candidate.Destination,
+        {
+            var decision = DownloadAutomationPolicy.Apply(candidate.Url, candidate.Destination,
                 category == "Other" ? DownloadCategory.Guess(Path.GetFileName(candidate.Destination)) : category,
-                NewLabels.Text.Trim(), connections, bandwidth, adaptive: AdaptiveWorkers.IsChecked == true))
-            .ToArray();
+                NewLabels.Text.Trim(), _preferences.DownloadFolder, _automationRules);
+            return _engine.Create(candidate.Url, decision.Destination, decision.Category,
+                decision.Labels, connections, bandwidth, adaptive: AdaptiveWorkers.IsChecked == true);
+        }).ToArray();
+        if (items.Select(x => x.Destination).Distinct(StringComparer.OrdinalIgnoreCase).Count() != items.Length ||
+            items.Any(x => Downloads.Any(d => string.Equals(d.Destination, x.Destination,
+                StringComparison.OrdinalIgnoreCase)) || File.Exists(x.Destination) ||
+                File.Exists(x.Destination + ".rdpartial") ||
+                Directory.Exists(x.Destination + ".rdsegments") ||
+                Directory.Exists(x.Destination + ".rdadaptive")))
+            throw new IOException("An automation rule produced a filename collision. Adjust its subfolder or rename the file.");
         ShowSubmittedDownload(queued);
         foreach (var item in items) Track(item);
         SaveCatalog();
@@ -1276,6 +1308,57 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SettingsStartImmediately.IsChecked = preferences.StartImmediately;
         SettingsProxyUri.Text = preferences.ProxyUri ?? "";
         SettingsError.Text = "";
+    }
+
+    private void RefreshAutomationRules()
+    {
+        AutomationRuleList.Items.Clear();
+        foreach (var rule in _automationRules)
+            AutomationRuleList.Items.Add($"{rule.Name} — {rule.HostSuffix} {rule.Extension} → {rule.Category}" +
+                (rule.Subfolder.Length > 0 ? " / " + rule.Subfolder : ""));
+    }
+
+    private void OpenAutomationSettings_Click(object sender, RoutedEventArgs e)
+    {
+        Settings_Click(sender, e);
+        SettingsTabControl.SelectedItem = SettingsAutomationTab;
+    }
+
+    private void AddAutomationRule_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var rule = new DownloadAutomationRule(RuleName.Text,
+                RuleDomain.Text, RuleExtension.Text,
+                (RuleCategory.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Other",
+                RuleLabel.Text, RuleSubfolder.Text).Validate();
+            if (_automationRules.Any(r => r.Name.Equals(rule.Name, StringComparison.OrdinalIgnoreCase)))
+                throw new ArgumentException("A rule with this name already exists.");
+            DownloadAutomationRuleStore.Save(_automationFile, _automationRules.Append(rule));
+            _automationRules.Add(rule);
+            RefreshAutomationRules();
+            RuleName.Clear(); RuleDomain.Clear(); RuleExtension.Clear();
+            RuleLabel.Clear(); RuleSubfolder.Clear();
+            RuleCategory.SelectedIndex = 0;
+            AutomationRuleError.Text = "";
+            StatusMessage.Text = "New downloads will use automation rule: " + rule.Name;
+        }
+        catch (Exception ex) { AutomationRuleError.Text = ex.Message; }
+    }
+
+    private void RemoveAutomationRule_Click(object sender, RoutedEventArgs e)
+    {
+        int index = AutomationRuleList.SelectedIndex;
+        if (index < 0 || index >= _automationRules.Count) return;
+        try
+        {
+            DownloadAutomationRuleStore.Save(_automationFile,
+                _automationRules.Where((_, i) => i != index));
+            _automationRules.RemoveAt(index);
+            RefreshAutomationRules();
+            AutomationRuleError.Text = "";
+        }
+        catch (Exception ex) { AutomationRuleError.Text = ex.Message; }
     }
 
     private void Settings_Click(object sender, RoutedEventArgs e)
