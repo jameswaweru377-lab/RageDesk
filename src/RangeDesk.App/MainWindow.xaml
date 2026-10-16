@@ -730,7 +730,7 @@
                       BorderThickness="0" Foreground="{StaticResource V5MutedBrush}"
                       FontSize="17" Padding="5,0"/>
             </Grid>
-            <TabControl Background="{StaticResource V5ElevatedBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
+            <TabControl x:Name="AddDownloadTabs" Background="{StaticResource V5ElevatedBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
               <TabItem Header="General">
                 <StackPanel Margin="7,18,7,7">
                   <TextBlock Text="Download URL (one link, or multiple links on separate lines)" Foreground="{StaticResource V5MutedBrush}"/>
@@ -839,6 +839,42 @@
                   <TextBlock Text="Runs only after this download completes successfully. This choice is saved with the download. No downloaded files, applications, or scripts are automatically executed."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,13,0,0"/>
                 </StackPanel>
+              </TabItem>
+              <TabItem Header="Media">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                  <StackPanel Margin="8,17,8,12">
+                    <TextBlock Text="Analyze a video webpage" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                    <TextBlock Text="For videos you own or have permission to download. Uses optional external yt-dlp and FFmpeg tools; protected media and some sites remain unsupported."
+                               TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,12"/>
+                    <TextBlock Text="Video webpage URL" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
+                    <TextBox x:Name="MediaPageUrl" Style="{StaticResource V5Input}" Margin="0,0,0,10"
+                             ToolTip="A single HTTP(S) video page URL, not a playlist or file"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,11">
+                      <Button x:Name="MediaAnalyzeButton" Content="Analyze available formats"
+                              Style="{StaticResource V5ToolbarButton}" Click="AnalyzeMedia_Click" Padding="9,8" Margin="0,0,8,0"/>
+                      <Button Content="Open tool folder" Style="{StaticResource V5ToolbarButton}"
+                              Click="OpenMediaToolsFolder_Click" Padding="9,8"/>
+                    </StackPanel>
+                    <TextBlock Text="Actual available video qualities" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
+                    <ComboBox x:Name="MediaFormatChoice" Style="{StaticResource V5Combo}"
+                              DisplayMemberPath="Label" Margin="0,0,0,12"/>
+                    <TextBlock Text="Output: your configured Downloads folder. yt-dlp chooses the actual file extension. Separate video/audio tracks are merged with FFmpeg when supported."
+                               Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,11"/>
+                    <CheckBox x:Name="MediaRightsConfirm"
+                              Content="I have permission to save this video."
+                              Margin="0,0,0,10"/>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                      <Button x:Name="MediaDownloadButton" Content="Download selected quality"
+                              Click="StartMedia_Click" Style="{StaticResource V5PrimaryButton}"
+                              Padding="10,8" Margin="0,0,8,0"/>
+                      <Button Content="Stop" Click="StopMedia_Click"
+                              Style="{StaticResource V5ToolbarButton}" Padding="10,8"/>
+                    </StackPanel>
+                    <TextBlock x:Name="MediaStatus" Foreground="{StaticResource V5MutedBrush}"
+                               Text="Install official yt-dlp.exe and ffmpeg.exe inside MediaTools, then analyze a video page."
+                               TextWrapping="Wrap"/>
+                  </StackPanel>
+                </ScrollViewer>
               </TabItem>
             </TabControl>
             <TextBlock x:Name="FormError" Foreground="{StaticResource V5DangerBrush}" TextWrapping="Wrap" Margin="7,6,0,0"/>
