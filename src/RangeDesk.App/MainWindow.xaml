@@ -585,6 +585,8 @@
                 <StackPanel VerticalAlignment="Center">
                   <TextBlock Text="{Binding Name}" Foreground="{StaticResource V5LightText}"
                              FontWeight="SemiBold" FontSize="11" TextTrimming="CharacterEllipsis" MaxWidth="245"/>
+                  <TextBlock Text="{Binding MediaStage}" Foreground="{StaticResource V5LightMuted}" FontSize="9"
+                             TextTrimming="CharacterEllipsis" MaxWidth="245"/>
                   <TextBlock Text="{Binding Host}" Foreground="{StaticResource V5LightMuted}" FontSize="9"
                              TextTrimming="CharacterEllipsis" MaxWidth="245"/>
                 </StackPanel>
@@ -715,7 +717,7 @@
         <DockPanel LastChildFill="True">
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Cancel" Click="CloseAdd_Click" Style="{StaticResource V5ToolbarButton}"/>
-            <Button Content="▶  Start Download" Click="StartDownload_Click" Style="{StaticResource V5PrimaryButton}"/>
+            <Button x:Name="AddStartButton" Content="▶  Start Download" Click="StartDownload_Click" Style="{StaticResource V5PrimaryButton}"/>
           </StackPanel>
           <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
@@ -724,7 +726,7 @@
               <StackPanel Orientation="Horizontal">
                 <TextBlock Text="&#xE896;" FontFamily="{StaticResource V5IconFont}"
                            Foreground="{StaticResource V5AccentLightBrush}" FontSize="20" Margin="0,0,9,0"/>
-                <TextBlock Text="Add Download" FontSize="17" FontWeight="SemiBold"/>
+                <TextBlock x:Name="AddDownloadTitle" Text="Add Download" FontSize="17" FontWeight="SemiBold"/>
               </StackPanel>
               <Button Grid.Column="1" Content="×" Click="CloseAdd_Click" Background="Transparent"
                       BorderThickness="0" Foreground="{StaticResource V5MutedBrush}"
@@ -843,6 +845,9 @@
               <TabItem Header="Media">
                 <ScrollViewer VerticalScrollBarVisibility="Auto">
                   <StackPanel Margin="8,17,8,12">
+                    <TextBlock x:Name="BrowserMediaNotice" Text="Select Start Download to begin this browser video."
+                               Foreground="{StaticResource V5AccentLightBrush}" FontWeight="SemiBold"
+                               TextWrapping="Wrap" Visibility="Collapsed" Margin="0,0,0,12"/>
                     <TextBlock Text="Analyze a video webpage" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
                     <TextBlock Text="For videos you own or have permission to download. Uses optional external yt-dlp and FFmpeg tools; protected media and some sites remain unsupported."
                                TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,12"/>

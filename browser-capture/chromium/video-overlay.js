@@ -188,7 +188,7 @@
           mediaJobId = result.jobId;
           mediaJobUrl = currentPageUrl();
           mediaJobDone = false;
-          status.textContent = "Selection received by RangeDesk. Waiting for download to start…";
+          status.textContent = "Selection sent. Confirm Start Download in the RangeDesk popup…";
           pollJob();
         } else {
           status.textContent = "Selection received by RangeDesk. Check its Media tab for progress.";

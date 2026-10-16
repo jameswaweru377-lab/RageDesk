@@ -272,7 +272,7 @@ public static class OptionalMediaExtractor
     /// </summary>
     public sealed record MediaProgress(long DownloadedBytes, long? TotalBytes, bool Estimated);
 
-    public static async Task DownloadAsync(string appFolder, string url,
+    public static async Task<string> DownloadAsync(string appFolder, string url,
         Format selected, string destinationDirectory, Action<string> status,
         CancellationToken token, Action<MediaProgress>? onProgress = null)
     {
@@ -304,6 +304,7 @@ public static class OptionalMediaExtractor
                 throw new MediaAnalyzerException("OUTPUT_FAILED",
                     "The extractor finished, but a completed output file could not be verified.");
             status("Media download complete. Output file verified.");
+            return Path.GetFullPath(finalPath);
         }
         catch (OperationCanceledException)
         {

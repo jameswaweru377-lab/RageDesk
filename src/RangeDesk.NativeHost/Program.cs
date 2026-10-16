@@ -51,7 +51,7 @@ try
         string jobId = Guid.NewGuid().ToString("N");
         var item = new BrowserMediaRequest("media_download", url, formatId, jobId);
         item.Validate();
-        BrowserMediaJobState.Update(jobId, "queued", "Selection received. Waiting for RangeDesk.");
+        BrowserMediaJobState.Update(jobId, "queued", "Selection received. Waiting for RangeDesk confirmation popup.");
         try
         {
             BrowserMediaInbox.Enqueue(BrowserMediaInbox.DefaultDirectory,
@@ -63,7 +63,7 @@ try
             throw;
         }
         WriteResponseObject(new { accepted = true, jobId, state = "queued",
-            message = "Selection received by RangeDesk." });
+            message = "Selection received. Confirm Start Download in the RangeDesk popup." });
     }
     else if (action == "media_status")
     {

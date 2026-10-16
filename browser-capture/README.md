@@ -373,3 +373,14 @@ error. Changing video pages while a probe is running discards stale results.
   FFmpeg merging separate video and audio tracks where supported. Failures
   appear in the browser job state; the toolchain is still a user-controlled setup.
 - Standard link capture and the manual Media tab keep their existing behavior.
+
+## Browser media confirmation and download history
+
+- Double-clicking a reported quality opens RangeDesk's existing Add Download
+  popup on the Media tab, with the browser-selected quality ready for confirmation.
+- Start Download begins yt-dlp/FFmpeg transfer and records the job in the
+  main Downloads list. Cancel dismisses the request without downloading.
+- A media row shows current-stage progress and remains in the local catalog.
+  The final output path is set only after yt-dlp verifies the completed file.
+- Media uses the external extractor, not RangeDesk's HTTP range engine; a
+  missing/unsupported media pause control must never silently call that engine.

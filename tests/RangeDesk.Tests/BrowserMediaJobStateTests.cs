@@ -62,3 +62,42 @@ public sealed class BrowserMediaJobStateTests
         }
     }
 }
+
+public sealed class MediaDownloadEntryTests
+{
+    [Fact]
+    public void BrowserMediaRowTracksRealDestinationAndShowsHonestProgress()
+    {
+        string id = Guid.NewGuid().ToString("N");
+        string folder = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "RangeDeskTests"));
+        string requestedPath = Path.Combine(folder, "Requested-1080p.mkv");
+        string actualPath = Path.Combine(folder, "Video-1080p-" + id[..8] + ".webm");
+        var entry = new DownloadEntry("https://www.youtube.com/watch?v=abcdefghijk", requestedPath, "Videos");
+        entry.AttachMediaJob(id, "137");
+        Assert.True(entry.IsMedia);
+        Assert.Equal("137", entry.MediaFormatId);
+        Assert.Equal("Videos", entry.Category);
+        entry.UpdateMediaStage("Downloading video stream");
+        entry.Report(DownloadStatus.Downloading, 1024, null);
+        Assert.True(entry.IsIndeterminate);
+        Assert.Null(entry.Percent);
+        Assert.Equal("Downloading video stream", entry.MediaStage);
+        entry.UpdateMediaOutput(actualPath);
+        Assert.Equal(actualPath, entry.Destination);
+        Assert.EndsWith(".webm", entry.Name);
+        entry.Report(DownloadStatus.Completed, 2048, 2048);
+        Assert.Equal(DownloadStatus.Completed, entry.Status);
+        Assert.Equal(100, entry.Percent);
+    }
+
+    [Fact]
+    public void MediaIdentityAndOutputPathRejectUnsafeValues()
+    {
+        var entry = new DownloadEntry("https://example.org/video", Path.GetFullPath(
+            Path.Combine(Path.GetTempPath(), "some-video.mkv")), "Videos");
+        Assert.Throws<ArgumentException>(() => entry.AttachMediaJob("../bad", "137"));
+        Assert.Throws<ArgumentException>(() => entry.AttachMediaJob(
+            Guid.NewGuid().ToString("N"), "../../path"));
+        Assert.Throws<ArgumentException>(() => entry.UpdateMediaOutput("relative.mp4"));
+    }
+}

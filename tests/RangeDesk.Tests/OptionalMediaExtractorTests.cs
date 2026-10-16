@@ -72,6 +72,22 @@ public sealed class OptionalMediaExtractorTests
     }
 
     [Fact]
+    public void BrowserMediaOutputsUseDistinctValidatedJobSuffixes()
+    {
+        var selected = OptionalMediaExtractor.ParseProbe(Probe).Formats[0];
+        string output = Path.GetFullPath(Path.Combine(Path.GetTempPath(), "RangeDeskTests"));
+        var argv = OptionalMediaExtractor.DownloadArguments(Example, selected,
+            output, Path.Combine(output, "ffmpeg.exe"), "deadbeef");
+        int position = argv.ToList().IndexOf("--output");
+        Assert.True(position >= 0);
+        Assert.Contains("-deadbeef.%(ext)s", argv[position + 1]);
+        Assert.Throws<ArgumentException>(() => OptionalMediaExtractor.DownloadArguments(
+            Example, selected, output, Path.Combine(output, "ffmpeg.exe"), "../bad"));
+        Assert.Throws<ArgumentException>(() => OptionalMediaExtractor.DownloadArguments(
+            Example, selected, output, Path.Combine(output, "ffmpeg.exe"), "x"));
+    }
+
+    [Fact]
     public void PageAndDirectDownloadsUseDifferentEntryPoints()
     {
         Assert.True(OptionalMediaExtractor.IsPageCandidate("https://www.youtube.com/watch?v=abc"));
