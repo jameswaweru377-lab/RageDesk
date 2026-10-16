@@ -103,6 +103,30 @@ function allowedVideoHandoff(message, sender) {
 }
 
 api.runtime.onMessage.addListener((message, sender, reply) => {
+  if (message?.action === "rangedesk_media_page") {
+    // User clicked "Analyze this page" on the visible player. Accept
+    // only the exact frame URL reported independently by Chrome, so site
+    // JS cannot make the extension queue a different destination.
+    const requested = message.url;
+    let safe = false;
+    try {
+      const candidate = new URL(requested);
+      const reported = new URL(sender?.url);
+      candidate.hash = ""; reported.hash = "";
+      safe = sender?.id === api.runtime.id &&
+        Number.isInteger(sender?.tab?.id) &&
+        requested.length <= 4096 &&
+        candidate.href === reported.href &&
+        ["http:", "https:"].includes(candidate.protocol) &&
+        !candidate.username && !candidate.password;
+    } catch { /* Invalid or restricted page. */ }
+    if (!safe) { reply({ accepted: false }); return false; }
+    void api.runtime.sendNativeMessage(HOST, {
+      action: "add_link", url: requested
+    }).then(result => reply({ accepted: result?.accepted === true }))
+      .catch(() => reply({ accepted: false }));
+    return true;
+  }
   if (message?.action === "rangedesk_media_list") {
     if (sender?.id !== api.runtime.id || !Number.isInteger(sender.tab?.id) ||
         !Number.isInteger(sender.frameId)) {

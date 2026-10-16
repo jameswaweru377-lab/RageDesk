@@ -194,6 +194,30 @@ test("reject spoofed origin, playlists, credentials, unknown suffixes and non-vi
   assert.equal(bg.sent.length, 0);
 });
 
+test("Chrome page handoff opens media analysis without inventing a direct video URL", async () => {
+  const bg = chromeBackground();
+  const url = "https://site.test/watch";
+  const result = await bg.message({ action: "rangedesk_media_page", url });
+  assert.equal(result.reply.accepted, true);
+  assert.equal(bg.sent.length, 1);
+  assert.equal(bg.sent[0].message.action, "add_link");
+  assert.equal(bg.sent[0].message.url, url);
+});
+
+test("Chrome media page handoff rejects spoofed or credentialed URLs", async () => {
+  const bg = chromeBackground();
+  const cases = [
+    [{ action: "rangedesk_media_page", url: "https://evil.test/watch" }, bg.sender],
+    [{ action: "rangedesk_media_page", url: "file:///etc/hosts" }, bg.sender],
+    [{ action: "rangedesk_media_page", url: "https://u:pass@site.test/watch" }, bg.sender],
+    [{ action: "rangedesk_media_page", url: "https://site.test/watch" },
+      { ...bg.sender, id: "other-extension" }]
+  ];
+  for (const [msg, sender] of cases)
+    assert.equal((await bg.message(msg, sender)).reply.accepted, false);
+  assert.equal(bg.sent.length, 0);
+});
+
 test("native host rejection or absence does not claim video was queued", async () => {
   for (const rejected of [{ accepted: false }, new Error("no host")]) {
     const bg = chromeBackground(rejected);
