@@ -13,6 +13,7 @@ namespace RangeDesk.Core;
 public sealed class DownloadEngine : IDisposable
 {
     private readonly HttpClient _http;
+    private readonly TimeSpan _networkIdleTimeout;
     private readonly SemaphoreSlim _slots;
     private readonly ConcurrentDictionary<Guid, CancellationTokenSource> _active = new();
     private readonly ConcurrentDictionary<Guid, DownloadStatus> _stopIntent = new();
@@ -21,11 +22,12 @@ public sealed class DownloadEngine : IDisposable
     private readonly SynchronizationContext? _ui;
 
     private sealed record PartialMetadata(string Url, long? TotalBytes, string? StrongETag);
-    public DownloadEngine(SynchronizationContext? ui = null, HttpClient? client = null, int maxConcurrentDownloads = 2, string? proxyUri = null)
+    public DownloadEngine(SynchronizationContext? ui = null, HttpClient? client = null, int maxConcurrentDownloads = 2, string? proxyUri = null, TimeSpan? networkIdleTimeout = null)
     {
         if (maxConcurrentDownloads is < 1 or > 4)
             throw new ArgumentOutOfRangeException(nameof(maxConcurrentDownloads));
         _slots = new SemaphoreSlim(maxConcurrentDownloads, maxConcurrentDownloads);
+        _networkIdleTimeout = TransferInactivityTimeout.Validate(networkIdleTimeout);
         _ui = ui;
         if (client is not null && !string.IsNullOrWhiteSpace(proxyUri))
             throw new ArgumentException("An explicitly supplied HTTP client already owns its proxy configuration.");
@@ -131,7 +133,7 @@ public sealed class DownloadEngine : IDisposable
                 throw new InvalidDataException("Adaptive checkpoint exists. Reopen this transfer with adaptive mode to resume safely.");
             if (e.Adaptive && e.RequestedConnections > 1)
             {
-                var adaptive = new AdaptiveRangeTransfer(_http);
+                var adaptive = new AdaptiveRangeTransfer(_http, _networkIdleTimeout);
                 bool completed = await adaptive.TryDownloadAsync(e, limiter,
                     (bytes, total, speed, workers) =>
                         Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
@@ -153,7 +155,7 @@ public sealed class DownloadEngine : IDisposable
             if (e.RequestedConnections > 1 &&
                 (!e.Adaptive || Directory.Exists(e.Destination + ".rdsegments")))
             {
-                var parallel = new ParallelRangeTransfer(_http);
+                var parallel = new ParallelRangeTransfer(_http, _networkIdleTimeout);
                 bool completed = await parallel.TryDownloadAsync(e, e.RequestedConnections, limiter,
                     (bytes, total, speed, workers) =>
                         Publish(e, DownloadStatus.Downloading, bytes, total, speed, workers),
@@ -205,7 +207,7 @@ public sealed class DownloadEngine : IDisposable
             }
 
             Publish(e, DownloadStatus.Downloading, received, expected);
-            using var response = await _http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+            using var response = await TransferInactivityTimeout.SendAsync(_http, request, token, _networkIdleTimeout);
 
             bool resuming = received > 0 && validator is not null;
             if (resuming && response.StatusCode == HttpStatusCode.PartialContent)
@@ -281,7 +283,7 @@ public sealed class DownloadEngine : IDisposable
                 {
                 while (true)
                 {
-                    int count = await input.ReadAsync(buffer, token);
+                    int count = await TransferInactivityTimeout.ReadAsync(input, buffer, token, _networkIdleTimeout);
                     if (count == 0) break;
                     if (expected is long max && received + count > max)
                         throw new InvalidDataException("The server sent more bytes than declared.");
