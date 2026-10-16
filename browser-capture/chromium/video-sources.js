@@ -14,7 +14,7 @@
     "video/ogg": "Ogg video", "video/quicktime": "MOV",
     "application/vnd.apple.mpegurl": "HLS", "application/x-mpegurl": "HLS"
   });
-  const BLOCKED = /\.(?:m3u8|mpd|m3u|ism|mp4\.m3u8)$/i;
+  const BLOCKED = /\.(?:mpd|m3u|ism)$/i;
 
   function directSource(value, base, type = "") {
     if (typeof value !== "string" || !value.trim()) return null;
