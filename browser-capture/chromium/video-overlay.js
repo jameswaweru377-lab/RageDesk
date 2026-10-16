@@ -94,7 +94,10 @@
     if (rect.width < 230 || rect.height < 130 ||
         rect.bottom < 0 || rect.top > window.innerHeight ||
         rect.right < 0 || rect.left > window.innerWidth) return false;
-    return detecting || available(video).length > 0;
+    return detecting || available(video).length > 0 ||
+      (typeof video.currentSrc === "string" &&
+       video.currentSrc.startsWith("blob:")) ||
+      (typeof video.readyState === "number" && video.readyState >= 1);
   }
 
   function pickVideo() {
@@ -169,6 +172,26 @@
     }
   }
 
+  async function sendPageForAnalysis(button) {
+    if (pending) return;
+    const pageUrl = typeof document.URL === "string" ? document.URL : document.baseURI;
+    pending = true;
+    button.disabled = true;
+    status.textContent = "Opening this page in RangeDesk Media…";
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: "rangedesk_media_page", url: pageUrl
+      });
+      status.textContent = response?.accepted
+        ? "Sent to RangeDesk. Open the Media tab in Add Download."
+        : "RangeDesk could not accept this page. Check its native connection.";
+    } catch {
+      status.textContent = "Chrome could not connect to RangeDesk.";
+    } finally {
+      pending = false; button.disabled = false;
+    }
+  }
+
   function renderChoices() {
     options.replaceChildren();
     if (!active) return;
@@ -188,6 +211,16 @@
       button.addEventListener("click", () => { void sendVideo(source, button); });
       options.appendChild(button);
     });
+    // Page-based extractors handle sites whose video uses MSE/blob rather
+    // than exposing a direct file or HLS manifest. Explicit user gesture.
+    const page = document.createElement("button");
+    page.type = "button";
+    page.className = "page-choice";
+    page.style.cssText = "cursor:pointer;display:block;width:100%;color:#eaf4ff;background:#245682;border:0;border-radius:7px;padding:9px 7px;margin-top:8px";
+    page.textContent = "Analyze this webpage (Media tools)";
+    page.title = "Analyze permitted video formats in RangeDesk; no automatic download";
+    page.addEventListener("click", () => { void sendPageForAnalysis(page); });
+    options.appendChild(page);
   }
 
   toggle.addEventListener("click", () => {
