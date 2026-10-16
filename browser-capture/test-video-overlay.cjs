@@ -109,7 +109,9 @@ test("Chrome manifest installs ordered isolated scripts on regular web pages", (
   assert.deepEqual(manifest.content_scripts[0].js, ["video-sources.js", "video-overlay.js"]);
   assert.deepEqual(manifest.content_scripts[0].matches, ["http://*/*", "https://*/*"]);
   assert.equal(manifest.content_scripts[0].all_frames, true);
-  assert.ok(!manifest.permissions.includes("webRequest"));
+  assert.ok(manifest.permissions.includes("webRequest"));
+  assert.ok(!manifest.permissions.includes("webRequestBlocking"));
+  assert.deepEqual(manifest.optional_host_permissions, ["<all_urls>"]);
   assert.ok(!manifest.permissions.includes("cookies"));
 });
 
