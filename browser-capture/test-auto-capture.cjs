@@ -33,6 +33,9 @@ for (const browserFamily of ["chromium", "firefox"]) {
         id: "rangedesk-extension",
         onInstalled: event("installed"),
         onStartup: event("startup"),
+        // Chrome Phase 2 listens for user-selected video sources. Legacy
+        // auto-capture tests need this event even when not exercising it.
+        onMessage: event("message"),
         sendNativeMessage: async (host, message) => {
           actions.push(["native", host, message.action, message.url]);
           if (reply instanceof Error) throw reply;
