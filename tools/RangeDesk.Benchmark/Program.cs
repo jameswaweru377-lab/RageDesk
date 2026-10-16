@@ -3,6 +3,13 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using RangeDesk.Core;
 
+if (args.Length > 0 && args[0] == "controlled")
+{
+    string outFolder = args.Length > 1 ? args[1] : Path.Combine("artifact","controlled-benchmark");
+    await ControlledLoopbackBenchmark.RunAsync(outFolder);
+    return;
+}
+
 // Opt-in CI-only real HTTPS measurements, not an automated performance claim.
 // Cloudflare's speed test API explicitly provides short download test bodies.
 // All files and results live in the temporary GitHub Actions runner.

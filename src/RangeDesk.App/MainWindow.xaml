@@ -831,10 +831,12 @@
                              TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" FontSize="10" Margin="0,0,0,16"/>
                   <TextBlock Text="Post-download action" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
                   <ComboBox x:Name="PostDownloadChoice" Style="{StaticResource V5Combo}" SelectedIndex="0"
-                            Width="210" HorizontalAlignment="Left">
-                    <ComboBoxItem Content="None (safe default)"/>
+                            Width="280" HorizontalAlignment="Left">
+                    <ComboBoxItem Content="None (safe default)" Tag="None"/>
+                    <ComboBoxItem Content="Play Windows notification sound" Tag="PlayNotificationSound"/>
+                    <ComboBoxItem Content="Open containing folder in Explorer" Tag="OpenContainingFolder"/>
                   </ComboBox>
-                  <TextBlock Text="No applications, scripts, or files will be executed automatically after downloading."
+                  <TextBlock Text="Runs only after this download completes successfully. This choice is saved with the download. No downloaded files, applications, or scripts are automatically executed."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,13,0,0"/>
                 </StackPanel>
               </TabItem>
