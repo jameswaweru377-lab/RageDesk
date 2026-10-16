@@ -775,7 +775,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             if (!Clipboard.ContainsText()) return;
             var text = Clipboard.GetText().Trim();
-            if (!DownloadEngine.IsAllowedUrl(text))
+            if (text.Contains('\n') || text.Contains('\r'))
+            {
+                try { BatchDownloadPlanner.Plan(text, _preferences.DownloadFolder, Downloads.Select(d => d.Destination)); }
+                catch (Exception ex) { FormError.Text = ex.Message; return; }
+            }
+            else if (!DownloadEngine.IsAllowedUrl(text))
             {
                 FormError.Text = "Clipboard does not contain a direct HTTP or HTTPS URL.";
                 return;
@@ -830,6 +835,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         try
         {
+            if (NewUrl.Text.Contains('\n') || NewUrl.Text.Contains('\r'))
+            {
+                AddBatchDownloads();
+                return;
+            }
             string category = (NewCategory.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Other";
             int connections = ConnectionChoice?.SelectedItem is ComboBoxItem option &&
                               int.TryParse(option.Tag?.ToString(), out var parsed)
@@ -887,6 +897,51 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             ScheduleDownload.IsChecked = false;
         }
         catch (Exception ex) { FormError.Text = ex.Message; }
+    }
+
+    /// <summary>
+    /// All items are validated before any are added. The full original URLs stay
+    /// in the local catalog only; the UI displays source hostnames.
+    /// </summary>
+    private void AddBatchDownloads()
+    {
+        if (ScheduleDownload.IsChecked == true)
+            throw new ArgumentException("Schedule a single download at a time; batch scheduling is not yet supported.");
+        if (VerifyChecksum.IsChecked == true)
+            throw new ArgumentException("An expected SHA-256 applies to one file. Disable it for a batch.");
+        string folder = Path.GetDirectoryName(NewDestination.Text);
+        if (string.IsNullOrWhiteSpace(folder)) folder = _preferences.DownloadFolder;
+        var candidates = BatchDownloadPlanner.Plan(NewUrl.Text, folder,
+            Downloads.Select(d => d.Destination));
+        string category = (NewCategory.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Other";
+        int connections = GetNumericChoice(ConnectionChoice, 8);
+        int bandwidth = GetNumericChoice(BandwidthChoice, 0);
+        bool queued = QueueOnly.IsChecked == true;
+        var items = candidates.Select(candidate =>
+            _engine.Create(candidate.Url, candidate.Destination,
+                category == "Other" ? DownloadCategory.Guess(Path.GetFileName(candidate.Destination)) : category,
+                NewLabels.Text.Trim(), connections, bandwidth, adaptive: AdaptiveWorkers.IsChecked == true))
+            .ToArray();
+        ShowSubmittedDownload(queued);
+        foreach (var item in items) Track(item);
+        SaveCatalog();
+        int started = 0;
+        if (!queued)
+            foreach (var item in items)
+                if (StartManually(item)) started++;
+        SelectedDownload = items.LastOrDefault();
+        AddOverlay.Visibility = Visibility.Collapsed;
+        StatusMessage.Text = queued
+            ? $"Added {items.Length} distinct links to the queue."
+            : $"Added {items.Length} distinct links; started {started}. Other transfers may wait for available slots.";
+        NewUrl.Clear();
+        NewDestination.Clear();
+        NewCategory.SelectedIndex = 0;
+        NewLabels.Clear();
+        QueueOnly.IsChecked = !_preferences.StartImmediately;
+        StartAutomatically.IsChecked = _preferences.StartImmediately;
+        AdaptiveWorkers.IsChecked = false;
+        ScheduleDownload.IsChecked = false;
     }
 
     private IReadOnlyList<DownloadEntry> ActionSelection()
