@@ -57,7 +57,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
 
-    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false);
+    private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None);
 
     public MainWindow()
     {
@@ -252,7 +252,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     var item = _engine.Create(record.Url, record.Destination,
                         record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1,
                         record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0,
-                        record.ExpectedSha256, record.Adaptive);
+                        record.ExpectedSha256, record.Adaptive, record.PostDownloadAction);
                     if (File.Exists(item.Destination))
                         item.Report(DownloadStatus.Completed,
                             new FileInfo(item.Destination).Length, new FileInfo(item.Destination).Length);
@@ -275,7 +275,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         try
         {
             Directory.CreateDirectory(Path.GetDirectoryName(_catalogFile)!);
-            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256, d.Adaptive));
+            var saved = Downloads.Select(d => new SavedDownload(d.Url, d.Destination, d.Category, d.Labels, d.RequestedConnections, d.BandwidthKiBps, d.ExpectedSha256, d.Adaptive, d.PostDownloadAction));
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
             File.Move(temp, _catalogFile, true);
@@ -304,7 +304,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                         StatusMessage.Text = "Download failed: " + item.Name +
                             ". Select it to inspect the error and resume.";
                     else if (item.Status == DownloadStatus.Completed)
+                    {
                         StatusMessage.Text = "Download completed: " + item.Name;
+                        ExecutePostDownloadAction(item, old);
+                    }
                     RefreshFilter();
                 }
             }
@@ -313,6 +316,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         };
         if (SelectedDownload is null) SelectedDownload = item;
         RefreshFilter();
+    }
+
+    private static SafePostDownloadAction SelectedPostDownloadAction(ComboBox selector) =>
+        Enum.Parse<SafePostDownloadAction>(
+            (selector.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "None");
+
+    private void ExecutePostDownloadAction(DownloadEntry item, DownloadStatus previous)
+    {
+        if (!PostDownloadActionPolicy.ShouldRun(item.PostDownloadAction,
+                previous, item.Status, File.Exists(item.Destination))) return;
+        try
+        {
+            switch (item.PostDownloadAction)
+            {
+                case SafePostDownloadAction.PlayNotificationSound:
+                    System.Media.SystemSounds.Asterisk.Play();
+                    break;
+                case SafePostDownloadAction.OpenContainingFolder:
+                    string? folder = Path.GetDirectoryName(item.Destination);
+                    if (folder is not null && Directory.Exists(folder))
+                        Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage.Text = "Downloaded " + item.Name +
+                ", but its optional post-download action failed: " + ex.GetType().Name;
+        }
     }
 
     private bool MatchesFilters(object candidate)
@@ -1069,6 +1101,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         FormError.Text = "";
         ApplyNewDownloadDefaults();
         ScheduleDownload.IsChecked = false;
+        PostDownloadChoice.SelectedIndex = 0;
         ScheduledRecurrence.SelectedIndex = 0;
         var localFuture = DateTime.Now.AddMinutes(30);
         ScheduledDate.SelectedDate = localFuture.Date;
@@ -1236,7 +1269,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 throw new IOException("That destination is already tracked. Choose another filename.");
             var item = _engine.Create(NewUrl.Text.Trim(), decision.Destination, decision.Category,
                 decision.Labels, connections, bandwidth, checksum,
-                AdaptiveWorkers.IsChecked == true);
+                AdaptiveWorkers.IsChecked == true, SelectedPostDownloadAction(PostDownloadChoice));
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
             ScheduledDownload? schedule = null;
@@ -1278,6 +1311,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             NewChecksum.Clear();
             AdaptiveWorkers.IsChecked = false;
             ScheduleDownload.IsChecked = false;
+            PostDownloadChoice.SelectedIndex = 0;
         }
         catch (Exception ex) { FormError.Text = ex.Message; }
     }
@@ -1306,7 +1340,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 category == "Other" ? DownloadCategory.Guess(Path.GetFileName(candidate.Destination)) : category,
                 NewLabels.Text.Trim(), _preferences.DownloadFolder, _automationRules);
             return _engine.Create(candidate.Url, decision.Destination, decision.Category,
-                decision.Labels, connections, bandwidth, adaptive: AdaptiveWorkers.IsChecked == true);
+                decision.Labels, connections, bandwidth,
+                adaptive: AdaptiveWorkers.IsChecked == true,
+                postDownloadAction: SelectedPostDownloadAction(PostDownloadChoice));
         }).ToArray();
         if (items.Select(x => x.Destination).Distinct(StringComparer.OrdinalIgnoreCase).Count() != items.Length ||
             items.Any(x => Downloads.Any(d => string.Equals(d.Destination, x.Destination,
@@ -1335,6 +1371,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StartAutomatically.IsChecked = _preferences.StartImmediately;
         AdaptiveWorkers.IsChecked = false;
         ScheduleDownload.IsChecked = false;
+        PostDownloadChoice.SelectedIndex = 0;
     }
 
     private IReadOnlyList<DownloadEntry> ActionSelection()
