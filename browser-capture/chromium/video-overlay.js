@@ -63,6 +63,52 @@
   let mediaLoading = false;
   let mediaError = "";
   let rightsConfirmed = false;
+  let mediaJobId = null;
+  let mediaJobUrl = "";
+  let mediaJobTimer = null;
+  let mediaJobDone = false;
+
+  function jobStatusText(reply) {
+    const stage = String(reply?.state || "");
+    const safe = typeof reply?.message === "string" ? reply.message.slice(0, 200) : "Checking media status…";
+    const downloaded = reply?.downloadedBytes;
+    const total = reply?.totalBytes;
+    if (stage !== "downloading" || !Number.isSafeInteger(downloaded) || downloaded < 0)
+      return safe;
+    const bytes = n => (n / 1048576).toFixed(1) + " MB";
+    if (Number.isSafeInteger(total) && total > 0)
+      return safe + " " + bytes(downloaded) + " / " + (reply.estimated ? "~" : "") + bytes(total) +
+        (!reply.estimated ? " (" + Math.min(100, Math.floor(downloaded * 100 / total)) + "% of current stream)" : "");
+    return safe + " " + bytes(downloaded) + " received.";
+  }
+
+  function pollJob() {
+    if (mediaJobTimer !== null) clearTimeout(mediaJobTimer);
+    mediaJobTimer = null;
+    if (!expanded || mediaJobDone || !mediaJobId) return;
+    if (mediaJobUrl !== currentPageUrl()) {
+      mediaJobId = null; // The job still runs in RangeDesk; never associate it with another page.
+      return;
+    }
+    mediaJobTimer = setTimeout(async () => {
+      try {
+        const result = await chrome.runtime.sendMessage({
+          action: "rangedesk_media_status", url: mediaJobUrl, jobId: mediaJobId
+        });
+        if (!expanded || mediaJobUrl !== currentPageUrl()) return;
+        if (result?.accepted && result?.jobId === mediaJobId) {
+          status.textContent = jobStatusText(result);
+          mediaJobDone = ["completed", "failed", "cancelled"].includes(result.state);
+        } else {
+          status.textContent = typeof result?.message === "string"
+            ? result.message : "Checking RangeDesk connection; the download may still be running.";
+        }
+      } catch {
+        if (expanded) status.textContent = "RangeDesk connection interrupted. Check the Media tab.";
+      }
+      if (!mediaJobDone) pollJob();
+    }, 1500);
+  }
 
   function currentPageUrl() {
     return typeof document.URL === "string" ? document.URL : document.baseURI;
@@ -86,7 +132,8 @@
       // Drop stale results when navigation occurs while yt-dlp is probing.
       if (currentPageUrl() !== url) return;
       if (!result?.accepted || !Array.isArray(result.formats)) {
-        mediaError = "Could not analyze this page. Check yt-dlp, connection and video permissions.";
+        mediaError = typeof result?.message === "string" && result.message.length <= 240
+          ? result.message : "Could not analyze this page. Check RangeDesk Media Tools.";
         return;
       }
       mediaFormats = result.formats.filter(f =>
@@ -121,9 +168,20 @@
         action: "rangedesk_media_download", url: currentPageUrl(),
         formatId: format.id, rightsConfirmed: true
       });
-      status.textContent = result?.accepted
-        ? "Queued in RangeDesk. View its Media tab for progress."
-        : "Download not queued. Open RangeDesk and check the MediaTools setup.";
+      if (result?.accepted) {
+        if (typeof result.jobId === "string" && /^[a-f0-9]{32}$/i.test(result.jobId)) {
+          mediaJobId = result.jobId;
+          mediaJobUrl = currentPageUrl();
+          mediaJobDone = false;
+          status.textContent = "Selection received by RangeDesk. Waiting for download to start…";
+          pollJob();
+        } else {
+          status.textContent = "Selection received by RangeDesk. Check its Media tab for progress.";
+        }
+      } else {
+        status.textContent = typeof result?.message === "string"
+          ? result.message : "Download not queued. Check RangeDesk Media Tools.";
+      }
     } catch {
       status.textContent = "RangeDesk could not accept this video selection.";
     } finally {
@@ -349,7 +407,16 @@
         rightsConfirmed = false;
       }
       renderChoices();
+      if (mediaJobId && !mediaJobDone) {
+        status.textContent = "Checking current RangeDesk download…";
+        pollJob();
+      } else if (mediaJobId && mediaJobDone) {
+        status.textContent = "Check the RangeDesk Media tab for the final job result.";
+      }
       void analyzePageQualities();
+    } else if (mediaJobTimer !== null) {
+      clearTimeout(mediaJobTimer);
+      mediaJobTimer = null;
     }
   });
   panel.addEventListener("keydown", event => {

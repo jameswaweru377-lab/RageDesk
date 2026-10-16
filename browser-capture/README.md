@@ -327,3 +327,25 @@ native manifest registration, permissions, MV3 service-worker lifetime,
 completed-before-pause races, redirects, single-use/authenticated links,
 closed app and restart behavior, session lock and download integrity.
 This is a development preview, not universal production-certified capture.
+
+## Chrome v0.9: truthful media job status and YouTube runtime checks
+
+- The in-player button still appears automatically on eligible HTML5 video players.
+  Opening it performs the user-requested yt-dlp probe; selecting a reported format
+  and confirming rights submits a download to RangeDesk without copying a link.
+- After acceptance Chrome receives a local job ID and can ask RangeDesk for the
+  latest stage: queued, validating, downloading, merging, completed or failed.
+  "Queued" is not described as proof that a transfer started.
+- For YouTube, RangeDesk looks for Deno 2.3+ first in `MediaTools/deno.exe`,
+  then on Windows PATH. yt-dlp uses that exact runtime. Install an official
+  yt-dlp.exe with bundled EJS solver scripts; no remote components are downloaded.
+- Errors are classified into structured codes (missing/outdated runtime, site
+  restrictions, analyzer timeouts and tool failures). No signed stream URLs or
+  browser credentials are surfaced to the web page.
+- Progress reports only real bytes for the current transfer; percentages appear
+  only when a non-estimated stream total is available. FFmpeg merging is a
+  separate stage. Completed output must exist and be nonempty.
+- RangeDesk must be running to accept new selected media downloads. Status
+  snapshots are kept under the local user's RangeDesk app-data directory.
+  This version does not support DRM bypasses, hidden authentication/cookies,
+  automatic downloading without user approval or guaranteed YouTube availability.

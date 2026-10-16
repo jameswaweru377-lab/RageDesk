@@ -136,10 +136,14 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
         formatId: message.formatId, rightsConfirmed: true
       }).then(result => reply({
         accepted: result?.accepted === true,
-        message: result?.accepted ? "Selected quality queued in RangeDesk." :
-          "Open RangeDesk and verify the MediaTools setup."
-      })).catch(() => reply({ accepted: false,
-        message: "Cannot reach RangeDesk's native host." }));
+        jobId: typeof result?.jobId === "string" && /^[a-f0-9]{32}$/i.test(result.jobId)
+          ? result.jobId : null,
+        state: result?.accepted ? "queued" : "failed",
+        errorCode: result?.errorCode || null,
+        message: typeof result?.message === "string" && result.message.length <= 240
+          ? result.message : "RangeDesk could not queue this download."
+      })).catch(() => reply({ accepted: false, errorCode: "NATIVE_HOST_UNAVAILABLE",
+        message: "Cannot reach RangeDesk. Open the app and check its Chrome connection." }));
       return true;
     }
     void api.runtime.sendNativeMessage(HOST, {
@@ -147,7 +151,9 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
     }).then(result => {
       if (result?.accepted !== true || !Array.isArray(result.formats)) {
         reply({ accepted: false, formats: [],
-          message: "Media analysis unavailable. Check yt-dlp and RangeDesk." });
+          errorCode: typeof result?.errorCode === "string" ? result.errorCode : "PROBE_FAILED",
+          message: typeof result?.message === "string" && result.message.length <= 240
+            ? result.message : "RangeDesk could not analyze this video." });
         return;
       }
       const formats = result.formats.filter(f =>
@@ -161,7 +167,31 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
       reply({ accepted: formats.length > 0, formats,
         message: formats.length ? "" : "No usable formats found for this page." });
     }).catch(() => reply({ accepted: false, formats: [],
-      message: "RangeDesk analysis failed. Check its native connection." }));
+      errorCode: "NATIVE_HOST_UNAVAILABLE",
+      message: "Cannot reach RangeDesk's native media analyzer." }));
+    return true;
+  }
+  if (message?.action === "rangedesk_media_status") {
+    if (!allowedPageAction(message, sender) ||
+        typeof message.jobId !== "string" || !/^[a-f0-9]{32}$/i.test(message.jobId)) {
+      reply({ accepted: false, errorCode: "INVALID_STATUS_REQUEST" });
+      return false;
+    }
+    void api.runtime.sendNativeMessage(HOST, {
+      action: "media_status", jobId: message.jobId
+    }).then(result => reply({
+      accepted: result?.accepted === true,
+      jobId: result?.jobId === message.jobId ? result.jobId : null,
+      state: typeof result?.state === "string" ? result.state : null,
+      message: typeof result?.message === "string" && result.message.length <= 240
+        ? result.message : "Checking download status…",
+      downloadedBytes: Number.isSafeInteger(result?.downloadedBytes) && result.downloadedBytes >= 0
+        ? result.downloadedBytes : null,
+      totalBytes: Number.isSafeInteger(result?.totalBytes) && result.totalBytes > 0
+        ? result.totalBytes : null,
+      estimated: result?.estimated === true
+    })).catch(() => reply({ accepted: false, errorCode: "NATIVE_HOST_UNAVAILABLE",
+      message: "RangeDesk connection interrupted. The download may still be running." }));
     return true;
   }
   if (message?.action === "rangedesk_media_page") {

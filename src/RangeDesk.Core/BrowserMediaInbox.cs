@@ -8,7 +8,7 @@ namespace RangeDesk.Core;
 /// verifies that the chosen format really exists before downloading.
 /// No cookies, authentication headers or commands are accepted.
 /// </summary>
-public sealed record BrowserMediaRequest(string Action, string Url, string FormatId)
+public sealed record BrowserMediaRequest(string Action, string Url, string FormatId, string? JobId = null)
 {
     public void Validate()
     {
@@ -16,7 +16,8 @@ public sealed record BrowserMediaRequest(string Action, string Url, string Forma
             Url is null || Url.Length > 4096 ||
             !OptionalMediaExtractor.IsPageCandidate(Url) ||
             string.IsNullOrWhiteSpace(FormatId) || FormatId.Length > 64 ||
-            !FormatId.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.'))
+            !FormatId.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-' or '.') ||
+            (JobId is not null && !Guid.TryParseExact(JobId, "N", out _)))
             throw new ArgumentException("Invalid user-selected media download request.");
     }
 }

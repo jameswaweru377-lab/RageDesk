@@ -48,11 +48,34 @@ try
             throw new ArgumentException("Explicit download permission is required.");
         string url = request.RootElement.GetProperty("url").GetString() ?? "";
         string formatId = request.RootElement.GetProperty("formatId").GetString() ?? "";
-        var item = new BrowserMediaRequest("media_download", url, formatId);
+        string jobId = Guid.NewGuid().ToString("N");
+        var item = new BrowserMediaRequest("media_download", url, formatId, jobId);
         item.Validate();
-        BrowserMediaInbox.Enqueue(BrowserMediaInbox.DefaultDirectory,
-            JsonSerializer.Serialize(item));
-        WriteResponse(true, "Queued the selected quality in RangeDesk.");
+        BrowserMediaJobState.Update(jobId, "queued", "Selection received. Waiting for RangeDesk.");
+        try
+        {
+            BrowserMediaInbox.Enqueue(BrowserMediaInbox.DefaultDirectory,
+                JsonSerializer.Serialize(item));
+        }
+        catch
+        {
+            BrowserMediaJobState.TryUpdate(jobId, "failed", "Media request could not be queued.");
+            throw;
+        }
+        WriteResponseObject(new { accepted = true, jobId, state = "queued",
+            message = "Selection received by RangeDesk." });
+    }
+    else if (action == "media_status")
+    {
+        string jobId = request.RootElement.GetProperty("jobId").GetString() ?? "";
+        var snapshot = BrowserMediaJobState.Read(jobId);
+        if (snapshot is null)
+            WriteResponseObject(new { accepted = false, errorCode = "JOB_NOT_FOUND",
+                message = "Media job status is not available." });
+        else
+            WriteResponseObject(new { accepted = true, jobId, state = snapshot.State,
+                message = snapshot.Message, downloadedBytes = snapshot.DownloadedBytes,
+                totalBytes = snapshot.TotalBytes, estimated = snapshot.Estimated });
     }
     else if (action == "capture_download")
     {
@@ -73,10 +96,15 @@ try
         WriteResponse(true, "Sent to RangeDesk for confirmation. Open RangeDesk to review the link.");
     }
 }
+catch (MediaAnalyzerException ex)
+{
+    WriteResponseObject(new { accepted = false, errorCode = ex.Code, message = ex.Message });
+}
 catch (Exception)
 {
     // Do not leak URLs, tokens or native-host protocol text into diagnostics.
-    WriteResponse(false, "RangeDesk could not accept this link. Check that the application is installed.");
+    WriteResponseObject(new { accepted = false, errorCode = "NATIVE_REQUEST_FAILED",
+        message = "RangeDesk could not complete this request. Check the application and MediaTools." });
 }
 
 static void WriteResponse(bool accepted, string message) =>

@@ -1194,6 +1194,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         MediaFormatChoice.ItemsSource = null;
         MediaStatus.Text = "Checking the selected video quality…";
         StatusMessage.Text = "Chrome video format received. Verifying before download.";
+        BrowserMediaJobState.TryUpdate(request.JobId, "validating", "Checking selected video quality…");
         MediaAnalyzeButton.IsEnabled = false;
         MediaDownloadButton.IsEnabled = false;
         using var cancel = new CancellationTokenSource();
@@ -1215,6 +1216,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             MediaFormatChoice.ItemsSource = probe.Formats;
             MediaFormatChoice.SelectedItem = selected;
             MediaRightsConfirm.IsChecked = true; // Confirmed in the Chrome UI.
+            BrowserMediaJobState.TryUpdate(request.JobId, "downloading", "Starting the selected video download…");
             await OptionalMediaExtractor.DownloadAsync(
                 AppContext.BaseDirectory, request.Url, selected,
                 _preferences.DownloadFolder,
@@ -1222,17 +1224,27 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 {
                     MediaStatus.Text = message;
                     StatusMessage.Text = message;
-                }), cancel.Token);
+                    if (message.StartsWith("Merging", StringComparison.Ordinal))
+                        BrowserMediaJobState.TryUpdate(request.JobId, "merging", message);
+                }), cancel.Token,
+                progress => BrowserMediaJobState.TryUpdate(request.JobId, "downloading",
+                    "Downloading selected video/audio stream…",
+                    progress.DownloadedBytes, progress.TotalBytes, progress.Estimated));
+            BrowserMediaJobState.TryUpdate(request.JobId, "completed",
+                "Download completed and output file verified.");
         }
         catch (OperationCanceledException)
         {
             MediaStatus.Text = "Browser media download stopped.";
             StatusMessage.Text = MediaStatus.Text;
+            BrowserMediaJobState.TryUpdate(request.JobId, "cancelled", MediaStatus.Text);
         }
         catch (Exception ex)
         {
             MediaStatus.Text = "Browser media download failed: " + ex.Message;
             StatusMessage.Text = MediaStatus.Text;
+            BrowserMediaJobState.TryUpdate(request.JobId, "failed",
+                ex is MediaAnalyzerException ? ex.Message : "Media download failed. Open RangeDesk for details.");
         }
         finally
         {

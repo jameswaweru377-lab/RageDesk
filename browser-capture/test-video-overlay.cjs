@@ -440,3 +440,49 @@ test("blob player shows observed HLS in the overlay only after tab opt-in", asyn
   assert.equal(queued[0].formatId, "hd1080");
   assert.equal(queued[0].rightsConfirmed, true);
 });
+
+test("media probe exposes a structured safe analyzer error", async () => {
+  const bg = chromeBackground({ accepted: false, errorCode: "JS_RUNTIME_MISSING",
+    message: "Deno 2.3 or newer is required for YouTube." });
+  const result = await bg.message({ action: "rangedesk_media_probe", url: bg.sender.url });
+  assert.equal(result.reply.accepted, false);
+  assert.equal(result.reply.errorCode, "JS_RUNTIME_MISSING");
+  assert.match(result.reply.message, /Deno/);
+  assert.deepEqual(result.reply.formats, []);
+});
+
+test("queued media acceptance returns a job ID, never completion", async () => {
+  const jobId = "0123456789abcdef0123456789abcdef";
+  const bg = chromeBackground({ accepted: true, jobId, state: "queued",
+    message: "Selection received by RangeDesk." });
+  const result = await bg.message({ action: "rangedesk_media_download",
+    url: bg.sender.url, formatId: "hd1080", rightsConfirmed: true });
+  assert.equal(result.reply.accepted, true);
+  assert.equal(result.reply.jobId, jobId);
+  assert.equal(result.reply.state, "queued");
+  assert.ok(!/complete|started/i.test(result.reply.message));
+});
+
+test("media status polling validates sender page and job ID", async () => {
+  const jobId = "0123456789abcdef0123456789abcdef";
+  const bg = chromeBackground({ accepted: true, jobId, state: "downloading",
+    downloadedBytes: 1048576, totalBytes: null, estimated: false,
+    message: "Downloading selected stream" });
+  const valid = await bg.message({
+    action: "rangedesk_media_status", url: bg.sender.url, jobId
+  });
+  assert.equal(valid.reply.accepted, true);
+  assert.equal(valid.reply.state, "downloading");
+  assert.equal(valid.reply.downloadedBytes, 1048576);
+  assert.equal(valid.reply.totalBytes, null);
+  assert.deepEqual(Object.keys(bg.sent[0].message), ["action", "jobId"]);
+  const invalid = await bg.message({
+    action: "rangedesk_media_status", url: "https://other.test/watch", jobId
+  });
+  assert.equal(invalid.reply.accepted, false);
+  const fake = await bg.message({
+    action: "rangedesk_media_status", url: bg.sender.url, jobId: "../../hello"
+  });
+  assert.equal(fake.reply.accepted, false);
+  assert.equal(bg.sent.length, 1);
+});
