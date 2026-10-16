@@ -11,7 +11,7 @@ namespace RangeDesk.Core;
 /// a helper starts the new non-overlapping suffix. V1 segment journals remain
 /// handled by ParallelRangeTransfer, never migrated in place.
 /// </summary>
-public sealed class AdaptiveRangeTransfer(HttpClient http)
+public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdleTimeout = null)
 {
     private const long MinimumPieceLength = 512 * 1024;
     private const int MaximumPieces = 512;
@@ -217,8 +217,8 @@ public sealed class AdaptiveRangeTransfer(HttpClient http)
             while (piece.Downloaded < piece.To - piece.From + 1)
             {
                 long remaining = piece.To - piece.From + 1 - piece.Downloaded;
-                int count = await input.ReadAsync(buffer.AsMemory(0,
-                    (int)Math.Min(buffer.Length, remaining)), allStop.Token);
+                int count = await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0,
+                    (int)Math.Min(buffer.Length, remaining)), allStop.Token, networkIdleTimeout);
                 if (count == 0)
                     throw new EndOfStreamException($"Adaptive range {piece.Id} ended early.");
                 await output.WriteAsync(buffer.AsMemory(0, count), allStop.Token);
@@ -231,7 +231,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http)
             // Split donors deliberately end early; fully downloaded original
             // ranges must reject extra content.
             if (piece.To == lastAtRequest &&
-                await input.ReadAsync(buffer.AsMemory(0, 1), allStop.Token) != 0)
+                await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, 1), allStop.Token, networkIdleTimeout) != 0)
                 throw new InvalidDataException("Server returned bytes beyond its declared range.");
 
             await output.FlushAsync(allStop.Token);
@@ -368,9 +368,10 @@ public sealed class AdaptiveRangeTransfer(HttpClient http)
             HttpResponseMessage response;
             try
             {
-                response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token);
+                response = await TransferInactivityTimeout.SendAsync(http, request, token, networkIdleTimeout);
             }
-            catch (HttpRequestException) when (attempt < HttpRetryPolicy.MaximumAttempts)
+            catch (Exception ex) when ((ex is HttpRequestException or TimeoutException) &&
+                attempt < HttpRetryPolicy.MaximumAttempts && !token.IsCancellationRequested)
             {
                 await Task.Delay(HttpRetryPolicy.Delay(attempt, null), token);
                 continue;
