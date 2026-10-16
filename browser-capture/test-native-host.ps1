@@ -41,6 +41,8 @@ function Invoke-NativeMessage([string]$Payload) {
 }
 $good = Invoke-NativeMessage '{"action":"add_link","url":"https://example.com/manual-download.zip"}'
 if (-not $good.accepted) { throw 'Native host rejected valid link' }
+$ping = Invoke-NativeMessage '{"action":"ping"}'
+if (-not $ping.accepted) { throw 'Native host connectivity ping failed' }
 $bad = Invoke-NativeMessage '{"action":"read_cookies","url":"https://example.com/"}'
 if ($bad.accepted) { throw 'Native host accepted forbidden action' }
 $autoWithoutGui = Invoke-NativeMessage '{"action":"capture_download","url":"https://example.com/installer.zip"}'

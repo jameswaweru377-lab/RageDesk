@@ -1053,6 +1053,47 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
+            <TabItem Header="Chrome browser" x:Name="SettingsChromeTab">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10,16,10,16">
+                  <TextBlock Text="Connect Google Chrome" FontWeight="SemiBold" FontSize="15"/>
+                  <TextBlock Text="Free local development extension. No Chrome Web Store account or PowerShell commands needed."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,16"/>
+                  <Border Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+                          BorderThickness="1" CornerRadius="9" Padding="13" Margin="0,0,0,16">
+                    <StackPanel>
+                      <TextBlock Text="Step 1 — Load the extension into Chrome" FontWeight="SemiBold" FontSize="13"/>
+                      <TextBlock Text="Open Chrome's Extensions page, enable Developer mode, click Load unpacked, and select the BrowserCapture/chromium folder packaged with RangeDesk."
+                                 Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,11"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Content="Open Chrome extensions" Click="OpenChromeExtensions_Click" Style="{StaticResource V5ToolbarButton}" Padding="11,8" Margin="0,0,8,0"/>
+                        <Button Content="Open extension folder" Click="OpenChromeExtensionFolder_Click" Style="{StaticResource V5ToolbarButton}" Padding="11,8"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <Border Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+                          BorderThickness="1" CornerRadius="9" Padding="13">
+                    <StackPanel>
+                      <TextBlock Text="Step 2 — Connect Chrome to RangeDesk" FontWeight="SemiBold" FontSize="13"/>
+                      <TextBlock Text="This registers the matching native messaging host for your Windows account only. It does not install extensions or enable capture without your action."
+                                 Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,10"/>
+                      <TextBlock x:Name="SettingsChromeStatus" Foreground="{StaticResource V5TextBrush}"
+                                 Text="Checking Chrome connection..." TextWrapping="Wrap" Margin="0,0,0,10"/>
+                      <StackPanel Orientation="Horizontal">
+                        <Button Content="Connect Chrome" Click="ConnectChrome_Click" Style="{StaticResource V5PrimaryButton}" Padding="14,8" Margin="0,0,9,0"/>
+                        <Button Content="Check registration" Click="CheckChrome_Click" Style="{StaticResource V5ToolbarButton}" Padding="11,8" Margin="0,0,9,0"/>
+                        <Button Content="Disconnect" Click="DisconnectChrome_Click" Style="{StaticResource V5ToolbarButton}" Padding="11,8"/>
+                      </StackPanel>
+                    </StackPanel>
+                  </Border>
+                  <TextBlock Text="Step 3 — Enable and verify capture" FontWeight="SemiBold" FontSize="13" Margin="0,18,0,6"/>
+                  <TextBlock Text="Restart Chrome, pin the RangeDesk extension and click its icon to display ON. Right-click its toolbar icon and choose Check RangeDesk connection to test the actual browser-to-host link."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap"/>
+                  <TextBlock Text="Automatic capture is OFF by default. Protected or unsupported files stay in Chrome. A registered host is not proof that Chrome has loaded the extension."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,12,0,0"/>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
             <TabItem Header="Network">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">

@@ -1698,9 +1698,74 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         catch (Exception ex) { AutomationRuleError.Text = ex.Message; }
     }
 
+    private void RefreshChromeRegistration()
+    {
+        try
+        {
+            SettingsChromeStatus.Text = ChromeIntegrationSetup.IsRegistered(AppContext.BaseDirectory)
+                ? "Native host registered for this RangeDesk installation. Test the actual Chrome connection from the extension toolbar."
+                : "Not connected. Load the Chrome extension, then click Connect Chrome below.";
+        }
+        catch (Exception ex)
+        {
+            SettingsChromeStatus.Text = "Could not check Chrome registration: " + ex.GetType().Name;
+        }
+    }
+
+    private void OpenChromeExtensions_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("chrome.exe", ChromeIntegrationSetup.ChromeExtensionsPage)
+                { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            SettingsChromeStatus.Text = "Chrome could not be opened. Install Chrome and open chrome://extensions manually. " +
+                ex.GetType().Name;
+        }
+    }
+
+    private void OpenChromeExtensionFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folder = ChromeIntegrationSetup.ExtensionFolder(AppContext.BaseDirectory);
+            if (!Directory.Exists(folder))
+                throw new DirectoryNotFoundException("The Chrome extension folder is missing from this RangeDesk preview.");
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{folder}\"")
+                { UseShellExecute = true });
+        }
+        catch (Exception ex) { SettingsChromeStatus.Text = "Could not open extension folder: " + ex.Message; }
+    }
+
+    private void ConnectChrome_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            ChromeIntegrationSetup.Register(AppContext.BaseDirectory);
+            RefreshChromeRegistration();
+        }
+        catch (Exception ex) { SettingsChromeStatus.Text = "Chrome connection failed: " + ex.Message; }
+    }
+
+    private void CheckChrome_Click(object sender, RoutedEventArgs e) => RefreshChromeRegistration();
+
+    private void DisconnectChrome_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (!ChromeIntegrationSetup.Disconnect())
+                SettingsChromeStatus.Text = "No RangeDesk Chrome registration was found for this Windows account.";
+            else RefreshChromeRegistration();
+        }
+        catch (Exception ex) { SettingsChromeStatus.Text = "Chrome disconnect failed: " + ex.Message; }
+    }
+
     private void Settings_Click(object sender, RoutedEventArgs e)
     {
         PopulateSettings(_preferences);
+        RefreshChromeRegistration();
         SettingsOverlay.Visibility = Visibility.Visible;
         SettingsDownloadFolder.Focus();
     }

@@ -6,6 +6,22 @@ const fs = require("node:fs");
 const vm = require("node:vm");
 const path = require("node:path");
 
+const crypto = require("node:crypto");
+
+// Chrome's manifest key must resolve to the same pinned ID that the Windows
+// native-messaging registration uses. This prevents silent broken installs.
+test("Chromium unpacked extension keeps its approved development ID", () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(__dirname, "chromium", "manifest.json"), "utf8"));
+  assert.equal(manifest.manifest_version, 3);
+  assert.ok(manifest.key);
+  const digest = crypto.createHash("sha256").update(Buffer.from(manifest.key, "base64")).digest("hex").slice(0, 32);
+  const id = [...digest].map(c => String.fromCharCode("a".charCodeAt(0) + parseInt(c, 16))).join("");
+  const setupCode = fs.readFileSync(path.join(__dirname, "..", "src", "RangeDesk.Core", "ChromeIntegrationSetup.cs"), "utf8");
+  const defined = setupCode.match(/public const string ExtensionId = "([a-p]{32})"/);
+  assert.ok(defined, "Chrome integration constant missing");
+  assert.equal(id, defined[1]);
+});
+
 for (const browserFamily of ["chromium", "firefox"]) {
   function build(reply = { accepted: true }) {
     const handlers = {};
@@ -105,6 +121,23 @@ for (const browserFamily of ["chromium", "firefox"]) {
     await ext.deliver();
     assert.equal(ext.actions.length, 0);
   });
+
+  if (browserFamily === "chromium") {
+    test("Chrome: native host ping responds without sending a download URL", async () => {
+      const ext = build({ accepted: true });
+      await ext.handlers.menu({ menuItemId: "rangedesk-check" });
+      assert.deepEqual(ext.actions.map(a => a[0]), ["native"]);
+      assert.equal(ext.actions[0][2], "ping");
+      assert.equal(ext.actions[0][3], undefined);
+    });
+
+    test("Chrome: missing native host ping fails without browser takeover", async () => {
+      const ext = build(new Error("Native messaging is unavailable"));
+      await ext.handlers.menu({ menuItemId: "rangedesk-check" });
+      assert.equal(ext.actions[0][2], "ping");
+      assert.ok(!ext.actions.some(a => a[0] === "cancel" || a[0] === "pause"));
+    });
+  }
 
   test(browserFamily + ": manual right-click remains available", async () => {
     const ext = build();
