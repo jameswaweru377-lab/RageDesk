@@ -147,6 +147,9 @@
                 </Border>
               </Grid>
             </Button>
+            <StackPanel x:Name="CustomSitesPanel"/>
+            <Button x:Name="AddSitePresetButton" Content="+ Add site preset" Click="AddSitePreset_Click"
+                    Style="{StaticResource V5NavButton}" ToolTip="Create a site filter by host name"/>
             <Button IsEnabled="False" Style="{StaticResource V5NavButton}" ToolTip="Automation"><Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><StackPanel Orientation="Horizontal" VerticalAlignment="Center"><TextBlock Text="&#xE713;" FontFamily="{StaticResource V5IconFont}" Foreground="#8CC7FF" FontSize="17" VerticalAlignment="Center" Width="26" TextAlignment="Center"/><TextBlock Tag="NavCaption" Text="Automation (planned)" Foreground="{StaticResource V5TextBrush}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" FontSize="12"/></StackPanel></Grid></Button>
           </StackPanel>
         </ScrollViewer>
@@ -979,6 +982,28 @@
             </TabItem>
           </TabControl>
         </DockPanel>
+      </Border>
+    </Grid>
+    <Grid x:Name="CustomSiteOverlay" Grid.ColumnSpan="2" Panel.ZIndex="12"
+          Background="#D8030B1A" Visibility="Collapsed">
+      <Border Width="455" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+              BorderThickness="1" CornerRadius="12" Padding="22">
+        <StackPanel>
+          <TextBlock Text="Add a website preset" FontWeight="SemiBold" FontSize="19"/>
+          <TextBlock Text="Filter existing downloads by source host. This does not capture website traffic or log in."
+                     Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,7,0,18"/>
+          <TextBlock Text="Preset name" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,6"/>
+          <TextBox x:Name="CustomSiteName" Style="{StaticResource V5Input}" Margin="0,0,0,15"/>
+          <TextBlock Text="Domain (for example example.com)" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,6"/>
+          <TextBox x:Name="CustomSiteDomain" Style="{StaticResource V5Input}" Margin="0,0,0,14"/>
+          <TextBlock x:Name="CustomSiteError" Foreground="{StaticResource V5DangerBrush}"
+                     TextWrapping="Wrap" Margin="0,0,0,12"/>
+          <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Click="CloseSitePreset_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,10,0" Padding="13,8"/>
+            <Button Content="Save site" Click="SaveSitePreset_Click" Style="{StaticResource V5PrimaryButton}" Padding="19,8"/>
+          </StackPanel>
+        </StackPanel>
       </Border>
     </Grid>
   </Grid>
