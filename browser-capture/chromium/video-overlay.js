@@ -259,8 +259,11 @@
       // A YouTube SPA navigation can finish while an older probe is in flight.
       if (requestId !== mediaRequestSequence || currentPageUrl() !== url) return;
       if (!result?.accepted || !Array.isArray(result.formats)) {
-        mediaError = typeof result?.message === "string" && result.message.length <= 240
+        const safeCode = typeof result?.errorCode === "string" &&
+          /^[A-Z][A-Z0-9_]{2,48}$/.test(result.errorCode) ? result.errorCode : "";
+        const detail = typeof result?.message === "string" && result.message.length <= 240
           ? result.message : "Could not analyze this page. Check RangeDesk Media Tools.";
+        mediaError = safeCode ? detail + " · " + safeCode : detail;
         return;
       }
       mediaFormats = result.formats.filter(f =>

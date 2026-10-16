@@ -612,6 +612,19 @@ test("Rejected page probe displays error and clears Finding available qualities 
   assert.doesNotMatch(ui.status.textContent,/Finding available/);
 });
 
+test("Video analysis errors show actionable safe code, not private extractor output", async () => {
+  const ui=mockPlayerOverlay(async()=>({
+    accepted:false,errorCode:"RATE_LIMITED",
+    message:"The video site is limiting requests. Wait before trying again."
+  }));
+  ui.toggle.listeners.click();
+  await new Promise(resolve=>setTimeout(resolve,5));
+  const error=ui.options.children.find(e=>e.className==="hint"&&/RATE_LIMITED/.test(e.textContent));
+  assert.ok(error);
+  assert.match(error.textContent,/Wait before trying again/);
+  assert.doesNotMatch(error.textContent,/token=|https?:\\/\\//);
+});
+
 test("New YouTube SPA probe can finish before an older in-flight probe", async () => {
   let resolveOld;
   const oldProbe=new Promise(resolve=>{resolveOld=resolve;});

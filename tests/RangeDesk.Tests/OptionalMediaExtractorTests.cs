@@ -87,6 +87,25 @@ public sealed class OptionalMediaExtractorTests
             Example, selected, output, Path.Combine(output, "ffmpeg.exe"), "x"));
     }
 
+    [Theory]
+    [InlineData("ERROR: Sign in to confirm you are not a bot", "SIGN_IN_REQUIRED")]
+    [InlineData("ERROR: HTTP Error 429: Too Many Requests", "RATE_LIMITED")]
+    [InlineData("ERROR: HTTP Error 403: Forbidden", "SITE_RESTRICTED")]
+    [InlineData("ERROR: Unsupported URL: foo", "SITE_UNSUPPORTED")]
+    [InlineData("WARNING: EJS challenge scripts could not be loaded", "JS_CHALLENGE_FAILED")]
+    [InlineData("ERROR: HTTP Error 404: Not Found", "VIDEO_UNAVAILABLE")]
+    [InlineData("ERROR: Unable to download webpage: timed out", "NETWORK_ERROR")]
+    [InlineData("ERROR: unpredictable extractor error", "EXTRACTOR_FAILED")]
+    public void ProbeFailureDiagnosesWithoutLeakingRawOutput(string stderr, string code)
+    {
+        var exception = OptionalMediaExtractor.ClassifyProbeFailure(
+            stderr + " https://example.test/watch?private_token=do-not-log");
+        Assert.Equal(code, exception.Code);
+        Assert.DoesNotContain("private_token", exception.Message);
+        Assert.DoesNotContain("example.test", exception.Message);
+        Assert.DoesNotContain("do-not-log", exception.Message);
+    }
+
     [Fact]
     public void PageAndDirectDownloadsUseDifferentEntryPoints()
     {

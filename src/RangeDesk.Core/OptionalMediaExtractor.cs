@@ -233,6 +233,44 @@ public static class OptionalMediaExtractor
         return info;
     }
 
+    /// <summary>
+    /// Reduce untrusted yt-dlp stderr to a fixed local diagnostic. Never return
+    /// raw output: it may contain signed URLs, account identifiers or file paths.
+    /// </summary>
+    public static MediaAnalyzerException ClassifyProbeFailure(string? stderr)
+    {
+        bool Has(string phrase) => stderr?.Contains(
+            phrase, StringComparison.OrdinalIgnoreCase) == true;
+
+        if (Has("Sign in") || Has("confirm you're not a bot") ||
+            Has("login required") || Has("members-only") || Has("private video"))
+            return new MediaAnalyzerException("SIGN_IN_REQUIRED",
+                "This video may require sign-in or additional access. Try a permitted public video.");
+        if (Has("HTTP Error 429") || Has("Too Many Requests") ||
+            Has("rate limit"))
+            return new MediaAnalyzerException("RATE_LIMITED",
+                "The video site is limiting requests. Wait before trying again.");
+        if (Has("HTTP Error 403") || Has("Forbidden"))
+            return new MediaAnalyzerException("SITE_RESTRICTED",
+                "The video site denied access. Check availability and permissions.");
+        if (Has("Unsupported URL") || Has("No suitable extractor"))
+            return new MediaAnalyzerException("SITE_UNSUPPORTED",
+                "The installed yt-dlp does not support this video page.");
+        if (Has("EJS") || Has("JavaScript challenge") ||
+            Has("n challenge") || Has("signature extraction failed"))
+            return new MediaAnalyzerException("JS_CHALLENGE_FAILED",
+                "The video challenge could not be solved. Check Deno 2.3+ and update the official yt-dlp.exe.");
+        if (Has("HTTP Error 404") || Has("Video unavailable"))
+            return new MediaAnalyzerException("VIDEO_UNAVAILABLE",
+                "The video is not available from this URL.");
+        if (Has("timed out") || Has("Unable to download webpage") ||
+            Has("Name or service not known") || Has("Could not resolve"))
+            return new MediaAnalyzerException("NETWORK_ERROR",
+                "The video page could not be reached. Check the network or try again later.");
+        return new MediaAnalyzerException("EXTRACTOR_FAILED",
+            "yt-dlp could not analyze this page. Check its version and try a permitted public video.");
+    }
+
     public static async Task<Probe> AnalyzeAsync(string appFolder, string url,
         CancellationToken token = default)
     {
@@ -249,16 +287,7 @@ public static class OptionalMediaExtractor
             string json = await output;
             string stderr = await error; // Classify locally, never echo private URLs.
             if (process.ExitCode != 0)
-                throw new MediaAnalyzerException(
-                    stderr.Contains("Sign in", StringComparison.OrdinalIgnoreCase) ||
-                    stderr.Contains("HTTP Error 403", StringComparison.OrdinalIgnoreCase)
-                        ? "SITE_RESTRICTED"
-                        : stderr.Contains("Unsupported URL", StringComparison.OrdinalIgnoreCase)
-                            ? "SITE_UNSUPPORTED"
-                            : stderr.Contains("JavaScript", StringComparison.OrdinalIgnoreCase) ||
-                              stderr.Contains("EJS", StringComparison.OrdinalIgnoreCase)
-                                ? "JS_RUNTIME_UNAVAILABLE" : "EXTRACTOR_FAILED",
-                    "Video analysis failed. Check site access and installed yt-dlp version.");
+                throw ClassifyProbeFailure(stderr);
             return ParseProbe(json);
         }
         catch (OperationCanceledException) when (!token.IsCancellationRequested)
