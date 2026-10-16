@@ -141,11 +141,14 @@ public sealed class AdaptiveRangeTransferTests
                 var range = request.Headers.Range!.Ranges.Single();
                 long first = range.From!.Value;
                 long last = range.To ?? Content.LongLength - 1;
-                if (first == 0 && last > 0)
+                // Every attempt for the first piece stalls at EOF, including
+                // a one-byte revalidation. The engine must eventually fail and
+                // must not publish a full-length unconfirmed checkpoint.
+                if (last == Content.LongLength / 2 - 1 && first <= last)
                 {
                     var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
                     response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v2\"");
-                    response.Content = new StreamContent(new StallsAfterPayloadStream(Content[..((int)last + 1)]));
+                    response.Content = new StreamContent(new StallsAfterPayloadStream(Content[(int)first..((int)last + 1)]));
                     response.Content.Headers.ContentRange = new ContentRangeHeaderValue(first, last, Content.LongLength);
                     return Task.FromResult(response);
                 }
