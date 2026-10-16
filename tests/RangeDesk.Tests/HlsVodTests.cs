@@ -154,9 +154,10 @@ public sealed class HlsVodTests
             await Wait(entry);
             Assert.Equal(DownloadStatus.Failed, entry.Status);
             playlist = Media.Replace("part2.ts", "different.ts");
-            Assert.True(engine.Start(entry));
-            await Wait(entry);
-            Assert.Equal(DownloadStatus.Failed, entry.Status);
+            var resumed = engine.Create(Base + "movie.m3u8", entry.Destination);
+            Assert.True(engine.Start(resumed));
+            await Wait(resumed);
+            Assert.Equal(DownloadStatus.Failed, resumed.Status);
             Assert.Equal(a, await File.ReadAllBytesAsync(entry.Destination + ".rdhls-partial"));
             Assert.False(File.Exists(entry.Destination));
         });
