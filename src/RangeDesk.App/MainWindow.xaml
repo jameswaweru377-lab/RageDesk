@@ -100,7 +100,7 @@
       <DockPanel Margin="12,14,12,10" LastChildFill="True">
         <!-- Brand remains visible when all lists scroll. -->
         <Grid DockPanel.Dock="Top" Margin="2,1,0,18" Height="44">
-          <Grid.ColumnDefinitions><ColumnDefinition Width="43"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+          <Grid.ColumnDefinitions><ColumnDefinition x:Name="SidebarBrandColumn" Width="43"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
           <Border x:Name="SidebarBrandIcon" Width="38" Height="38" CornerRadius="10"
                   Background="{StaticResource V5AccentBrush}" VerticalAlignment="Center" HorizontalAlignment="Left">
             <TextBlock Text="&#xE896;" FontFamily="{StaticResource V5IconFont}" FontSize="25" FontWeight="Bold"
@@ -116,7 +116,7 @@
         <StackPanel DockPanel.Dock="Bottom" Margin="0,8,0,0">
           <Border Height="1" Margin="2,4,2,8" Background="{StaticResource V5OutlineBrush}"/>
           <Button x:Name="AutomationNavButton" IsEnabled="False" Style="{StaticResource SidebarRowStyle}" ToolTip="Automation (planned)">
-            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+            <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
               <Grid Grid.Column="0" Width="24" Height="24"><TextBlock Text="&#xE713;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#7798C4" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
               <TextBlock Grid.Column="1" Tag="NavCaption" Text="Automation (planned)"
                          VerticalAlignment="Center" Foreground="#93AECF" FontSize="11" TextTrimming="CharacterEllipsis" Margin="5,0,4,0"/>
@@ -124,7 +124,7 @@
           </Button>
           <Button Tag="settings-nav" Click="Settings_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Settings" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE713;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#BCD8F6" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Settings" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 
@@ -137,7 +137,7 @@
             <StackPanel x:Name="MainSidebarNavigation">
 <Button Tag="all" Click="Navigation_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Downloads" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE896;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#44ABFF" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Downloads" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding DownloadsCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -145,7 +145,7 @@
             </Button>
 <Button Tag="completed" Click="Navigation_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Completed" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE73E;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#8CC9FF" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Completed" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding CompletedCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -153,7 +153,7 @@
             </Button>
 <Button Tag="queue" Click="Navigation_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Queue" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE8FD;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#AFD1FA" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Queue" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding QueueCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -161,7 +161,7 @@
             </Button>
 <Button Tag="scheduled" Click="Navigation_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Scheduled" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE823;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#A3C4F5" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Scheduled" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding ScheduledCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -179,7 +179,7 @@
               <StackPanel x:Name="CategoryItems" Margin="0,2,0,0">
 <Button Tag="all" Click="Navigation_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="All Downloads" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE80F;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#30AFFF" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="All Downloads" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding DownloadsCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -187,7 +187,7 @@
             </Button>
 <Button Tag="Software" Click="Category_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Software" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE8B7;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#37B0FC" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Software" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding SoftwareCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -195,7 +195,7 @@
             </Button>
 <Button Tag="Videos" Click="Category_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Videos" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE714;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#AF6FFF" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Videos" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding VideosCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -203,7 +203,7 @@
             </Button>
 <Button Tag="Documents" Click="Category_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Documents" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE8A5;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#79AAFF" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Documents" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding DocumentsCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -211,7 +211,7 @@
             </Button>
 <Button Tag="Archives" Click="Category_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Archives" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE8B7;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#FFB33C" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Archives" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding ArchivesCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -219,7 +219,7 @@
             </Button>
 <Button Tag="Images" Click="Category_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Images" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><TextBlock Text="&#xE91B;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#34D7A0" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Images" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding ImagesCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -236,7 +236,7 @@
               <StackPanel x:Name="LabelItems" Margin="0,2,0,0">
 <Button Tag="Work" Click="Label_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Work" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Ellipse Width="15" Height="15" Fill="#229BFA" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Work" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding WorkCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -244,7 +244,7 @@
             </Button>
 <Button Tag="Personal" Click="Label_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Personal" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Ellipse Width="15" Height="15" Fill="#985DF5" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Personal" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding PersonalCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -252,7 +252,7 @@
             </Button>
 <Button Tag="Research" Click="Label_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Research" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Ellipse Width="15" Height="15" Fill="#37DDA3" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Research" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding ResearchCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -260,7 +260,7 @@
             </Button>
 <Button Tag="Important" Click="Label_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Important" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Ellipse Width="15" Height="15" Fill="#FF9E31" VerticalAlignment="Center" HorizontalAlignment="Center"/></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Important" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding ImportantCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -277,7 +277,7 @@
               <StackPanel x:Name="SiteItems" Margin="0,2,0,0">
 <Button Tag="Microsoft" Click="SitePreset_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Microsoft" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Grid Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"><Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions><Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition/></Grid.ColumnDefinitions><Rectangle Margin="0,0,2,2" Fill="#2CB5FF"/><Rectangle Grid.Column="1" Margin="1,0,0,2" Fill="#2CB5FF"/><Rectangle Grid.Row="1" Margin="0,1,2,0" Fill="#2CB5FF"/><Rectangle Grid.Row="1" Grid.Column="1" Margin="1,1,0,0" Fill="#2CB5FF"/></Grid></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Microsoft" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding MicrosoftCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -285,7 +285,7 @@
             </Button>
 <Button Tag="GitHub" Click="SitePreset_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="GitHub" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Border Width="21" Height="21" CornerRadius="11" Background="#DDEFFF" VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock Text="GH" FontWeight="Bold" FontSize="8" Foreground="#071629" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="GitHub" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding GitHubCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -293,7 +293,7 @@
             </Button>
 <Button Tag="Google Drive" Click="SitePreset_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="Google Drive" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Grid Width="22" Height="21" HorizontalAlignment="Center" VerticalAlignment="Center"><Polygon Points="7,2 13,2 22,17 16,17" Fill="#FDC443"/><Polygon Points="7,2 13,2 6,17 0,17" Fill="#19BF78"/><Polygon Points="6,13 20,13 22,17 4,17" Fill="#38A5FF"/></Grid></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="Google Drive" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding GoogleDriveCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -301,7 +301,7 @@
             </Button>
 <Button Tag="YouTube" Click="SitePreset_Click" Style="{StaticResource SidebarRowStyle}" ToolTip="YouTube" >
               <Grid>
-                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                 <Grid Grid.Column="0" Width="24" Height="24" VerticalAlignment="Center"><Border Width="22" Height="16" CornerRadius="4" Background="#F41C32" VerticalAlignment="Center" HorizontalAlignment="Center"><TextBlock Text="▶" Foreground="White" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border></Grid>
                 <TextBlock Grid.Column="1" Tag="NavCaption" Text="YouTube" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Foreground="{StaticResource V5TextBrush}" FontSize="12" Margin="5,0,4,0"/>
                 <Border Grid.Column="2" Tag="NavBadge" MinWidth="29" Height="23" CornerRadius="11" Background="#143659" VerticalAlignment="Center" HorizontalAlignment="Right" Padding="5,2"><TextBlock Text="{Binding YouTubeCount}" Foreground="#ABD4FF" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" HorizontalAlignment="Center"/></Border>
@@ -311,7 +311,7 @@
                 <Button x:Name="AddSitePresetButton" Click="AddSitePreset_Click" Style="{StaticResource SidebarRowStyle}"
                         ToolTip="Create a website filter">
                   <Grid>
-                    <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto" MinWidth="31"/></Grid.ColumnDefinitions>
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="31"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <Grid Grid.Column="0" Width="24" Height="24"><TextBlock Text="&#xE710;" FontFamily="{StaticResource V5IconFont}" FontSize="18" Foreground="#99C8F4" TextAlignment="Center" VerticalAlignment="Center"/></Grid>
                     <TextBlock Grid.Column="1" Text="Add preset..." Tag="NavCaption" Foreground="#9EBDE2"
                                FontSize="12" Margin="5,0,4,0" VerticalAlignment="Center"/>
