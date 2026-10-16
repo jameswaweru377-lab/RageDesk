@@ -119,9 +119,9 @@
     requestAnimationFrame(() => { queuedRefresh = false; refresh(); });
   }
 
-  async function sendVideo(url, button) {
+  async function sendVideo(source, button) {
     if (pending || !active) return;
-    const stillPresent = available(active).some(item => item.url === url);
+    const stillPresent = available(active).some(item => item.url === source.url && item.format === source.format);
     if (!stillPresent) {
       status.textContent = "This source changed. Open the menu again.";
       return;
@@ -130,7 +130,7 @@
     button.disabled = true;
     status.textContent = "Sending to RangeDesk…";
     try {
-      const answer = await chrome.runtime.sendMessage({ action: "rangedesk_video_source", url });
+      const answer = await chrome.runtime.sendMessage({ action: "rangedesk_video_source", url: source.url, format: source.format });
       status.textContent = answer?.accepted
         ? "Sent to RangeDesk. Review the Add Download window."
         : "RangeDesk could not accept the link. Check its connection.";
@@ -153,7 +153,7 @@
       // Text is never constructed from the full URL (signed tokens may be present).
       button.textContent = source.label + (found.length > 1 ? " · source " + (i + 1) : "");
       button.title = "Send this direct video source to RangeDesk for review";
-      button.addEventListener("click", () => { void sendVideo(source.url, button); });
+      button.addEventListener("click", () => { void sendVideo(source, button); });
       options.appendChild(button);
     });
   }
