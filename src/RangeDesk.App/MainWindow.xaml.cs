@@ -27,6 +27,10 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "preferences-v5.json");
     private RangeDeskPreferences _preferences = new();
+    private OptionalMediaExtractor.Probe? _mediaProbe;
+    private string? _mediaAnalyzedUrl;
+    private CancellationTokenSource? _mediaOperation;
+
     private readonly string _schedulesFile = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "RangeDesk", "schedules-v5.json");
@@ -118,7 +122,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         CheckAutomaticBrowserCaptures();
         RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
         CheckBrowserInbox(); // Captured links require manual confirmation.
-        Closing += (_, _) => { _scheduleTimer.Stop(); _browserCaptureTimer.Stop(); _engine.Dispose(); };
+        Closing += (_, _) => { _scheduleTimer.Stop(); _browserCaptureTimer.Stop(); _mediaOperation?.Cancel(); _engine.Dispose(); };
         SourceInitialized += (_, _) =>
         {
             int enabled = 1;
@@ -1176,13 +1180,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (url is null) return;
             Add_Click(this, new RoutedEventArgs());
             NewUrl.Text = url;
-            StatusMessage.Text = "Link received from browser. Review the destination and confirm the download.";
+            if (OptionalMediaExtractor.IsPageCandidate(url))
+            {
+                MediaPageUrl.Text = url;
+                AddDownloadTabs.SelectedIndex = 4;
+                StatusMessage.Text = "Video page received. Open Media to analyze real formats; install optional tools first.";
+            }
+            else StatusMessage.Text = "Link received from browser. Review the destination and confirm the download.";
         }
         catch (Exception ex) { StatusMessage.Text = "Browser handoff failed: " + ex.GetType().Name; }
     }
 
     private void Add_Click(object sender, RoutedEventArgs e)
     {
+        AddDownloadTabs.SelectedIndex = 0;
         FormError.Text = "";
         ApplyNewDownloadDefaults();
         ScheduleDownload.IsChecked = false;
@@ -1212,6 +1223,118 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private static int GetNumericChoice(ComboBox dropdown, int fallback) =>
         dropdown.SelectedItem is ComboBoxItem item &&
         int.TryParse(item.Tag?.ToString(), out int value) ? value : fallback;
+
+    private void OpenMediaToolsFolder_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            var folder = OptionalMediaExtractor.DefaultToolsFolder(AppContext.BaseDirectory);
+            Directory.CreateDirectory(folder);
+            Process.Start(new ProcessStartInfo("explorer.exe", "\"" + folder + "\"")
+            {
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex) { MediaStatus.Text = "Cannot open tools folder: " + ex.GetType().Name; }
+    }
+
+    private async void AnalyzeMedia_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mediaOperation is not null)
+        {
+            MediaStatus.Text = "Another media operation is running. Stop it first.";
+            return;
+        }
+        string url = MediaPageUrl.Text.Trim();
+        if (url.Length == 0) url = NewUrl.Text.Trim();
+        if (url.Length == 0 || !DownloadEngine.IsAllowedUrl(url))
+        {
+            MediaStatus.Text = "Enter one valid HTTP(S) video webpage URL.";
+            return;
+        }
+        _mediaProbe = null;
+        _mediaAnalyzedUrl = null;
+        MediaFormatChoice.ItemsSource = null;
+        MediaStatus.Text = "Analyzing page through optional extractor…";
+        MediaAnalyzeButton.IsEnabled = false;
+        MediaDownloadButton.IsEnabled = false;
+        using var cancel = new CancellationTokenSource();
+        _mediaOperation = cancel;
+        try
+        {
+            var found = await OptionalMediaExtractor.AnalyzeAsync(AppContext.BaseDirectory, url, cancel.Token);
+            _mediaProbe = found;
+            _mediaAnalyzedUrl = url;
+            MediaPageUrl.Text = url;
+            MediaFormatChoice.ItemsSource = found.Formats;
+            MediaFormatChoice.SelectedIndex = 0;
+            MediaStatus.Text = "Found " + found.Formats.Count + " reported video formats for " +
+                found.Title + ". Select a quality to download.";
+        }
+        catch (OperationCanceledException) { MediaStatus.Text = "Media analysis stopped."; }
+        catch (Exception ex) { MediaStatus.Text = "Media analysis unavailable: " + ex.Message; }
+        finally
+        {
+            _mediaOperation = null;
+            MediaAnalyzeButton.IsEnabled = true;
+            MediaDownloadButton.IsEnabled = true;
+        }
+    }
+
+    private async void StartMedia_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mediaOperation is not null)
+        {
+            MediaStatus.Text = "An operation is already running. Stop it first.";
+            return;
+        }
+        if (MediaRightsConfirm.IsChecked != true)
+        {
+            MediaStatus.Text = "Confirm you have permission to download this video.";
+            return;
+        }
+        if (_mediaProbe is null || _mediaAnalyzedUrl != MediaPageUrl.Text.Trim() ||
+            MediaFormatChoice.SelectedItem is not OptionalMediaExtractor.Format selected ||
+            !_mediaProbe.Formats.Contains(selected))
+        {
+            MediaStatus.Text = "Analyze this webpage first, then choose a reported quality.";
+            return;
+        }
+        if (!OptionalMediaExtractor.IsReady(AppContext.BaseDirectory))
+        {
+            MediaStatus.Text = "Install official yt-dlp.exe and ffmpeg.exe inside MediaTools first.";
+            return;
+        }
+        MediaAnalyzeButton.IsEnabled = false;
+        MediaDownloadButton.IsEnabled = false;
+        using var cancel = new CancellationTokenSource();
+        _mediaOperation = cancel;
+        try
+        {
+            await OptionalMediaExtractor.DownloadAsync(AppContext.BaseDirectory,
+                _mediaAnalyzedUrl, selected, _preferences.DownloadFolder,
+                message => Dispatcher.Invoke(() => MediaStatus.Text = message), cancel.Token);
+        }
+        catch (OperationCanceledException) { MediaStatus.Text = "Media download stopped."; }
+        catch (Exception ex) { MediaStatus.Text = "Media download could not finish: " + ex.Message; }
+        finally
+        {
+            _mediaOperation = null;
+            MediaAnalyzeButton.IsEnabled = true;
+            MediaDownloadButton.IsEnabled = true;
+        }
+    }
+
+    private void StopMedia_Click(object sender, RoutedEventArgs e)
+    {
+        if (_mediaOperation is null)
+        {
+            MediaStatus.Text = "No media operation is running.";
+            return;
+        }
+        _mediaOperation.Cancel();
+        MediaStatus.Text = "Stopping media operation…";
+    }
 
     private void ApplyNewDownloadDefaults()
     {
