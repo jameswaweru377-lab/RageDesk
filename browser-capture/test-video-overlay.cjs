@@ -37,13 +37,36 @@ test("only genuine HTTP(S) direct video sources are eligible", () => {
   for (const url of [
     "blob:https://example.test/secret", "data:video/mp4;base64,abc",
     "javascript:alert(1)", "file:///C:/movie.mp4", "https://u:p@example.test/a.mp4",
-    "https://example.test/live.m3u8", "https://example.test/live.mpd",
+    "https://example.test/live.mpd",
     "https://example.test/watch.html", "https://example.test/song.mp3"
   ]) {
     assert.equal(directSource(url, base, "video/mp4"), null, url);
   }
   assert.equal(directSource("/api/download?id=1", base), null,
     "Extensionless endpoints require a declared MIME type.");
+});
+
+test("HLS source is exposed as VOD auto-quality, not falsely labeled MP4", () => {
+  const probe = extractor();
+  const source = probe.directSource("https://cdn.test/catalog.m3u8", "https://site.test/",
+    "application/vnd.apple.mpegurl");
+  assert.equal(source.format, "HLS");
+  const found = probe.list(fakeVideo({
+    current: "https://cdn.test/catalog.m3u8", height: 1080
+  }), "https://site.test/");
+  assert.equal(found.length, 1);
+  assert.equal(found[0].label, "HLS · VOD auto quality (.ts)");
+});
+
+test("Chrome sends clicked HLS playlist URL to the ordinary review inbox", async () => {
+  const bg = chromeBackground();
+  const reply = await bg.message({
+    action: "rangedesk_video_source",
+    url: "https://cdn.test/playlist.m3u8?sig=abc", format: "HLS"
+  });
+  assert.equal(reply.reply.accepted, true);
+  assert.equal(bg.sent.length, 1);
+  assert.equal(bg.sent[0].message.action, "add_link");
 });
 
 test("deduplicates sources and labels resolution only for playing variant", () => {
