@@ -71,6 +71,7 @@ api.contextMenus.onClicked.addListener(async info => {
 const DIRECT_VIDEO = /\.(mp4|m4v|webm|ogv|ogg|mov)$/i;
 const STREAMING_MANIFEST = /\.(mpd|m3u|ism)$/i;
 const VIDEO_FORMATS = new Set(["MP4", "M4V", "WebM", "Ogg video", "MOV"]);
+const HLS_SUFFIX = /\.m3u8$/i;
 
 function allowedVideoHandoff(message, sender) {
   if (!message || message.action !== "rangedesk_video_source" ||
