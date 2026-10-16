@@ -62,7 +62,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StatusMessage.Text = "Could not read download settings; using defaults: " + ex.Message;
         }
         _engine = new DownloadEngine(SynchronizationContext.Current,
-            maxConcurrentDownloads: _preferences.MaxConcurrentDownloads);
+            maxConcurrentDownloads: _preferences.MaxConcurrentDownloads,
+            proxyUri: _preferences.ProxyUri);
         VisibleDownloads = CollectionViewSource.GetDefaultView(Downloads);
         VisibleDownloads.Filter = MatchesFilters;
         DataContext = this;
@@ -1011,7 +1012,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             throw new ArgumentException("Schedule a single download at a time; batch scheduling is not yet supported.");
         if (VerifyChecksum.IsChecked == true)
             throw new ArgumentException("An expected SHA-256 applies to one file. Disable it for a batch.");
-        string folder = Path.GetDirectoryName(NewDestination.Text);
+        string? folder = Path.GetDirectoryName(NewDestination.Text);
         if (string.IsNullOrWhiteSpace(folder)) folder = _preferences.DownloadFolder;
         var candidates = BatchDownloadPlanner.Plan(NewUrl.Text, folder,
             Downloads.Select(d => d.Destination));
@@ -1095,6 +1096,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SelectNumericChoice(SettingsConcurrentChoice, preferences.MaxConcurrentDownloads);
         SelectNumericChoice(SettingsBandwidthChoice, preferences.DefaultBandwidthKiBps);
         SettingsStartImmediately.IsChecked = preferences.StartImmediately;
+        SettingsProxyUri.Text = preferences.ProxyUri ?? "";
         SettingsError.Text = "";
     }
 
@@ -1131,14 +1133,16 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 DefaultConnections = GetNumericChoice(SettingsConnectionsChoice, 8),
                 MaxConcurrentDownloads = GetNumericChoice(SettingsConcurrentChoice, 2),
                 DefaultBandwidthKiBps = GetNumericChoice(SettingsBandwidthChoice, 0),
-                StartImmediately = SettingsStartImmediately.IsChecked == true
+                StartImmediately = SettingsStartImmediately.IsChecked == true,
+                ProxyUri = SettingsProxyUri.Text.Trim()
             }.Validate();
-            bool restartNeeded = updated.MaxConcurrentDownloads != _preferences.MaxConcurrentDownloads;
+            bool restartNeeded = updated.MaxConcurrentDownloads != _preferences.MaxConcurrentDownloads ||
+                !string.Equals(updated.ProxyUri, _preferences.ProxyUri, StringComparison.OrdinalIgnoreCase);
             RangeDeskPreferencesStore.Save(_preferencesFile, updated);
             _preferences = updated;
             SettingsOverlay.Visibility = Visibility.Collapsed;
             StatusMessage.Text = restartNeeded
-                ? "Settings saved. Restart RangeDesk to apply the new simultaneous-download limit."
+                ? "Settings saved. Restart RangeDesk to apply the changed network or simultaneous-download settings."
                 : "Settings saved. New downloads will use these defaults; active transfers are unchanged.";
         }
         catch (Exception ex)
