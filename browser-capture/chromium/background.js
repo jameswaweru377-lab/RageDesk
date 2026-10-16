@@ -65,6 +65,48 @@ api.contextMenus.onClicked.addListener(async info => {
   }
 });
 
+// Only isolated Chrome content scripts running on an HTTP(S) webpage may
+// request this user-clicked direct-video link handoff. No page JS can call
+// native messaging directly; no cookies, headers or page content are sent.
+const DIRECT_VIDEO = /\.(mp4|m4v|webm|ogv|ogg|mov)$/i;
+const STREAMING_MANIFEST = /\.(m3u8|mpd|m3u|ism)$/i;
+const VIDEO_FORMATS = new Set(["MP4", "M4V", "WebM", "Ogg video", "MOV"]);
+
+function allowedVideoHandoff(message, sender) {
+  if (!message || message.action !== "rangedesk_video_source" ||
+      sender?.id !== api.runtime.id || !Number.isInteger(sender?.tab?.id) ||
+      typeof sender?.url !== "string" || !/^https?:\/\//i.test(sender.url) ||
+      typeof message.url !== "string" || message.url.length > 4096) return false;
+  try {
+    const uri = new URL(message.url);
+    const path = uri.pathname.toLowerCase();
+    if (!["http:", "https:"].includes(uri.protocol) || uri.username || uri.password ||
+        STREAMING_MANIFEST.test(path)) return false;
+    // Accept recognized direct video paths, or extensionless endpoints that
+    // the video element explicitly declared as a known video MIME type.
+    const suffix = /\.[a-z0-9]+$/i.exec(path)?.[0] || "";
+    return DIRECT_VIDEO.test(path) ||
+      (!suffix && VIDEO_FORMATS.has(message.format));
+  } catch { return false; }
+}
+
+api.runtime.onMessage.addListener((message, sender, reply) => {
+  if (!message || message.action !== "rangedesk_video_source") return false;
+  if (!allowedVideoHandoff(message, sender)) {
+    reply({ accepted: false });
+    return false;
+  }
+  void api.runtime.sendNativeMessage(HOST, {
+    action: "add_link", url: message.url
+  }).then(result => {
+    reply({ accepted: result?.accepted === true });
+  }).catch(() => {
+    reply({ accepted: false });
+  });
+  // Keep the extension message channel open for the native host reply.
+  return true;
+});
+
 api.downloads.onCreated.addListener(item => { void capture(item); });
 
 async function capture(item) {
