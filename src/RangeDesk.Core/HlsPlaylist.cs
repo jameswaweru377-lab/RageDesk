@@ -49,7 +49,7 @@ public static class HlsPlaylist
             if (line.Length == 0 || line == "#EXTM3U") continue;
             if (line.StartsWith("#EXT-X-KEY:", StringComparison.Ordinal))
             {
-                if (!Regex.IsMatch(line, @"(?:^|,)METHOD=NONE(?:,|$)", RegexOptions.IgnoreCase))
+                if (!Regex.IsMatch(line, @"(?:^|[:,])METHOD=NONE(?:,|$)", RegexOptions.IgnoreCase))
                     throw new NotSupportedException("Encrypted HLS streams are not supported.");
             }
             if (line.StartsWith("#EXT-X-SESSION-KEY:", StringComparison.Ordinal) ||
@@ -64,7 +64,7 @@ public static class HlsPlaylist
                 isMaster = true;
                 streamInfo = line;
                 // External AUDIO groups require separate muxing to avoid silent downloads.
-                if (Regex.IsMatch(line, @"(?:^|,)AUDIO\s*=", RegexOptions.IgnoreCase))
+                if (Regex.IsMatch(line, @"(?:^|[:,])AUDIO\s*=", RegexOptions.IgnoreCase))
                     throw new NotSupportedException("Separate HLS audio tracks are not supported yet.");
                 continue;
             }
@@ -77,8 +77,8 @@ public static class HlsPlaylist
             if (line.StartsWith('#')) continue;
             if (streamInfo is not null)
             {
-                var bandwidth = Regex.Match(streamInfo, @"(?:^|,)BANDWIDTH=(\d+)", RegexOptions.IgnoreCase);
-                var size = Regex.Match(streamInfo, @"(?:^|,)RESOLUTION=\d+x(\d+)", RegexOptions.IgnoreCase);
+                var bandwidth = Regex.Match(streamInfo, @"(?:^|[:,])BANDWIDTH=(\d+)", RegexOptions.IgnoreCase);
+                var size = Regex.Match(streamInfo, @"(?:^|[:,])RESOLUTION=\d+x(\d+)", RegexOptions.IgnoreCase);
                 int rate = bandwidth.Success && int.TryParse(bandwidth.Groups[1].Value,
                     NumberStyles.Integer, CultureInfo.InvariantCulture, out int b) ? b : 0;
                 int? height = size.Success && int.TryParse(size.Groups[1].Value, out int h) ? h : null;
