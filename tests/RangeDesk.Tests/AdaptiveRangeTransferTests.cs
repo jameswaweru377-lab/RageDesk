@@ -46,6 +46,125 @@ public sealed class AdaptiveRangeTransferTests
     }
 
     [Fact]
+    public async Task TruncatedAdaptiveBodyRetriesOnlyMissingBytes()
+    {
+        await WithFolder(async folder =>
+        {
+            const int prefixLength = 128_000;
+            int firstSegmentRequests = 0;
+            var seenStarts = new ConcurrentBag<long>();
+            using var handler = new RangeHandler((request, _) =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                long first = range.From!.Value;
+                long last = range.To ?? Content.LongLength - 1;
+                if (last > 0) seenStarts.Add(first);
+                if (first == 0 && last > 0 &&
+                    Interlocked.Increment(ref firstSegmentRequests) == 1)
+                {
+                    var truncated = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                    truncated.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v2\"");
+                    truncated.Content = new ByteArrayContent(Content[..prefixLength]);
+                    truncated.Content.Headers.ContentRange =
+                        new ContentRangeHeaderValue(0, last, Content.LongLength);
+                    return Task.FromResult(truncated);
+                }
+                return Task.FromResult(Reply(request));
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create("https://example.test/truncated-adaptive.bin",
+                Path.Combine(folder, "truncated-adaptive.bin"), connections: 4, adaptive: true);
+
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Completed, entry.Status);
+            Assert.Contains(prefixLength, seenStarts);
+            Assert.Equal(Content, await File.ReadAllBytesAsync(entry.Destination));
+            Assert.False(Directory.Exists(entry.Destination + ".rdadaptive"));
+        });
+    }
+
+    [Fact]
+    public async Task AdaptiveRetryRejectsChangedEtagWithoutPublishingPartialFile()
+    {
+        await WithFolder(async folder =>
+        {
+            const int prefixLength = 128_000;
+            int initialAttempts = 0;
+            int invalidValidatorResponses = 0;
+            using var handler = new RangeHandler((request, _) =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                long first = range.From!.Value;
+                long last = range.To ?? Content.LongLength - 1;
+                if (first == 0 && last > 0 &&
+                    Interlocked.Increment(ref initialAttempts) == 1)
+                {
+                    var truncated = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                    truncated.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v2\"");
+                    truncated.Content = new ByteArrayContent(Content[..prefixLength]);
+                    truncated.Content.Headers.ContentRange =
+                        new ContentRangeHeaderValue(0, last, Content.LongLength);
+                    return Task.FromResult(truncated);
+                }
+                var response = Reply(request);
+                if (first == prefixLength)
+                {
+                    Interlocked.Increment(ref invalidValidatorResponses);
+                    response.Headers.ETag = EntityTagHeaderValue.Parse("\"modified-on-server\"");
+                }
+                return Task.FromResult(response);
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler));
+            var entry = engine.Create("https://example.test/changed-adaptive.bin",
+                Path.Combine(folder, "changed-adaptive.bin"), connections: 4, adaptive: true);
+
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Failed, entry.Status);
+            Assert.Equal(1, invalidValidatorResponses);
+            Assert.False(File.Exists(entry.Destination));
+            Assert.True(Directory.Exists(entry.Destination + ".rdadaptive"));
+            var savedPrefix = Path.Combine(entry.Destination + ".rdadaptive", "0000.part");
+            Assert.True(File.Exists(savedPrefix));
+            Assert.Equal(Content[..prefixLength], await File.ReadAllBytesAsync(savedPrefix));
+        });
+    }
+
+    [Fact]
+    public async Task MissingEndOfResponseNeverPublishesAdaptiveOutput()
+    {
+        await WithFolder(async folder =>
+        {
+            using var handler = new RangeHandler((request, _) =>
+            {
+                var range = request.Headers.Range!.Ranges.Single();
+                long first = range.From!.Value;
+                long last = range.To ?? Content.LongLength - 1;
+                if (first == 0 && last > 0)
+                {
+                    var response = new HttpResponseMessage(HttpStatusCode.PartialContent);
+                    response.Headers.ETag = EntityTagHeaderValue.Parse("\"stable-v2\"");
+                    response.Content = new StreamContent(new StallsAfterPayloadStream(Content[..((int)last + 1)]));
+                    response.Content.Headers.ContentRange = new ContentRangeHeaderValue(first, last, Content.LongLength);
+                    return Task.FromResult(response);
+                }
+                return Task.FromResult(Reply(request));
+            });
+            using var engine = new DownloadEngine(client: new HttpClient(handler),
+                networkIdleTimeout: TimeSpan.FromMilliseconds(100));
+            var entry = engine.Create("https://example.test/stalled-eof.bin",
+                Path.Combine(folder, "stalled-eof.bin"), connections: 2, adaptive: true);
+
+            Assert.True(engine.Start(entry));
+            await Wait(entry);
+            Assert.Equal(DownloadStatus.Failed, entry.Status);
+            Assert.False(File.Exists(entry.Destination));
+            Assert.True(Directory.Exists(entry.Destination + ".rdadaptive"));
+        });
+    }
+
+    [Fact]
     public async Task ExistingAdaptiveCheckpointResumesSuffixesWithoutErasingPrefixes()
     {
         await WithFolder(async folder =>
@@ -189,6 +308,46 @@ public sealed class AdaptiveRangeTransferTests
             await Task.Delay(40);
         }
         throw new TimeoutException("Adaptive work scheduler did not complete in time.");
+    }
+
+    private sealed class StallsAfterPayloadStream(byte[] payload) : Stream
+    {
+        private readonly MemoryStream _stream = new(payload);
+        public override bool CanRead => true;
+        public override bool CanSeek => false;
+        public override bool CanWrite => false;
+        public override long Length => throw new NotSupportedException();
+        public override long Position
+        {
+            get => throw new NotSupportedException();
+            set => throw new NotSupportedException();
+        }
+
+        public override ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
+        {
+            int count = _stream.Read(buffer.Span);
+            return count > 0 ? ValueTask.FromResult(count) : WaitForCancellation(cancellationToken);
+        }
+
+        private static async ValueTask<int> WaitForCancellation(CancellationToken token)
+        {
+            await Task.Delay(Timeout.InfiniteTimeSpan, token);
+            return 0;
+        }
+
+        public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken token) =>
+            ReadAsync(buffer.AsMemory(offset, count), token).AsTask();
+        public override int Read(byte[] buffer, int offset, int count) =>
+            throw new NotSupportedException();
+        public override void Flush() => throw new NotSupportedException();
+        public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
+        public override void SetLength(long length) => throw new NotSupportedException();
+        public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) _stream.Dispose();
+            base.Dispose(disposing);
+        }
     }
 
     private sealed class RangeHandler(
