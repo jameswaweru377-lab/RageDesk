@@ -1435,6 +1435,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 (rule.Subfolder.Length > 0 ? " / " + rule.Subfolder : ""));
     }
 
+    private void OpenSchedulerSetup_Click(object sender, RoutedEventArgs e)
+    {
+        string folder = Path.Combine(AppContext.BaseDirectory, "Scheduler");
+        if (!Directory.Exists(folder))
+        {
+            MessageBox.Show(this,
+                "The optional scheduler setup is not in this installation. Use the complete portable ZIP.",
+                "Optional Windows scheduling", MessageBoxButton.OK, MessageBoxImage.Information);
+            return;
+        }
+        Process.Start(new ProcessStartInfo(folder) { UseShellExecute = true });
+        StatusMessage.Text = "Optional scheduling instructions are in Scheduler\\README.md. No task was enabled.";
+    }
+
     private void OpenAutomationSettings_Click(object sender, RoutedEventArgs e)
     {
         Settings_Click(sender, e);
