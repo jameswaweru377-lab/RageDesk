@@ -172,7 +172,7 @@ api.runtime.onMessage.addListener((message, sender, reply) => {
           (message.fileStem !== undefined &&
             (typeof message.fileStem !== "string" ||
              message.fileStem.length < 1 || message.fileStem.length > 80 ||
-             !/^[\\p{L}\\p{N} _-]+$/u.test(message.fileStem))) ||
+             !/^[\p{L}\p{N} _-]+$/u.test(message.fileStem))) ||
           !["default", "videos"].includes(message.saveLocation ?? "default") ||
           (message.queueOnly !== undefined && typeof message.queueOnly !== "boolean")) {
         reply({ accepted: false, message: "Select a valid quality and confirm permission." });
