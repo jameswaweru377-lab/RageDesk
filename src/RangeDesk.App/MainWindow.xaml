@@ -962,6 +962,21 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
+            <TabItem Header="Network">
+              <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel Margin="10,16,10,16">
+                  <TextBlock Text="HTTP proxy (optional)" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,7"/>
+                  <TextBox x:Name="SettingsProxyUri" Style="{StaticResource V5Input}"
+                           ToolTip="Optional http://proxy-host:port. Leave blank for Windows defaults."/>
+                  <TextBlock Text="Leave blank to use the default Windows networking configuration. To set a custom proxy, use http://hostname:port without usernames, passwords, URL paths or tokens."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,9,0,17"/>
+                  <TextBlock Text="Proxy changes take effect after restarting RangeDesk; active downloads continue unchanged."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,0,0,12"/>
+                  <TextBlock Text="Authenticated proxies, cookies, and browser account sessions are not supported yet. They require separate OS-protected credential storage and redirect-security tests."
+                             Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap"/>
+                </StackPanel>
+              </ScrollViewer>
+            </TabItem>
             <TabItem Header="About &amp; roadmap">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
