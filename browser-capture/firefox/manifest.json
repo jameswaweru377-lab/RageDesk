@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "RangeDesk Link Capture",
+  "version": "0.1.0",
+  "description": "User-initiated direct-link handoff to RangeDesk; no passive browser monitoring.",
+  "permissions": [
+    "contextMenus",
+    "nativeMessaging"
+  ],
+  "background": {
+    "scripts": [
+      "background.js"
+    ]
+  },
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "rangedesk-capture@local"
+    }
+  }
+}
