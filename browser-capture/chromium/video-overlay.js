@@ -42,7 +42,7 @@
   heading.textContent = "Available direct sources";
   const hint = document.createElement("div");
   hint.className = "hint";
-  hint.textContent = "Only exposed formats and qualities";
+  hint.textContent = "Direct sources and HLS streams you chose to detect";
   const options = document.createElement("div");
   const status = document.createElement("div");
   status.className = "status";
@@ -56,9 +56,36 @@
   let expanded = false;
   let pending = false;
   let queuedRefresh = false;
+  let observed = [];
+  let detecting = false;
 
   function available(video) {
-    return sources.list(video, document.baseURI);
+    const direct = sources.list(video, document.baseURI);
+    const seen = new Set(direct.map(item => item.url));
+    for (const item of observed) {
+      if (direct.length >= 8) break;
+      if (typeof item?.url !== "string" || item.format !== "HLS" ||
+          seen.has(item.url)) continue;
+      const valid = sources.directSource(item.url, document.baseURI,
+        "application/vnd.apple.mpegurl");
+      if (!valid || valid.format !== "HLS") continue;
+      direct.push({ url: valid.url, format: "HLS",
+        label: typeof item.label === "string" ? item.label : "Observed HLS (.ts)" });
+      seen.add(valid.url);
+    }
+    return direct;
+  }
+
+  async function refreshObserved() {
+    try {
+      const reply = await chrome.runtime.sendMessage({ action: "rangedesk_media_list" });
+      detecting = reply?.enabled === true;
+      observed = detecting && Array.isArray(reply.sources) ? reply.sources.slice(0, 8) : [];
+    } catch {
+      detecting = false;
+      observed = [];
+    }
+    scheduleRefresh();
   }
 
   function eligible(video) {
@@ -67,7 +94,7 @@
     if (rect.width < 230 || rect.height < 130 ||
         rect.bottom < 0 || rect.top > window.innerHeight ||
         rect.right < 0 || rect.left > window.innerWidth) return false;
-    return available(video).length > 0;
+    return detecting || available(video).length > 0;
   }
 
   function pickVideo() {
@@ -146,6 +173,11 @@
     options.replaceChildren();
     if (!active) return;
     const found = available(active);
+    if (found.length === 0) {
+      status.textContent = detecting
+        ? "Start or restart playback to find a public HLS stream on this tab."
+        : "No direct video sources available.";
+    }
     found.forEach((source, i) => {
       const button = document.createElement("button");
       button.type = "button";
@@ -199,5 +231,13 @@
     attributeFilter: ["src", "type"]
   });
 
+  if (chrome.runtime.onMessage?.addListener)
+    chrome.runtime.onMessage.addListener(message => {
+      if (message?.action === "rangedesk_media_updated") {
+        void refreshObserved();
+      }
+      return false;
+    });
   scheduleRefresh();
+  void refreshObserved();
 })();
