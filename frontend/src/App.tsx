@@ -9,7 +9,7 @@ import {
   Zap, Plus, ArrowDownToLine, Github, Chrome, AlertTriangle
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { subscribeToNativeDashboard, subscribeToActionResults, openNativeDialog, sendDownloadAction, type DownloadCommand, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
+import { subscribeToNativeDashboard, subscribeToActionResults, openNativeDialog, sendDownloadAction, subscribeToCapturedLinks, type DownloadCommand, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
 import SettingsPage from "./SettingsPage";
 import RageDeskMark from "./RageDeskMark";
 import { AddDownloadDialog, ScheduleDownloadDialog } from "./NativeDownloadDialogs";
@@ -119,6 +119,8 @@ function App() {
   const [rowMenu, setRowMenu] = useState<string | null>(null);
   const [bulkMenu, setBulkMenu] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [capturedAddress, setCapturedAddress] = useState("");
+  const closeAdd = () => {setAddOpen(false);setCapturedAddress("");};
   const [scheduleItem, setScheduleItem] = useState<DownloadRow | null>(null);
   const [settingsInitialTab, setSettingsInitialTab] = useState<"General" | "Browser Capture">("General");
   const act = (action: DownloadCommand, ids: string[]) => {
@@ -128,6 +130,7 @@ function App() {
   const toggleSelect = (id:string) => setSelectedIds(previous=>{const next=new Set(previous);if(next.has(id))next.delete(id);else next.add(id);return next;});
   useEffect(() => subscribeToNativeDashboard(setData, setConnection), []);
   useEffect(() => subscribeToActionResults(setActionMessage), []);
+  useEffect(() => subscribeToCapturedLinks(address=>{setCapturedAddress(address);setAddOpen(true);setNav("all");}), []);
   const rows = data?.rows ?? [];
   useEffect(() => {
     if (!data) return;
@@ -204,8 +207,8 @@ function App() {
       <header className="toolbar">
         <div className="global-search"><Search size={18}/><input aria-label="Search downloads" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search downloads, files, or paste links…"/><kbd>Ctrl + L</kbd></div>
         <div className="toolbar-actions">
-          <button className="toolbar-button" onClick={()=>setAddOpen(true)} title="Add a new download using the existing C# engine"><ExternalLink size={17}/> Add Link</button>
-          <button className="toolbar-button action-primary" onClick={()=>setAddOpen(true)} title="New download"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
+          <button className="toolbar-button" onClick={()=>{setCapturedAddress("");setAddOpen(true);}} title="Add a new download using the existing C# engine"><ExternalLink size={17}/> Add Link</button>
+          <button className="toolbar-button action-primary" onClick={()=>{setCapturedAddress("");setAddOpen(true);}} title="New download"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
           <button className="square-button" disabled={!actionEligible} title="Resume selected downloads" onClick={()=>act("resume",targetIds)}><Play size={17}/></button>
           <button className="square-button" disabled={!actionEligible} title="Pause selected downloads" onClick={()=>act("pause",targetIds)}><Pause size={17}/></button>
           <span className="top-local"><CloudDownload size={17}/> Local only</span>
@@ -313,7 +316,7 @@ function App() {
           <span><HardDrive size={15}/> {data?.storage ? `${fmtBytes(data.storage.freeBytes)} free`:"Disk space unavailable"}</span>
           <span><Check size={14}/> {counts?.failed ? `${counts.failed} failed downloads`:"No failed downloads"}</span></div>
       </div>}
-      {addOpen&&<AddDownloadDialog onClose={()=>setAddOpen(false)} queueDefault={!(data?.settings.startImmediately??true)} onError={setActionMessage} onFallback={()=>{setAddOpen(false);openNativeDialog("ui.openAddDownload");}}/>}
+      {addOpen&&<AddDownloadDialog key={capturedAddress} initialAddress={capturedAddress} onClose={closeAdd} queueDefault={!(data?.settings.startImmediately??true)} onError={setActionMessage} onFallback={()=>{closeAdd();openNativeDialog("ui.openAddDownload");}}/>}
       {scheduleItem&&<ScheduleDownloadDialog item={scheduleItem} onClose={()=>setScheduleItem(null)} onError={setActionMessage}/>}
     </main>
   </div>;
