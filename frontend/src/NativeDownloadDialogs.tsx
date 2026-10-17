@@ -4,10 +4,10 @@ import { sendDirectDownload, sendSchedule, type DownloadRow, type ScheduleRecurr
 
 /** The existing .NET download engine owns all files and queues.
  * React collects the user's intent; the native host validates and persists it. */
-export function AddDownloadDialog({ onClose, onFallback, onError, queueDefault }: {
-  onClose: () => void; onFallback: () => void; onError: (message: string) => void; queueDefault: boolean
+export function AddDownloadDialog({ onClose, onFallback, onError, queueDefault, initialAddress="" }: {
+  onClose: () => void; onFallback: () => void; onError: (message: string) => void; queueDefault: boolean; initialAddress?: string
 }) {
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(initialAddress);
   const [queued, setQueued] = useState(queueDefault);
   useEffect(() => {
     const close = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
