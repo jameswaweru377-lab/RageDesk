@@ -115,7 +115,8 @@ public sealed class AutomaticConnectionControllerTests
         var ctrl = new AutomaticConnectionController(32);
         Assert.False(ctrl.Observe(TimeSpan.FromSeconds(3), 0, 128 * MiB));
         Assert.Equal(2, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(6), MiB, 128 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(6), MiB, 128 * MiB)); // First useful window
+        Assert.Equal(4, ctrl.TargetWorkers);
         Assert.False(ctrl.Observe(TimeSpan.FromSeconds(9), 2 * MiB, 128 * MiB));
         Assert.False(ctrl.Observe(TimeSpan.FromSeconds(12), MiB, 128 * MiB));
         Assert.True(ctrl.StoppedExpanding);
