@@ -176,7 +176,7 @@ function App() {
         <div className="global-search"><Search size={18}/><input aria-label="Search downloads" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search downloads, files, or paste links…"/><kbd>Ctrl + L</kbd></div>
         <div className="toolbar-actions">
           <button className="toolbar-button" onClick={()=>openNativeDialog("ui.openAddDownload")} title="Opens the existing native Add Download dialog"><ExternalLink size={17}/> Add Link</button>
-          <button className="toolbar-button action-primary" disabled title="New Download remains in the WPF version during preview"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
+          <button className="toolbar-button action-primary" onClick={()=>openNativeDialog("ui.openAddDownload")} title="Opens the existing native Add Download dialog"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
           <button className="square-button" disabled title="Available in WPF"><Play size={17}/></button>
           <button className="square-button" disabled title="Available in WPF"><Pause size={17}/></button>
           <span className="top-local"><CloudDownload size={17}/> Local only</span>
