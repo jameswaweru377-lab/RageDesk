@@ -29,6 +29,13 @@ public sealed class ReactNativeActionContractTests
         Assert.Contains("GetArrayLength() > 64", host);
         Assert.Contains("TryParseExact", host);
         Assert.Contains("ui.download", host);
+        Assert.Contains("ui.submit", host);
+        Assert.Contains("ui.schedule", host);
+        Assert.Contains("ui.folder", host);
+        Assert.Contains("OfferCapturedLink", host);
+        Assert.Contains("AddReactDownload", main);
+        Assert.Contains("SaveReactSchedule", main);
+        Assert.Contains("ChooseReactDownloadFolder", main);
         Assert.Contains("ui.setting", host);
         Assert.Contains("ui.browser", host);
         Assert.Contains("Downloads.FirstOrDefault(item => item.Id == id)", main);

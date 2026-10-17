@@ -1,24 +1,24 @@
-; RangeDesk 0.8.0 Preview 3 — English / Kiswahili installer.
+; RangeDesk 0.8.0 Preview 4 — English / Kiswahili installer.
 ; Compatible with the existing RangeDesk installer AppId. All downloader
 ; settings, browser opt-ins, jobs and partial checkpoints stay outside {app}.
 #ifndef SourceDir
   #define SourceDir "..\artifact\RangeDesk"
 #endif
 #define MyAppName "RangeDesk"
-#define MyAppVersion "0.8.0-preview.3"
-#define MyVersionNumbers "0.8.0.3"
+#define MyAppVersion "0.8.0-preview.4"
+#define MyVersionNumbers "0.8.0.4"
 [Setup]
 AppId={{F7B609F5-0C3F-4E1E-8D9C-70214C371CF4}
 AppName={#MyAppName}
 AppVersion={#MyVersionNumbers}
-AppVerName={#MyAppName} 0.8.0 Preview 3
+AppVerName={#MyAppName} 0.8.0 Preview 4
 AppPublisher=RangeDesk Independent Project
 AppPublisherURL=https://github.com/jameswaweru377-lab/RageDesk
 AppSupportURL=https://github.com/jameswaweru377-lab/RageDesk/issues
 AppUpdatesURL=https://github.com/jameswaweru377-lab/RageDesk/releases
 DefaultDirName={autopf}\RangeDesk
 DefaultGroupName=RangeDesk
-UninstallDisplayName=RangeDesk 0.8.0 Preview 3
+UninstallDisplayName=RangeDesk 0.8.0 Preview 4
 UninstallDisplayIcon={app}\RangeDesk.exe
 OutputDir={#SourceDir}\..
 OutputBaseFilename=RangeDesk-Setup-{#MyAppVersion}-win-x64

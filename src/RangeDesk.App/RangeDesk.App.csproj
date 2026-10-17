@@ -4,7 +4,7 @@
     <UseWPF>true</UseWPF>
     <OutputType>WinExe</OutputType>
     <AssemblyName>RangeDesk</AssemblyName>
-    <Version>0.8.0-preview.3</Version>
+    <Version>0.8.0-preview.4</Version>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
