@@ -194,3 +194,21 @@
 @media (prefers-reduced-motion: reduce) {
   .desktop.theme-dark .segmented-progress i.is-filled { transition: none; }
 }
+
+/* Native-backed action surfaces: match the approved navy, never generic browser menus. */
+.desktop .row-actions {position:relative}
+.desktop .react-row-menu {position:absolute;right:26px;top:100%;z-index:50;width:188px;min-width:188px;
+display:flex;flex-direction:column;padding:6px;gap:2px;background:linear-gradient(160deg,#092c54,#031326);
+border:1px solid #2586d3;border-radius:9px;box-shadow:0 14px 30px #000c,0 0 15px #026af255}
+.desktop .react-row-menu button {display:block;text-align:left;width:100%;height:auto;min-height:27px;padding:6px 9px;
+border:0;border-radius:5px;color:#d4edff;background:transparent;font-size:11px}
+.desktop .react-row-menu button:hover,.desktop .react-row-menu button:focus-visible {background:#1255a6}
+.desktop .native-action-feedback{padding:7px 12px;border:1px solid #2281c3;border-radius:7px;
+background:linear-gradient(100deg,#0d3157,#041d36);color:#cce9ff;display:flex;align-items:center;gap:9px;
+font-size:11px}
+.desktop .native-action-feedback button{margin-left:auto;border:1px solid #2167aa;border-radius:5px;color:#d9f3ff;background:#093968}
+.desktop .file-mark.icon-drive{background:#0f3155}
+.desktop .file-mark.icon-dark{background:#162d4b;color:#e7efff}
+.desktop .file-mark.icon-chrome{background:#163e5e;color:#35d7f1}
+.settings-page .settings-native-result{font-size:12px;color:#97e2ff;border:1px solid #155c9c;border-radius:8px;
+background:#062247;padding:10px}
