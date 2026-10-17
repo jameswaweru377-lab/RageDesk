@@ -18,7 +18,13 @@ export type DashboardSnapshot = {
   storage: { freeBytes: number; totalBytes: number } | null;
   settings: { startImmediately: boolean; defaultConnections: number; maxConcurrentDownloads: number; defaultBandwidthKiBps: number; proxyEnabled: boolean };
 };
-type NativeEnvelope = { version: number; type: "dashboard.snapshot"; payload: DashboardSnapshot };
+export type DownloadCommand = "pause" | "resume" | "stop" | "startQueue" | "openFolder" | "openFile" | "details" | "schedule" | "earlier" | "later";
+export type BrowserCommand = "connect" | "check" | "extensionFolder" | "extensionsPage";
+export type NativeActionResult = { requestId: string; message: string };
+
+type NativeEnvelope =
+  | { version: number; type: "dashboard.snapshot"; payload: DashboardSnapshot }
+  | { version: number; type: "ui.actionResult"; payload: NativeActionResult };
 
 interface NativeWebView {
   postMessage: (message: unknown) => void;
@@ -33,7 +39,35 @@ export function openNativeDialog(type: "ui.openSettings" | "ui.openAddDownload")
   window.chrome?.webview?.postMessage({ version: 1, type });
 }
 
-/** Only the trusted local C# host can publish snapshots. Native write actions are not exposed. */
+/** Send only catalog IDs, never file paths or signed URLs. Native C# validates all IDs
+ * and handles state transitions. The browser extension stays a separate opt-in integration. */
+export function sendDownloadAction(action: DownloadCommand, ids: string[]): boolean {
+  if (!window.chrome?.webview || ids.length > 64) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.download", requestId: crypto.randomUUID(), action, ids
+  });
+  return true;
+}
+export function sendBrowserAction(action: BrowserCommand): boolean {
+  if (!window.chrome?.webview) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.browser", requestId: crypto.randomUUID(), action
+  });
+  return true;
+}
+export function subscribeToActionResults(onResult: (message: string) => void): () => void {
+  const bridge = window.chrome?.webview;
+  if (!bridge) return () => undefined;
+  const listener = (event: MessageEvent<NativeEnvelope>) => {
+    const response = event.data;
+    if (response?.version === 1 && response.type === "ui.actionResult" &&
+      typeof response.payload?.message === "string") onResult(response.payload.message);
+  };
+  bridge.addEventListener("message", listener);
+  return () => bridge.removeEventListener("message", listener);
+}
+
+/** The trusted local C# host publishes bounded and versioned snapshots. */
 export function subscribeToNativeDashboard(
   onData: (data: DashboardSnapshot) => void,
   onConnection: (connection: "connecting" | "connected" | "unavailable") => void
