@@ -1,3 +1,4 @@
+using System.IO;
 using RangeDesk.Core;
 
 namespace RangeDesk.App;
@@ -16,7 +17,9 @@ internal sealed record ReactDashboardSnapshot(
     ReactDownloadRow[] Rows,
     ReactSource[] Sources,
     ReactRecent[] Recent,
-    double[] SpeedSamples)
+    double[] SpeedSamples,
+    ReactDiskStorage? Storage,
+    ReactSettingsDisplay Settings)
 {
     public static ReactDashboardSnapshot Capture(
         IReadOnlyCollection<DownloadEntry> downloads,
@@ -25,7 +28,8 @@ internal sealed record ReactDashboardSnapshot(
         string theme,
         int scheduledCount,
         string currentSpeed,
-        string remainingTime)
+        string remainingTime,
+        RangeDeskPreferences preferences)
     {
         var entries = downloads.ToArray();
         var counts = new ReactCounts(
@@ -86,7 +90,28 @@ internal sealed record ReactDashboardSnapshot(
         return new ReactDashboardSnapshot(
             theme == RangeDeskTheme.Arctic ? RangeDeskTheme.Arctic : RangeDeskTheme.Cobalt,
             new ReactSummary(currentSpeed, DownloadEntry.FormatSize(todayBytes), remainingTime),
-            counts, categories, sites, Math.Max(0, scheduledCount), rows, sources, recent, history);
+            counts, categories, sites, Math.Max(0, scheduledCount), rows, sources, recent, history,
+            ReadStorage(preferences.DownloadFolder),
+            new ReactSettingsDisplay(preferences.StartImmediately, preferences.DefaultConnections,
+                preferences.MaxConcurrentDownloads, preferences.DefaultBandwidthKiBps,
+                !string.IsNullOrWhiteSpace(preferences.ProxyUri)));
+    }
+
+    private static ReactDiskStorage? ReadStorage(string downloadFolder)
+    {
+        try
+        {
+            string? root = Path.GetPathRoot(Path.GetFullPath(downloadFolder));
+            if (string.IsNullOrEmpty(root)) return null;
+            DriveInfo disk = new(root);
+            if (!disk.IsReady) return null;
+            // Totals only; never disclose any path, folder name, drive label or account data to JS.
+            return new ReactDiskStorage(disk.AvailableFreeSpace, disk.TotalSize);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            return null;
+        }
     }
 
     private static string Trim(string value, int max) => value.Length <= max ? value : value[..max];
@@ -100,3 +125,7 @@ internal sealed record ReactDownloadRow(
     int Connections, int RequestedConnections, string Added, string AddedAt);
 internal sealed record ReactSource(string Host, double Bytes);
 internal sealed record ReactRecent(string Id, string Added, string Description);
+
+internal sealed record ReactDiskStorage(long FreeBytes, long TotalBytes);
+internal sealed record ReactSettingsDisplay(bool StartImmediately, int DefaultConnections,
+    int MaxConcurrentDownloads, int DefaultBandwidthKiBps, bool ProxyEnabled);

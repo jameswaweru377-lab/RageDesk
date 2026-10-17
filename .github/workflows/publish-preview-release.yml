@@ -26,10 +26,10 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      RELEASE_VERSION: 0.8.0-preview.2
-      RELEASE_TAG: v0.8.0-preview.2
-      SETUP_FILE: RangeDesk-Setup-0.8.0-preview.2-win-x64.exe
-      PORTABLE_FILE: RangeDesk-Portable-0.8.0-preview.2-win-x64.zip
+      RELEASE_VERSION: 0.8.0-preview.3
+      RELEASE_TAG: v0.8.0-preview.3
+      SETUP_FILE: RangeDesk-Setup-0.8.0-preview.3-win-x64.exe
+      PORTABLE_FILE: RangeDesk-Portable-0.8.0-preview.3-win-x64.zip
     steps:
       - name: Check out the verified Windows CI commit
         uses: actions/checkout@v4
@@ -61,7 +61,7 @@ jobs:
           $zip = 'artifact/RangeDesk-Preview-win-x64.zip'
           if (-not (Test-Path $zip)) { throw 'Successful CI ZIP was not downloaded' }
           Expand-Archive -LiteralPath $zip -DestinationPath artifact/RangeDesk -Force
-          foreach ($required in @('RangeDesk.exe',
+          foreach ($required in @('RangeDesk.exe', 'web/index.html', 'Preview-New-RageDesk.cmd',
             'NativeHost/RangeDesk.NativeHost.exe',
             'SchedulerWake/RangeDesk.SchedulerWake.exe',
             'BrowserCapture/chromium/manifest.json')) {
@@ -118,6 +118,11 @@ jobs:
             if (-not $entry -or -not $entry.UninstallString) { throw 'Missing Apps & Features registration' }
             $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RangeDesk.lnk'
             if (-not (Test-Path $shortcut)) { throw 'Missing Start Menu shortcut' }
+            $newUiLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RageDesk - New UI Preview.lnk'
+            if (-not (Test-Path $newUiLink)) { throw 'Missing New UI Preview shortcut' }
+            $newUiShortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($newUiLink)
+            if ($newUiShortcut.Arguments -ne '--react-preview') { throw 'Installed preview shortcut has incorrect launch arguments' }
+
             $uninstaller = Join-Path $install 'unins000.exe'
             if (-not (Test-Path $uninstaller)) { throw 'Missing uninstaller' }
             $p = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT',
@@ -141,7 +146,7 @@ jobs:
       - name: Upload verified installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RangeDesk-Setup-0.8.0-preview.2-win-x64
+          name: RangeDesk-Setup-0.8.0-preview.3-win-x64
           path: artifact/${{ env.SETUP_FILE }}
           retention-days: 14
           if-no-files-found: error
@@ -152,6 +157,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          gh release create $env:RELEASE_TAG (Join-Path artifact $env:SETUP_FILE) (Join-Path artifact $env:PORTABLE_FILE) artifact/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:VERIFIED_SHA --title 'RangeDesk 0.8 — Cobalt Flow Dark & Light | Windows Preview' --notes-file releases/v0.8.0-preview.2.md --prerelease --latest=false
+          gh release create $env:RELEASE_TAG (Join-Path artifact $env:SETUP_FILE) (Join-Path artifact $env:PORTABLE_FILE) artifact/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:VERIFIED_SHA --title 'RageDesk 0.8 — Deep Navy UI | Windows Preview 3' --notes-file releases/v0.8.0-preview.3.md --prerelease --latest=false
           if ($LASTEXITCODE -ne 0) { throw 'Release could not be published' }
           gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json url --jq .url

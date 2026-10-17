@@ -153,9 +153,25 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         };
     }
 
+    internal void OpenNativeDialogFromReact(string command)
+    {
+        // These commands only present existing native dialogs. All persistence and
+        // download-side operations remain behind the validated WPF forms.
+        if (command == "ui.openSettings")
+        {
+            Activate();
+            Settings_Click(this, new RoutedEventArgs());
+        }
+        else if (command == "ui.openAddDownload")
+        {
+            Activate();
+            Add_Click(this, new RoutedEventArgs());
+        }
+    }
+
     internal ReactDashboardSnapshot BuildReactPreviewSnapshot() =>
         ReactDashboardSnapshot.Capture(Downloads, _completionTimes, SelectedDownload,
-            _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel);
+            _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel, _preferences);
 
     private void ApplyTitleBarTheme()
     {

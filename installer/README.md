@@ -1,4 +1,6 @@
-# RangeDesk — Windows EXE installer (0.8.0 Preview 2)
+# RangeDesk — Windows EXE installer (0.8.0 Preview 3)
+
+This preview additionally creates a **RageDesk - New UI Preview** Start Menu shortcut. It opens the React/WebView2 dashboard alongside the original WPF window. The React view still has read-only actions; native download management remains in WPF.
 
 The standard Windows setup wizard is built with **Inno Setup 6**. It
 packages the self-contained Windows x64 application, native browser host,
@@ -38,7 +40,7 @@ BrowserCapture and Scheduler assets under artifact/RangeDesk. Then run:
 
 Output:
 
-    artifact/RangeDesk-Setup-0.8.0-preview.2-win-x64.exe
+    artifact/RangeDesk-Setup-0.8.0-preview.3-win-x64.exe
 
 The existing Windows CI workflow runs installation, registration, upgrade,
 uninstall and data-preservation smoke tests on the release feature branch.
