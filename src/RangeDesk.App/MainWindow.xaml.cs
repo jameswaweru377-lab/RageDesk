@@ -68,6 +68,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<Guid, DateTimeOffset> _completionTimes = new();
     private readonly Dictionary<Guid, DownloadProgressWindow> _progressWindows = new();
     private bool _reactPreviewOpened;
+    private ReactDashboardPreviewWindow? _reactDashboard;
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -149,7 +150,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 .Skip(1).Contains("--react-preview", StringComparer.OrdinalIgnoreCase))
                 return;
             _reactPreviewOpened = true;
-            new ReactDashboardPreviewWindow(this).Show();
+            _reactDashboard = new ReactDashboardPreviewWindow(this);
+            _reactDashboard.Closed += (_, _) => _reactDashboard = null;
+            _reactDashboard.Show();
         };
     }
 
@@ -1818,7 +1821,19 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             string? url = BrowserLinkInbox.TryTake(BrowserLinkInbox.DefaultDirectory);
             if (url is null) return;
+            // Only explicit manual direct-file captures are offered to the local React
+            // dialog. Media pages still use the existing native extractor review.
+            if (!OptionalMediaExtractor.IsPageCandidate(url) &&
+                _reactDashboard?.OfferCapturedLink(url) == true)
+            {
+                StatusMessage.Text = "Captured direct download ready for review in RageDesk.";
+                return;
+            }
             Add_Click(this, new RoutedEventArgs());
+            // The native media/advanced review is still necessary for unsupported links.
+            // Bring its owner forward rather than leaving an invisible overlay behind React.
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
             NewUrl.Text = url;
             if (OptionalMediaExtractor.IsPageCandidate(url))
             {
