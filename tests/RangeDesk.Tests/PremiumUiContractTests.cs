@@ -55,6 +55,36 @@ public sealed class PremiumUiContractTests
     }
 
     [Fact]
+    public void PopupHasRichLocallyGroundedIdentityAndStateAwareControls()
+    {
+        string popup = Source("src/RangeDesk.App/DownloadProgressWindow.cs");
+        string art = Source("src/RangeDesk.App/RageDeskPopupArtwork.cs");
+        string skin = Source("src/RangeDesk.App/Themes/ProgressWindowPremium.xaml");
+
+        Assert.Contains("RageDeskPopupArtwork.BrandMark", popup);
+        Assert.Contains("RecognizedSource", popup);
+        Assert.Contains("TryReadLocalExecutableIconAsync", popup);
+        Assert.Contains("DownloadStatus.Completed", popup);
+        Assert.Contains("DisplayRemainingTime", popup);
+        Assert.Contains("Connections (", popup);
+        Assert.Contains("0 MB/s", popup);
+        Assert.Contains("ButtonCaption", popup);
+        Assert.Contains("TabHeader", popup);
+        Assert.Contains("GridViewColumn", popup);
+
+        // Recognized sources are local and filename+domain-scoped; no URL icon API.
+        Assert.Contains("desktop.githubusercontent.com", art);
+        Assert.Contains("dl.google.com", art);
+        Assert.Contains("GoogleDriveSetup", art);
+        Assert.Contains("File.Exists(item.Destination)", art);
+        Assert.DoesNotContain("HttpClient", art);
+        Assert.DoesNotContain("WebRequest", art);
+        Assert.Contains("ProgressBar", skin);
+        Assert.Contains("PopupScrollThumb", skin);
+        Assert.Contains("PART_Track", skin);
+    }
+
+    [Fact]
     public void ThemeGradientColorsAreReplacedWhenDarkLightToggleChanges()
     {
         string theme = Source("src/RangeDesk.App/RangeDeskTheme.cs");
