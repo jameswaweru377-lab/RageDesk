@@ -6,10 +6,10 @@ import {
   Globe2, HardDrive, Image as ImageIcon, LayoutGrid, List, Menu,
   MoreHorizontal, Music2, Pause, Play, Search, Settings2,
   ShieldCheck, Video, XCircle, Home, Trash2, Package, MonitorDown,
-  Zap, Plus, ArrowDownToLine
+  Zap, Plus, ArrowDownToLine, Github, Chrome, AlertTriangle
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { subscribeToNativeDashboard, openNativeDialog, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
+import { subscribeToNativeDashboard, subscribeToActionResults, openNativeDialog, sendDownloadAction, type DownloadCommand, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
 import SettingsPage from "./SettingsPage";
 import RageDeskMark from "./RageDeskMark";
 
@@ -45,6 +45,9 @@ const categoryFor = (value: string) => {
 };
 function IconForFile({ item }: { item: DownloadRow }) {
   const name = item.name.toLowerCase(), cat = categoryFor(item.category);
+  if (/githubusercontent\.com$|github\.com$/.test(item.host.toLowerCase()) && /github/i.test(name)) return <span className="file-mark icon-dark"><Github size={20}/></span>;
+  if (/chrome/i.test(name) && /google\.com$/.test(item.host.toLowerCase())) return <span className="file-mark icon-chrome"><Chrome size={20}/></span>;
+  if (/^googledrive/i.test(name) && /google\.com$/.test(item.host.toLowerCase())) return <span className="file-mark icon-drive"><svg viewBox="0 0 32 32" width="22" height="22" aria-label="Google Drive app"><path fill="#00875a" d="M11 3h8l-11 19H1z"/><path fill="#ffbe00" d="M19 3l12 20h-8L11 3z"/><path fill="#1676ef" d="M8 22h23l-4 7H4z"/></svg></span>;
   let Icon: LucideIcon = Folder;
   let color = "blue";
   if (/\.zip$|\.7z$|\.rar$|\.tar$|\.gz$|\.iso$/.test(name) || cat === "Compressed") { Icon = Archive; color = "amber"; }
@@ -107,8 +110,15 @@ function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [cardView, setCardView] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const [actionMessage, setActionMessage] = useState("");
+  const [rowMenu, setRowMenu] = useState<string | null>(null);
+  const act = (action: DownloadCommand, ids: string[]) => {
+    if (!sendDownloadAction(action, ids)) setActionMessage("Native RageDesk connection unavailable.");
+    else setRowMenu(null);
+  };
   const toggleSelect = (id:string) => setSelectedIds(previous=>{const next=new Set(previous);if(next.has(id))next.delete(id);else next.add(id);return next;});
   useEffect(() => subscribeToNativeDashboard(setData, setConnection), []);
+  useEffect(() => subscribeToActionResults(setActionMessage), []);
   const rows = data?.rows ?? [];
   const counts = data?.counts;
   const filtered = useMemo(() => {
@@ -129,8 +139,10 @@ function App() {
   }, [rows, nav, selectedCategory, selectedSite, search, sort, filter]);
   const displayRows = filtered.slice(0, 500);
   const allSelected = displayRows.length>0 && displayRows.every(row=>selectedIds.has(row.id));
+  const targetIds = selectedIds.size ? [...selectedIds] : selectedRow ? [selectedRow] : [];
+  const actionEligible = connection==="connected" && targetIds.length>0;
   const selected = rows.find(r => r.id === selectedRow) ?? null;
-  const switchNav = (next: Nav) => { setNav(next); setFilter("all"); setSearch(""); };
+  const switchNav = (next: Nav) => { setNav(next); setFilter(next==="queued"?"queued":"all"); setSearch(""); };
   const theme = data?.theme === "Arctic" ? "light" : "dark";
   return <div className={`desktop theme-${theme} ${collapsed ? "sidebar-collapsed" : ""} ${nav === "settings" ? "settings-open" : ""}`}>
     <aside className="sidebar">
@@ -140,7 +152,7 @@ function App() {
         <NavButton label="Downloads" icon={Download} active={nav === "all"} count={counts?.all} onClick={() => switchNav("all")}/>
         <NavButton label="Completed" icon={CheckCircle2} active={nav === "completed"} count={counts?.completed} onClick={() => switchNav("completed")}/>
         <NavButton label="Queue" icon={List} active={nav === "queued"} count={counts?.queued} onClick={() => switchNav("queued")}/>
-        <NavButton label="Scheduler" icon={CalendarClock} active={nav === "scheduled"} count={data?.scheduledCount} disabled onClick={() => switchNav("scheduled")}/>
+        <NavButton label="Scheduler" icon={CalendarClock} active={nav === "scheduled"} count={data?.scheduledCount} onClick={() => switchNav("scheduled")}/>
         <NavButton label="Analytics" icon={BarChart3} active={nav === "analytics"} onClick={() => document.querySelector(".bottom-panels")?.scrollIntoView({behavior:"smooth"})}/>
         <div className="nav-section">
           <button className="nav-section-title" onClick={() => setExpanded(v => ({...v,categories:!v.categories}))} aria-expanded={expanded.categories}><span>Categories</span>{expanded.categories ? <ChevronDown size={16}/> : <ChevronDown size={16} className="rotate"/>}</button>
@@ -165,9 +177,9 @@ function App() {
         </div>
       </nav>
       <div className="sidebar-bottom">
-        <NavButton label="Automation" icon={Zap} disabled onClick={() => switchNav("automation")}/>
+        <NavButton label="Automation" icon={Zap} onClick={() => openNativeDialog("ui.openSettings")}/>
         <NavButton label="Settings" icon={Settings2} active={nav==="settings"} onClick={() => switchNav("settings")}/>
-        <div className="local-mode"><ShieldCheck size={14}/><span>Local only · preview</span></div>
+        <div className="local-mode"><ShieldCheck size={14}/><span>Local only</span></div>
       </div>
     </aside>
 
@@ -177,8 +189,8 @@ function App() {
         <div className="toolbar-actions">
           <button className="toolbar-button" onClick={()=>openNativeDialog("ui.openAddDownload")} title="Opens the existing native Add Download dialog"><ExternalLink size={17}/> Add Link</button>
           <button className="toolbar-button action-primary" onClick={()=>openNativeDialog("ui.openAddDownload")} title="Opens the existing native Add Download dialog"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
-          <button className="square-button" disabled title="Available in WPF"><Play size={17}/></button>
-          <button className="square-button" disabled title="Available in WPF"><Pause size={17}/></button>
+          <button className="square-button" disabled={!actionEligible} title="Resume selected downloads" onClick={()=>act("resume",targetIds)}><Play size={17}/></button>
+          <button className="square-button" disabled={!actionEligible} title="Pause selected downloads" onClick={()=>act("pause",targetIds)}><Pause size={17}/></button>
           <span className="top-local"><CloudDownload size={17}/> Local only</span>
           <button className="square-button" aria-label="Open settings" onClick={()=>switchNav("settings")}><Settings2 size={18}/></button>
         </div>
@@ -211,17 +223,18 @@ function App() {
           <div className="selection-toolbar">
             <label className="selection-total"><input type="checkbox" checked={allSelected} onChange={()=>setSelectedIds(allSelected?new Set():new Set(displayRows.map(row=>row.id)))}/>
               {selectedIds.size} selected</label>
-            <button disabled title="Deletion stays in WPF until validated native command parity"><Trash2 size={15}/> Delete</button>
-            <button disabled title="Open Folder stays in WPF until validated native command parity"><FolderOpen size={15}/> Open Folder</button>
-            <button disabled title="More actions stay in WPF"><MoreHorizontal size={16}/> More Actions</button>
-            <span className="toolbar-readonly">Read-only preview</span>
+            <button disabled title="Deletion requires verified removal and disk safety checks"><Trash2 size={15}/> Delete</button>
+            <button disabled={selectedIds.size!==1} onClick={()=>act("openFolder",targetIds)}><FolderOpen size={15}/> Open Folder</button>
+            <button disabled={!selectedIds.size} onClick={()=>act("resume",targetIds)}><Play size={16}/> Start / Resume</button>
+            <button disabled={!selectedIds.size} onClick={()=>act("pause",targetIds)}><Pause size={15}/> Pause</button>
+            <button disabled={!selectedIds.size} onClick={()=>act("stop",targetIds)}><AlertTriangle size={15}/> Stop</button>
           </div>
           <div className="table-scroll">
             {!cardView ? <table className="download-table"><thead><tr><th aria-label="Select all visible downloads" className="check-col">
                 <input type="checkbox" checked={allSelected} onChange={()=>setSelectedIds(allSelected?new Set():new Set(displayRows.map(row=>row.id)))}/>
               </th><th className="row-index-col">#</th><th className="name-col">Name</th><th>Category</th><th>Status</th>
               <th>Progress</th><th>Size</th><th>Speed</th><th>ETA</th><th>Connections</th><th>Added</th><th aria-label="Actions"/></tr></thead>
-              <tbody>{displayRows.map((r,index)=> <tr key={r.id} className={`download-row ${selectedIds.has(r.id)?"selected-row":""}`} onClick={()=>setSelectedRow(r.id)}>
+              <tbody>{displayRows.map((r,index)=> <tr key={r.id} className={`download-row ${selectedIds.has(r.id)?"selected-row":""}`} onClick={()=>setSelectedRow(r.id)} onDoubleClick={()=>act("details",[r.id])} onContextMenu={e=>{e.preventDefault();setSelectedRow(r.id);setRowMenu(r.id);}}>
                 <td><input type="checkbox" aria-label={`Select ${r.name}`} checked={selectedIds.has(r.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSelect(r.id)}/></td>
                 <td className="row-index">{index+1}</td>
                 <td><div className="filename"><IconForFile item={r}/><div className="file-lines"><strong title={r.name}>{r.name}</strong><span title={r.host}>{r.host}</span></div></div></td>
@@ -231,9 +244,22 @@ function App() {
                 <td className="numbers">{r.status.toLowerCase()==="downloading" && r.bytesPerSecond>0 ? fmtBytes(r.bytesPerSecond)+"/s":"—"}</td><td>{r.eta}</td>
                 <td><span className="connections"><Activity size={12}/>{r.connections} / {r.requestedConnections}</span></td>
                 <td className="added">{r.added}</td><td><div className="row-actions">
-                  <button disabled title="Open folder is available in WPF"><Folder size={16}/></button>
-                  <button disabled title="Delete requires a validated native confirmation flow"><Trash2 size={16}/></button>
-                  <button disabled title="Context actions remain in WPF"><MoreHorizontal size={17}/></button>
+                  <button aria-label={`Open folder for ${r.name}`} onClick={e=>{e.stopPropagation();act("openFolder",[r.id]);}}><Folder size={16}/></button>
+                  <button disabled title="Deletion is not yet safe to enable"><Trash2 size={16}/></button>
+                  <button aria-label={`More actions for ${r.name}`} onClick={e=>{e.stopPropagation();setRowMenu(rowMenu===r.id?null:r.id);}}><MoreHorizontal size={17}/></button>
+                  {rowMenu===r.id&&<div className="react-row-menu" onClick={e=>e.stopPropagation()}>
+                    <button onClick={()=>act("details",[r.id])}>View transfer details</button>
+                    <button onClick={()=>act("resume",[r.id])}>Start / Resume</button>
+                    <button onClick={()=>act("pause",[r.id])}>Pause</button>
+                    <button onClick={()=>act("stop",[r.id])}>Stop (confirm)</button>
+                    <button onClick={()=>act("schedule",[r.id])}>Schedule start</button>
+                    <button onClick={()=>act("earlier",[r.id])}>Move earlier</button>
+                    <button onClick={()=>act("later",[r.id])}>Move later</button>
+                    <button onClick={()=>act("openFolder",[r.id])}>Open folder</button>
+                    <button onClick={()=>act("openFile",[r.id])}>Open completed file</button>
+                    <button onClick={()=>setRowMenu(null)}>Close menu</button>
+                  </div>}
+
                 </div></td>
               </tr>)}</tbody></table> :
               <div className="download-cards">{displayRows.map(r=><button key={r.id} className="download-mini-card" onClick={()=>setSelectedRow(r.id)}><IconForFile item={r}/><strong title={r.name}>{r.name}</strong><StatusPill status={r.status}/><div className="progress-track"><span style={{width:`${r.percent??0}%`}}/></div></button>)}</div>}
@@ -260,6 +286,7 @@ function App() {
               {!data?.recent?.length && <span className="hint">No activity recorded.</span>}</div>
           </div>
         </section>
+        {actionMessage&&<div className="native-action-feedback" role="status"><Check size={15}/>{actionMessage}<button aria-label="Dismiss message" onClick={()=>setActionMessage("")}>×</button></div>}
         <div className="preview-footer"><span className="footer-ready"><span className="status-green-dot"/>{connection==="connected"?"Ready":connection==="unavailable"?"Preview unavailable":"Connecting"}</span>
           <span><CloudDownload size={15}/> Sync coming soon</span>
           <span><HardDrive size={15}/> {data?.storage ? `${fmtBytes(data.storage.freeBytes)} free`:"Disk space unavailable"}</span>
