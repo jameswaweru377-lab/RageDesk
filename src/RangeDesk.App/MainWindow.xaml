@@ -651,7 +651,37 @@
         <TextBlock Text="Add a direct HTTP or HTTPS link to get started. Your files and download history stay on this device."
                    Foreground="{DynamicResource V5LightMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0"/>
       </StackPanel>
-      <TextBlock Grid.Row="4" x:Name="StatusMessage" Foreground="{DynamicResource V5MutedBrush}" Margin="3,8,0,0"
+      <Grid Grid.Row="4" Margin="12,6,12,5">
+        <Grid.ColumnDefinitions><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="1*"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
+        <Border Grid.Column="0" Margin="0,0,8,0" Background="#081B34" BorderBrush="#21476E" BorderThickness="1" CornerRadius="11" Padding="11">
+          <Grid>
+            <Grid.RowDefinitions><RowDefinition Height="29"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <TextBlock Text="Network &amp; Performance · selected download" FontWeight="SemiBold" FontSize="12" Foreground="#E8F3FF"/>
+            <charts:SpeedGraph x:Name="AnalyticsGraph" Grid.Row="1" Source="{Binding SelectedDownload}"/>
+          </Grid>
+        </Border>
+        <Border Grid.Column="1" Margin="0,0,8,0" Background="#081B34" BorderBrush="#21476E" BorderThickness="1" CornerRadius="11" Padding="11">
+          <StackPanel>
+            <TextBlock Text="Top Sources" FontWeight="SemiBold" FontSize="12" Foreground="#E8F3FF" Margin="0,0,0,10"/>
+            <ItemsControl ItemsSource="{Binding TopSourceSummaries}">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" Foreground="#A7C8E9" FontSize="11" Margin="0,0,0,7"/>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Grid.Column="2" Background="#081B34" BorderBrush="#21476E" BorderThickness="1" CornerRadius="11" Padding="11">
+          <StackPanel>
+            <TextBlock Text="Recent Activities" FontWeight="SemiBold" FontSize="12" Foreground="#E8F3FF" Margin="0,0,0,10"/>
+            <ItemsControl ItemsSource="{Binding RecentActivitySummaries}">
+              <ItemsControl.ItemTemplate><DataTemplate>
+                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" Foreground="#A7C8E9" FontSize="11" Margin="0,0,0,7"/>
+              </DataTemplate></ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Grid>
+      <TextBlock Grid.Row="5" x:Name="StatusMessage" Foreground="{DynamicResource V5MutedBrush}" Margin="3,8,0,0"
                  Text="Ready · Your downloads remain private on this PC"/>
     </Grid>
 
