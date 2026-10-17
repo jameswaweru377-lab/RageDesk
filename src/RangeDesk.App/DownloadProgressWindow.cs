@@ -69,6 +69,7 @@ public sealed class DownloadProgressWindow : Window
         _onCommand = onCommand;
         _kind = PreviewKind(entry);
         Title = "RageDesk Pro · " + entry.Name;
+        Icon = RageDeskPopupArtwork.WindowIcon();
         Width = 846;
         Height = 700;
         MinWidth = 750;
@@ -237,6 +238,9 @@ public sealed class DownloadProgressWindow : Window
         summary.Children.Add(artwork);
         var file = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         _name.ToolTip = _entry.Name; // Full filenames stay accessible even when ellipsized.
+        _name.MaxWidth = 425;
+        _origin.MaxWidth = 425;
+        _sourceCaption.MaxWidth = 425;
         file.Children.Add(_name);
         file.Children.Add(_origin);
         file.Children.Add(new Border { Height = 13, Background = Brushes.Transparent });
@@ -302,7 +306,7 @@ public sealed class DownloadProgressWindow : Window
                 Background = Surface, Foreground = TextColor, BorderThickness = new Thickness(0) } });
         tabs.SizeChanged += (_, _) =>
         {
-            double width = Math.Max(115, (tabs.ActualWidth - 10) / 4);
+            double width = Math.Max(115, (tabs.ActualWidth - 36) / 4);
             foreach (TabItem tab in tabs.Items) tab.Width = width;
         };
         Grid.SetRow(tabs, 3); root.Children.Add(tabs);
