@@ -2,7 +2,7 @@ export type DownloadRow = {
   id: string; name: string; host: string; category: string; status: string;
   receivedBytes: number; totalBytes: number | null; percent: number | null;
   bytesPerSecond: number; eta: string; connections: number; requestedConnections: number;
-  added: string; addedAt: string;
+  added: string; addedAt: string; isScheduled: boolean;
 };
 export type DashboardSnapshot = {
   theme: "Cobalt" | "Arctic";
