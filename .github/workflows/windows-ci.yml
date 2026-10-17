@@ -104,7 +104,7 @@ jobs:
         shell: pwsh
         run: Copy-Item -Path browser-capture -Destination artifact/RangeDesk/BrowserCapture -Recurse -Force
       - name: Build unsigned installer preview (installer branch only)
-        if: github.head_ref == 'feature/rangedesk-v5-installer'
+        if: github.head_ref == 'feature/rangedesk-v5-installer' || github.head_ref == 'feature/ragedesk-installer-release'
         shell: pwsh
         run: |
           $paths = @("${env:ProgramFiles(x86)}\\Inno Setup 6\\ISCC.exe", "$env:ProgramFiles\\Inno Setup 6\\ISCC.exe")
@@ -117,19 +117,37 @@ jobs:
           $source = (Resolve-Path 'artifact/RangeDesk').Path
           & $iscc 'installer/RangeDesk.iss' "/DSourceDir=$source"
           if ($LASTEXITCODE -ne 0) { throw "Installer compilation failed" }
-          if (-not (Test-Path 'artifact/RangeDesk-Setup-Preview.exe')) { throw "Installer was not created" }
+          if (-not (Test-Path 'artifact/RangeDesk-Setup-0.8.0-preview.1-win-x64.exe')) { throw "Installer was not created" }
       - name: Test per-user install, uninstall and state preservation
-        if: github.head_ref == 'feature/rangedesk-v5-installer'
+        if: github.head_ref == 'feature/rangedesk-v5-installer' || github.head_ref == 'feature/ragedesk-installer-release'
         shell: pwsh
         run: |
           $stateFolder = Join-Path $env:LOCALAPPDATA 'RangeDesk'
           New-Item -ItemType Directory -Path $stateFolder -Force | Out-Null
           $sentinel = Join-Path $stateFolder 'installer-preservation-smoke.txt'
           [IO.File]::WriteAllText($sentinel, 'preserve-this-user-data')
-          $install = Join-Path $env:TEMP 'RangeDesk-ci-install'
-          $setup = (Resolve-Path 'artifact/RangeDesk-Setup-Preview.exe').Path
-          $proc = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=$install") -PassThru -Wait
+          $install = Join-Path $env:TEMP 'RangeDesk-release-smoke'
+          $setup = (Resolve-Path 'artifact/RangeDesk-Setup-0.8.0-preview.1-win-x64.exe').Path
+          $proc = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/LANG=sw', "/DIR=$install") -PassThru -Wait
           if ($proc.ExitCode -ne 0 -or -not (Test-Path (Join-Path $install 'RangeDesk.exe'))) { throw "Silent install failed" }
+          # A real installed app must be discoverable via Apps & Features and Start.
+          $registry = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+          $appRecord = Get-ChildItem $registry | ForEach-Object { Get-ItemProperty $_.PSPath } |
+            Where-Object { $_.DisplayName -like 'RangeDesk 0.8.0*' } | Select-Object -First 1
+          if (-not $appRecord -or -not $appRecord.UninstallString) {
+            throw 'Missing Programs & Features uninstall registration for current user'
+          }
+          $startLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RangeDesk.lnk'
+          if (-not (Test-Path $startLink)) { throw 'Start Menu shortcut missing' }
+          if (-not (Test-Path (Join-Path $install 'BrowserCapture\chromium\manifest.json'))) {
+            throw 'Installed browser extension assets missing'
+          }
+          # A second install simulates a same-version update and must not remove catalog state.
+          $upgrade = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT',
+            '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/LANG=en', "/DIR=$install") -PassThru -Wait
+          if ($upgrade.ExitCode -ne 0 -or -not (Test-Path $sentinel)) {
+            throw 'Upgrade test failed to preserve saved data'
+          }
           $uninstall = Join-Path $install 'unins000.exe'
           if (-not (Test-Path $uninstall)) { throw "Uninstaller missing" }
           $proc = Start-Process -FilePath $uninstall -ArgumentList @('/VERYSILENT','/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
@@ -147,11 +165,11 @@ jobs:
           retention-days: 7
           if-no-files-found: error
       - name: Upload unsigned Windows installer preview
-        if: github.head_ref == 'feature/rangedesk-v5-installer'
+        if: github.head_ref == 'feature/rangedesk-v5-installer' || github.head_ref == 'feature/ragedesk-installer-release'
         uses: actions/upload-artifact@v4
         with:
           name: RangeDesk-Setup-Preview-win-x64
-          path: artifact/RangeDesk-Setup-Preview.exe
+          path: artifact/RangeDesk-Setup-0.8.0-preview.1-win-x64.exe
           retention-days: 7
           if-no-files-found: error
       - name: Upload test reports

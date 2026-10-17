@@ -1,0 +1,49 @@
+MASHARTI YA MATUMIZI YA RANGEDESK (TOLEO LA MAJARIBIO)
+Toleo 0.8.0 Preview 1 — Oktoba 2026
+
+Tafadhali soma kabla ya kusakinisha RangeDesk.
+
+1. Kuhusu RangeDesk
+RangeDesk ni programu huru ya Windows ya kupakua faili, iliyo katika
+hatua ya majaribio. Kisakinishi hiki kina programu, vifaa vya hiari
+vya kuunganisha kivinjari na vifaa vya kuratibu upakuaji.
+RangeDesk haihusiani na Internet Download Manager, Google, YouTube
+au tovuti nyingine za kupakua faili.
+
+2. Ruhusa ya kutumia
+Unaweza kusakinisha na kutumia toleo hili kwenye kompyuta unazomiliki
+au ulizoidhinishwa kusimamia. Mradi unaweza kubadilisha au kuacha
+kutoa matoleo ya majaribio. Masharti haya yanahusu kutumia kisakinishi
+cha programu; hayabadilishi leseni tofauti za msimbo au vifaa vingine.
+
+3. Upakuaji halali
+Pakua tu faili au maudhui ambayo una ruhusa halali ya kufikia na
+kuhifadhi. Heshimu hakimiliki, masharti ya tovuti, vizuizi vya ufikiaji
+na sera za mtandao za taasisi yako. RangeDesk haikupi ruhusa ya
+kupakua maudhui yaliyolindwa au usiyoruhusiwa kuyapakua.
+
+4. Taarifa zako na kivinjari
+Programu huhifadhi historia ya upakuaji, mipangilio na sehemu za
+faili za kuendelea kupakua kwenye kompyuta yako. Kuunganisha
+kivinjari ni hiari na kunahitaji kuwezeshwa kando.
+Kusakinisha RangeDesk hakuwezeshi kiendelezi cha Chrome kwa siri,
+wala hakuombi nywila ulizohifadhi kwenye kivinjari.
+
+5. Toleo la majaribio
+Programu inatolewa ILIVYO, bila ahadi kuwa kila upakuaji au tovuti
+itafanya kazi. Kwa kadiri sheria inavyoruhusu, mradi hautoi dhamana
+wala kuwajibika kwa upotevu wa taarifa au kukatika kwa huduma.
+Masharti haya hayaondoi haki ambazo sheria hairuhusu ziondolewe.
+
+6. Kusakinisha na kuondoa
+Unaweza kuchagua kusakinisha kwa akaunti yako pekee au kwa watumiaji
+wote kwa ruhusa ya msimamizi. Kuondoa programu hufuta faili za
+programu lakini huhifadhi faili ulizopakua, mipangilio, historia
+na sehemu za upakuaji. Unaweza kufuta taarifa hizo mwenyewe baadaye.
+
+7. Matoleo mapya na msaada
+Hakuna ahadi ya masasisho ya moja kwa moja au msaada wa kulipiwa.
+Angalia matoleo yajayo kwenye ukurasa rasmi:
+https://github.com/jameswaweru377-lab/RageDesk/releases
+
+Kwa kuchagua "Ninakubali", unathibitisha kuwa umesoma masharti haya.
