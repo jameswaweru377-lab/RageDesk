@@ -25,7 +25,8 @@ export type NativeActionResult = { requestId: string; message: string };
 
 type NativeEnvelope =
   | { version: number; type: "dashboard.snapshot"; payload: DashboardSnapshot }
-  | { version: number; type: "ui.actionResult"; payload: NativeActionResult };
+  | { version: number; type: "ui.actionResult"; payload: NativeActionResult }
+  | { version: number; type: "ui.browserCaptured"; payload: { address: string } };
 
 interface NativeWebView {
   postMessage: (message: unknown) => void;
@@ -98,6 +99,22 @@ export function subscribeToActionResults(onResult: (message: string) => void): (
     const response = event.data;
     if (response?.version === 1 && response.type === "ui.actionResult" &&
       typeof response.payload?.message === "string") onResult(response.payload.message);
+  };
+  bridge.addEventListener("message", listener);
+  return () => bridge.removeEventListener("message", listener);
+}
+
+/** Manual browser handoff is a user-selected link from the local C# inbox,
+ * not a web-page event or remote fetch. It is not persisted by React. */
+export function subscribeToCapturedLinks(onCaptured: (address: string) => void): () => void {
+  const bridge = window.chrome?.webview;
+  if (!bridge) return () => undefined;
+  const listener = (event: MessageEvent<NativeEnvelope>) => {
+    const msg = event.data;
+    if (msg?.version === 1 && msg.type === "ui.browserCaptured" &&
+        typeof msg.payload?.address === "string" &&
+        msg.payload.address.length <= 3500 && /^https?:\/\//i.test(msg.payload.address))
+      onCaptured(msg.payload.address);
   };
   bridge.addEventListener("message", listener);
   return () => bridge.removeEventListener("message", listener);
