@@ -24,6 +24,7 @@ public static class DownloadCategory
         if (Images.Contains(extension)) return "Images";
         if (Documents.Contains(extension)) return "Documents";
         if (Archives.Contains(extension)) return "Archives";
+        if (Music.Contains(extension)) return "Music";
         return "Other";
     }
 }
