@@ -15,6 +15,10 @@ public static class RangeDeskTheme
 
     private static readonly Dictionary<string, (string light, string dark, bool color)> Colors = new()
     {
+        ["V5PremiumToolbarTop"] = ("#FFFFFF", "#12355E", true),
+        ["V5PremiumToolbarBottom"] = ("#E4EFFA", "#091B34", true),
+        ["V5PremiumPrimaryTop"] = ("#42B5FF", "#32B6FF", true),
+        ["V5PremiumPrimaryBottom"] = ("#0872E8", "#0762F2", true),
         ["V5CanvasBrush"] = ("#F2F7FE", "#05172F", false),
         ["V5SidebarBrush"] = ("#F8FBFF", "#071A33", false),
         ["V5SurfaceBrush"] = ("#FFFFFF", "#0B213D", false),
