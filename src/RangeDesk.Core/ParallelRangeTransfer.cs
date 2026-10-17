@@ -191,7 +191,7 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                                 while (current < totalSegment)
                                 {
                                     int wanted = (int)Math.Min(buffer.Length, totalSegment - current);
-                                    int count = await TransferInactivityTimeout.ReadAsync(input,
+                                    int count = await TransferInactivityTimeout.ReadHttpBodyAsync(input,
                                         buffer.AsMemory(0, wanted), workerStop.Token, networkIdleTimeout);
                                     if (count == 0) throw new EndOfStreamException($"Worker {i}: range ended early.");
                                     await output.WriteAsync(buffer.AsMemory(0, count), workerStop.Token);
@@ -200,7 +200,7 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                                     Interlocked.Add(ref measured, count);
                                     Interlocked.Add(ref workerBytes[i], count);
                                 }
-                                if (await TransferInactivityTimeout.ReadAsync(input,
+                                if (await TransferInactivityTimeout.ReadHttpBodyAsync(input,
                                     buffer.AsMemory(0, 1), workerStop.Token, networkIdleTimeout) != 0)
                                     throw new InvalidDataException($"Worker {i}: excess bytes after requested range.");
                                 await output.FlushAsync(workerStop.Token);
@@ -208,7 +208,7 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                                 break;
                             }
                             catch (Exception ex) when (
-                                (ex is TimeoutException ||
+                                (ex is TimeoutException or EndOfStreamException ||
                                  HttpRetryPolicy.IsTransientTransportFailure(ex)) &&
                                 Interlocked.Read(ref workerBytes[i]) == totalSegment &&
                                 !workerStop.Token.IsCancellationRequested)

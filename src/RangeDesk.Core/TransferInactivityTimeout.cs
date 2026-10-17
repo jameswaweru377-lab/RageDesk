@@ -36,6 +36,22 @@ public static class TransferInactivityTimeout
         }
     }
 
+    /// <summary>
+    /// A failure while reading an HTTP response body is a remote transport
+    /// failure, not a local disk write failure. Only use this at HTTP-response
+    /// input sites; ordinary ReadAsync retains its original exception types.
+    /// </summary>
+    public static async ValueTask<int> ReadHttpBodyAsync(
+        Stream input, Memory<byte> buffer, CancellationToken cancellation, TimeSpan? timeout = null)
+    {
+        try { return await ReadAsync(input, buffer, cancellation, timeout); }
+        catch (IOException ex) when (ex is not EndOfStreamException)
+        {
+            throw new EndOfStreamException(
+                "HTTP response body disconnected before validation.", ex);
+        }
+    }
+
     public static async ValueTask<int> ReadAsync(
         Stream input, Memory<byte> buffer, CancellationToken cancellation, TimeSpan? timeout = null)
     {

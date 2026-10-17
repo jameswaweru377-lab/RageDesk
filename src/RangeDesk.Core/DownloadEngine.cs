@@ -349,7 +349,7 @@ public sealed class DownloadEngine : IDisposable
                 {
                 while (true)
                 {
-                    int count = await TransferInactivityTimeout.ReadAsync(input, buffer, token, _networkIdleTimeout);
+                    int count = await TransferInactivityTimeout.ReadHttpBodyAsync(input, buffer, token, _networkIdleTimeout);
                     if (count == 0) break;
                     if (expected is long max && received + count > max)
                         throw new InvalidDataException("The server sent more bytes than declared.");

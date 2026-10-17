@@ -212,7 +212,9 @@ public static class V7NetworkBenchmark
         if (item.Status != DownloadStatus.Completed)
             throw new InvalidDataException(
                 "V7 download did not complete: " + item.Status +
-                "; error category " + (item.Error is null ? "none" : "transfer failure"));
+                "; safe local-loopback diagnostic: " +
+                (item.Error is null ? "none" :
+                 item.Error[..Math.Min(180, item.Error.Length)]));
     }
 
     private static void ValidateCompleted(
