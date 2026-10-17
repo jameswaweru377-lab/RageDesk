@@ -265,6 +265,8 @@
           <Grid Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
             <Border Background="#07172E" CornerRadius="6"/>
             <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}"
+                   Minimum="{TemplateBinding Minimum}" Maximum="{TemplateBinding Maximum}"
+                   Value="{TemplateBinding Value}" ViewportSize="{TemplateBinding ViewportSize}"
                    IsDirectionReversed="True" Margin="1">
               <Track.DecreaseRepeatButton>
                 <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
