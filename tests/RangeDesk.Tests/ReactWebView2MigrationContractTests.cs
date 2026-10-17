@@ -67,8 +67,9 @@ public sealed class ReactWebView2MigrationContractTests
         Assert.Contains("Network &amp; Performance", ui);
         Assert.Contains("Top Sources", ui);
         Assert.Contains("Recent Activities", ui);
-        Assert.Contains("npm run build --prefix frontend", workflow);
-        Assert.Contains("frontend/dist/index.html", workflow);
+        Assert.Contains("working-directory: frontend", workflow);
+        Assert.Contains("npm run build", workflow);
+        Assert.Contains("dist/index.html", workflow);
         Assert.DoesNotContain("https://fonts.googleapis.com", ui);
     }
 }
