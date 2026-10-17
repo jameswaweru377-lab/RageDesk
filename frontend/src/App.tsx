@@ -120,6 +120,12 @@ function App() {
   useEffect(() => subscribeToNativeDashboard(setData, setConnection), []);
   useEffect(() => subscribeToActionResults(setActionMessage), []);
   const rows = data?.rows ?? [];
+  useEffect(() => {
+    if (!data) return;
+    const valid = new Set(data.rows.map(r=>r.id));
+    setSelectedIds(previous => [...previous].every(id=>valid.has(id)) ? previous :
+      new Set([...previous].filter(id=>valid.has(id))));
+  }, [data]);
   const counts = data?.counts;
   const filtered = useMemo(() => {
     let next = rows.filter(r => {
