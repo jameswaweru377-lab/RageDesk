@@ -5,7 +5,7 @@ import {
   Eye, Folder, Globe2, HardDrive, LayoutList, Palette, Power, RefreshCcw,
   Save, Settings2, Shield, SlidersHorizontal, Zap, X, Wrench
 } from "lucide-react";
-import type { DashboardSnapshot } from "./nativeBridge";
+import { openNativeDialog, type DashboardSnapshot } from "./nativeBridge";
 
 type Tab = "General" | "Downloads" | "Browser Capture" | "Connections" | "Appearance" | "Advanced";
 const tabs = [
