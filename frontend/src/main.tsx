@@ -2,6 +2,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./styles.css";
+import "./visual-parity.css";
 
 const root = document.getElementById("root");
 if (!root) throw new Error("RageDesk frontend root missing");
