@@ -12,6 +12,7 @@
     <charts:FileIconConverter x:Key="FileIcon"/>
     <charts:FileIconColorConverter x:Key="FileIconColor"/>
     <charts:StatusColorConverter x:Key="StatusColor"/>
+    <charts:DownloadDetailActionVisibilityConverter x:Key="DetailsActionVisibility"/>
     <Style TargetType="DataGridRow">
       <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
       <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
@@ -1260,11 +1261,34 @@
               <Border Background="#E4F3FF" CornerRadius="14" Padding="12,6" Margin="0,0,12,0">
                 <TextBlock Text="{Binding SelectedDownload.Status}" Foreground="#255BA0" FontSize="12"/>
               </Border>
-              <Button Content="Resume" Click="DetailsResume_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Resume paused download"/>
-               <Button Content="Pause" Click="DetailsPause_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Pause active download"/>
+              <Button Content="Resume" Click="DetailsResume_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Resume paused download">
+                 <Button.Visibility><MultiBinding Converter="{StaticResource DetailsActionVisibility}" ConverterParameter="Resume">
+                   <Binding Path="SelectedDownload.Status"/><Binding Path="SelectedDownload.IsMedia"/>
+                 </MultiBinding></Button.Visibility>
+               </Button>
+               <Button Content="Pause" Click="DetailsPause_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Pause active download">
+                 <Button.Visibility><MultiBinding Converter="{StaticResource DetailsActionVisibility}" ConverterParameter="Pause">
+                   <Binding Path="SelectedDownload.Status"/><Binding Path="SelectedDownload.IsMedia"/>
+                 </MultiBinding></Button.Visibility>
+               </Button>
                <Button Content="Open file" Click="OpenFile_Click" Style="{StaticResource V5ToolbarButton}"
-                      Padding="12,8" Margin="0,0,8,0"/>
-              <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource V5ToolbarButton}"
+                      Padding="12,8" Margin="0,0,8,0">
+                 <Button.Visibility><MultiBinding Converter="{StaticResource DetailsActionVisibility}" ConverterParameter="Open">
+                   <Binding Path="SelectedDownload.Status"/><Binding Path="SelectedDownload.IsMedia"/>
+                 </MultiBinding></Button.Visibility>
+               </Button>
+              <Button Content="Download Again" Click="DetailsDownloadAgain_Click" Style="{StaticResource V5PrimaryButton}" Padding="12,8" Margin="0,0,9,0"
+                       ToolTip="Create a new download in a unique filename. Your completed copy is never overwritten.">
+                 <Button.Visibility><MultiBinding Converter="{StaticResource DetailsActionVisibility}" ConverterParameter="Again">
+                   <Binding Path="SelectedDownload.Status"/><Binding Path="SelectedDownload.IsMedia"/>
+                 </MultiBinding></Button.Visibility>
+               </Button>
+               <Button Content="Start" Click="DetailsResume_Click" Style="{StaticResource V5PrimaryButton}" Padding="12,8" Margin="0,0,7,0">
+                 <Button.Visibility><MultiBinding Converter="{StaticResource DetailsActionVisibility}" ConverterParameter="Start">
+                   <Binding Path="SelectedDownload.Status"/><Binding Path="SelectedDownload.IsMedia"/>
+                 </MultiBinding></Button.Visibility>
+               </Button>
+               <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource V5ToolbarButton}"
                       Padding="12,8" Margin="0,0,13,0"/>
               <Button x:Name="DetailsCloseButton" Content="&#x2715;" Click="CloseDetails_Click"
                       Style="{StaticResource V5ToolbarButton}" ToolTip="Close download details (Esc)"
