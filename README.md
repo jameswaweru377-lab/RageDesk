@@ -1,10 +1,10 @@
 # RangeDesk
 
-Independent Windows download manager built with C# / .NET 10 / WPF. The Arctic Glass Windows UI, HTTP(S) engine, validator-safe resume/checkpoints, scheduling, download organization, and optional browser capture are maintained here and checked by Windows CI. Current releases are **unsigned development previews**, not signed stable builds.
+Independent Windows download manager built with C# / .NET 10 / WPF. The Cobalt Flow dark/light Windows UI, HTTP(S) engine, validator-safe resume/checkpoints, scheduling, download organization, and optional browser capture are maintained here and checked by Windows CI. Current releases are **unsigned development previews**, not signed stable builds.
 
 ## Windows installer (English / Kiswahili)
 
-Download **RangeDesk-Setup-0.8.0-preview.1-win-x64.exe** from [Releases](https://github.com/jameswaweru377-lab/RageDesk/releases). The wizard lets you select English or Kiswahili, accept preview terms, choose an installation directory and install for yourself (no admin) or all users (admin required). It adds a Start Menu shortcut and Windows uninstall entry. The setup does **not** delete existing download history, files or resume checkpoints on upgrade/removal.
+Download **RangeDesk-Setup-0.8.0-preview.2-win-x64.exe** from [Releases](https://github.com/jameswaweru377-lab/RageDesk/releases). The wizard lets you select English or Kiswahili, accept preview terms, choose an installation directory and install for yourself (no admin) or all users (admin required). It adds a Start Menu shortcut and Windows uninstall entry. The setup does **not** delete existing download history, files or resume checkpoints on upgrade/removal.
 
 The unsigned preview may display a Windows unknown-publisher warning. For locked-down PCs, do not bypass organizational security restrictions. A portable ZIP is also available.
 

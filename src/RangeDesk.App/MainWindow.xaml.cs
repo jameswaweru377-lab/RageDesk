@@ -82,6 +82,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             StatusMessage.Text = "Could not read download settings; using defaults: " + ex.Message;
         }
+        RangeDeskTheme.Apply(_preferences.Theme);
         _engine = new DownloadEngine(SynchronizationContext.Current,
             maxConcurrentDownloads: _preferences.MaxConcurrentDownloads,
             proxyUri: _preferences.ProxyUri);
@@ -131,15 +132,17 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RunDueSchedules(); // An overdue queued item starts when the user reopens RangeDesk.
         CheckBrowserInbox(); // Captured links require manual confirmation.
         Closing += (_, _) => { _scheduleTimer.Stop(); _browserCaptureTimer.Stop(); _mediaOperation?.Cancel(); _engine.Dispose(); };
-        SourceInitialized += (_, _) =>
-        {
-            int enabled = 0; // Arctic Glass uses the light Windows title bar.
-            try { DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref enabled, sizeof(int)); }
-            catch (DllNotFoundException) { }
-        };
+        SourceInitialized += (_, _) => ApplyTitleBarTheme();
         RefreshFilter();
         RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
+    }
+
+    private void ApplyTitleBarTheme()
+    {
+        int dark = _preferences.Theme == RangeDeskTheme.Cobalt ? 1 : 0;
+        try { DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref dark, sizeof(int)); }
+        catch (DllNotFoundException) { }
     }
 
     public ObservableCollection<DownloadEntry> Downloads { get; } = new();
@@ -1879,8 +1882,38 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void DetailsResume_Click(object sender, RoutedEventArgs e)
     {
-        if (SelectedDownload is { IsMedia: false } entry)
+        if (SelectedDownload is { IsMedia: false } entry &&
+            (DownloadDetailActions.CanResume(entry.Status, entry.IsMedia) ||
+             DownloadDetailActions.CanStart(entry.Status, entry.IsMedia)))
             StartManually(entry);
+    }
+
+    private void DetailsDownloadAgain_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedDownload is not { Status: DownloadStatus.Completed, IsMedia: false } original)
+            return;
+        try
+        {
+            // Downloading again creates a *new* task with a new destination.
+            // Do not touch the completed file or its verified metadata.
+            string next = DownloadAgainPath.Create(original.Destination,
+                Downloads.Select(d => d.Destination));
+            var copy = _engine.Create(original.Url, next, original.Category,
+                original.Labels, original.RequestedConnections, original.BandwidthKiBps,
+                original.ExpectedSha256, original.Adaptive, original.PostDownloadAction,
+                original.AutomaticConnections);
+            Track(copy);
+            SaveCatalog();
+            SelectedDownload = copy;
+            if (!_engine.Start(copy))
+                StatusMessage.Text = "Download Again was queued. Press Start to retry.";
+            else
+                StatusMessage.Text = "Downloading another copy: " + copy.Name;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage.Text = "Download Again could not start: " + ex.Message;
+        }
     }
 
     private void OpenFile_Click(object sender, RoutedEventArgs e)
@@ -1907,6 +1940,13 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SelectNumericChoice(SettingsBandwidthChoice, preferences.DefaultBandwidthKiBps);
         SettingsStartImmediately.IsChecked = preferences.StartImmediately;
         SettingsProxyUri.Text = preferences.ProxyUri ?? "";
+        foreach (var option in SettingsAppearanceChoice.Items.OfType<ComboBoxItem>())
+            if (string.Equals(option.Tag?.ToString(), preferences.Theme,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                SettingsAppearanceChoice.SelectedItem = option;
+                break;
+            }
         SettingsError.Text = "";
     }
 
@@ -2195,12 +2235,15 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 MaxConcurrentDownloads = GetNumericChoice(SettingsConcurrentChoice, 2),
                 DefaultBandwidthKiBps = GetNumericChoice(SettingsBandwidthChoice, 0),
                 StartImmediately = SettingsStartImmediately.IsChecked == true,
+                Theme = (SettingsAppearanceChoice.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? RangeDeskTheme.Cobalt,
                 ProxyUri = SettingsProxyUri.Text.Trim()
             }.Validate();
             bool restartNeeded = updated.MaxConcurrentDownloads != _preferences.MaxConcurrentDownloads ||
                 !string.Equals(updated.ProxyUri, _preferences.ProxyUri, StringComparison.OrdinalIgnoreCase);
             RangeDeskPreferencesStore.Save(_preferencesFile, updated);
             _preferences = updated;
+            RangeDeskTheme.Apply(updated.Theme);
+            ApplyTitleBarTheme();
             SettingsOverlay.Visibility = Visibility.Collapsed;
             StatusMessage.Text = restartNeeded
                 ? "Settings saved. Restart RangeDesk to apply the changed network or simultaneous-download settings."

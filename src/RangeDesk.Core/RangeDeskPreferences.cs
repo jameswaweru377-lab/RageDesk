@@ -13,6 +13,8 @@ public sealed record RangeDeskPreferences
     public int DefaultConnections { get; init; } = 8;
     public int DefaultBandwidthKiBps { get; init; }
     public bool StartImmediately { get; init; } = true;
+    /// <summary>Persisted UI appearance. Defaults to the approved dark Cobalt Flow.</summary>
+    public string Theme { get; init; } = "Cobalt";
     public int MaxConcurrentDownloads { get; init; } = 2;
     /// <summary>Optional unauthenticated HTTP proxy. Applied only after restart.</summary>
     public string? ProxyUri { get; init; }
@@ -30,6 +32,8 @@ public sealed record RangeDeskPreferences
             throw new ArgumentException("The default download folder is not a valid path.", ex);
         }
 
+        if (Theme is not ("Cobalt" or "Arctic"))
+            throw new ArgumentException("Choose Cobalt Dark or Arctic Light.", nameof(Theme));
         if (MaxConcurrentDownloads is < 1 or > 4)
             throw new ArgumentOutOfRangeException(nameof(MaxConcurrentDownloads),
                 "Simultaneous downloads must be between 1 and 4.");

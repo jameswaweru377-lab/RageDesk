@@ -54,9 +54,9 @@ public sealed class InstallerReleaseContractTests
         Assert.Contains("run-id:", workflow);
         Assert.Contains("--prerelease", workflow);
         Assert.Contains("SHA256SUMS.txt", workflow);
-        Assert.Contains("Uninstall", Source("releases/v0.8.0-preview.1.md"),
+        Assert.Contains("Uninstall", Source("releases/v0.8.0-preview.2.md"),
             StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<Version>0.8.0-preview.1</Version>",
+        Assert.Contains("<Version>0.8.0-preview.2</Version>",
             Source("src/RangeDesk.App/RangeDesk.App.csproj"));
     }
 }
