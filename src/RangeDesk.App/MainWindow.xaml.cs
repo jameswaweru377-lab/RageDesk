@@ -142,12 +142,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
         RefreshInsights();
-        // Opt-in React renderer preview only; the existing WPF MainWindow owns all services.
-        // Never launch a second engine or remove the approved WPF UI during migration.
+        // The approved React UI is the primary window; the existing WPF MainWindow
+        // continues to own every native service, with --wpf-classic as a safe fallback.
         Loaded += (_, _) =>
         {
-            if (_reactPreviewOpened || !Environment.GetCommandLineArgs()
-                .Skip(1).Contains("--react-preview", StringComparer.OrdinalIgnoreCase))
+            if (_reactPreviewOpened || Environment.GetCommandLineArgs()
+                .Skip(1).Contains("--wpf-classic", StringComparer.OrdinalIgnoreCase))
                 return;
             _reactPreviewOpened = true;
             _reactDashboard = new ReactDashboardPreviewWindow(this);
