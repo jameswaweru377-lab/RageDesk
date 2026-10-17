@@ -21,14 +21,22 @@ public sealed class ArcticGlassUiContractTests
     }
 
     [Fact]
-    public void ArcticThemeIsAReadableLightPaletteForAllAppSurfaces()
+    public void CobaltIsDefaultWhileArcticRemainsSelectableAndPersisted()
     {
         string theme = Source("src/RangeDesk.App/Themes/V5Theme.xaml");
-        Assert.Contains("x:Key=\"V5CanvasBrush\" Color=\"#F2F7FE\"", theme);
-        Assert.Contains("x:Key=\"V5SidebarBrush\" Color=\"#F8FBFF\"", theme);
-        Assert.Contains("x:Key=\"V5TextBrush\" Color=\"#192F49\"", theme);
-        Assert.Contains("x:Key=\"V5LightSurface\" Color=\"#FFFFFF\"", theme);
+        string xaml = Source("src/RangeDesk.App/MainWindow.xaml");
+        string palettes = Source("src/RangeDesk.App/RangeDeskTheme.cs");
+        string prefs = Source("src/RangeDesk.Core/RangeDeskPreferences.cs");
+        Assert.Contains("x:Key=\"V5CanvasBrush\" Color=\"#05172F\"", theme);
+        Assert.Contains("x:Key=\"V5SidebarBrush\" Color=\"#071A33\"", theme);
+        Assert.Contains("x:Key=\"V5TextBrush\" Color=\"#F0F6FF\"", theme);
         Assert.Contains("x:Key=\"V5AccentBrush\" Color=\"#147DF3\"", theme);
+        Assert.Contains("Tag=\"Cobalt\" Content=\"Cobalt Dark", xaml);
+        Assert.Contains("Tag=\"Arctic\" Content=\"Arctic Light", xaml);
+        Assert.Contains("TabStripPlacement=\"Left\"", xaml);
+        Assert.Contains("RangeDeskTheme.Apply(updated.Theme)", Source("src/RangeDesk.App/MainWindow.xaml.cs"));
+        Assert.Contains("\"#F2F7FE\"", palettes);
+        Assert.Contains("public string Theme { get; init; } = \"Cobalt\";", prefs);
     }
 
     [Fact]
