@@ -36,6 +36,8 @@ public sealed class InstallerReleaseContractTests
         Assert.Contains("DefaultDirName={autopf}\\RangeDesk", setup);
         Assert.Contains("UninstallDisplayName=RangeDesk", setup);
         Assert.Contains("Name: \"{group}\\RangeDesk\";", setup);
+        Assert.Contains("RageDesk - New UI Preview", setup);
+        Assert.Contains("Parameters: \"--react-preview\"", setup);
         Assert.Contains("Filename: \"{uninstallexe}\"", setup);
         Assert.Contains("Flags: nowait postinstall skipifsilent", setup);
         Assert.DoesNotContain("[UninstallDelete]", setup);
@@ -54,9 +56,9 @@ public sealed class InstallerReleaseContractTests
         Assert.Contains("run-id:", workflow);
         Assert.Contains("--prerelease", workflow);
         Assert.Contains("SHA256SUMS.txt", workflow);
-        Assert.Contains("Uninstall", Source("releases/v0.8.0-preview.2.md"),
+        Assert.Contains("Uninstall", Source("releases/v0.8.0-preview.3.md"),
             StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<Version>0.8.0-preview.2</Version>",
+        Assert.Contains("<Version>0.8.0-preview.3</Version>",
             Source("src/RangeDesk.App/RangeDesk.App.csproj"));
     }
 }
