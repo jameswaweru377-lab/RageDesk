@@ -707,11 +707,11 @@
                    Foreground="{StaticResource V5LightMuted}" TextAlignment="Center" TextWrapping="Wrap" Margin="0,9,0,0"/>
       </StackPanel>
       <TextBlock Grid.Row="4" x:Name="StatusMessage" Foreground="{StaticResource V5MutedBrush}" Margin="3,8,0,0"
-                 Text="Ready. Local-first downloads • RangeDesk v5 preview"/>
+                 Text="Ready · Your downloads remain private on this PC"/>
     </Grid>
 
     <!-- Approved new-download modal, connected to real download requests -->
-    <Grid x:Name="AddOverlay" Grid.Column="1" Margin="0,174,0,5" Panel.ZIndex="8" Background="Transparent" Visibility="Collapsed">
+    <Grid x:Name="AddOverlay" Grid.ColumnSpan="2" Panel.ZIndex="8" Background="#930C2037" Visibility="Collapsed" KeyboardNavigation.TabNavigation="Cycle">
       <Border Width="396" MaxHeight="530" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,10,0"
               Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
               BorderThickness="1" CornerRadius="10" Padding="13">
@@ -719,7 +719,7 @@
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Open folder" Click="OpenDownloadsFolder_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,7,0"/>
             <Button Content="Cancel" Click="CloseAdd_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,7,0"/>
-            <Button x:Name="AddStartButton" Content="▶  Start Download" Click="StartDownload_Click" Style="{StaticResource V5PrimaryButton}"/>
+            <Button x:Name="AddStartButton" Content="↓  Start Download" Click="StartDownload_Click" Style="{StaticResource V5PrimaryButton}"/>
           </StackPanel>
           <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
           <StackPanel>
@@ -902,7 +902,7 @@
           <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
             <StackPanel>
-              <TextBlock Text="RangeDesk Settings" FontSize="21" FontWeight="SemiBold"/>
+              <TextBlock Text="Settings" FontSize="24" FontWeight="SemiBold"/>
               <TextBlock Text="Your download preferences, saved privately on this PC."
                          Foreground="{StaticResource V5MutedBrush}" FontSize="11" Margin="0,5,0,0"/>
             </StackPanel>
@@ -922,7 +922,7 @@
                       Style="{StaticResource V5PrimaryButton}" Padding="21,9"/>
             </Grid>
           </StackPanel>
-          <TabControl x:Name="SettingsTabControl">
+          <TabControl x:Name="SettingsTabControl" Style="{StaticResource V5TabControl}" Background="{StaticResource V5SurfaceBrush}">
             <TabItem Header="General">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
@@ -1156,11 +1156,11 @@
             <TabItem Header="About &amp; roadmap">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
-                  <TextBlock Text="RangeDesk v5 preview" FontWeight="SemiBold" FontSize="15"/>
+                  <TextBlock Text="RangeDesk · Arctic Glass" FontWeight="SemiBold" FontSize="15"/>
                   <TextBlock Text="Independent, local-first Windows download manager."
                              Foreground="{StaticResource V5MutedBrush}" Margin="0,6,0,17"/>
                   <TextBlock Text="Working now" FontWeight="SemiBold"/>
-                  <TextBlock Text="Parallel HTTP/HTTPS ranges, shared speed limits, safe pause/resume, SHA-256 verification, compact download list, queue ordering, categories and labels."
+                  <TextBlock Text="Parallel HTTP/HTTPS ranges, adaptive connections, shared speed limits, safe pause/resume, SHA-256 verification, queues, categories and site groups."
                              Foreground="{StaticResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,6,0,17"/>
                   <TextBlock Text="Still planned" FontWeight="SemiBold"/>
                   <TextBlock Text="Timed scheduling, editable website presets, browser capture, authentication and proxy management, and richer automation rules. These are not enabled by these Settings controls."
@@ -1260,7 +1260,9 @@
               <Border Background="#E4F3FF" CornerRadius="14" Padding="12,6" Margin="0,0,12,0">
                 <TextBlock Text="{Binding SelectedDownload.Status}" Foreground="#255BA0" FontSize="12"/>
               </Border>
-              <Button Content="Open file" Click="OpenFile_Click" Style="{StaticResource V5ToolbarButton}"
+              <Button Content="Resume" Click="Resume_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Resume paused download"/>
+               <Button Content="Pause" Click="Pause_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Pause active download"/>
+               <Button Content="Open file" Click="OpenFile_Click" Style="{StaticResource V5ToolbarButton}"
                       Padding="12,8" Margin="0,0,8,0"/>
               <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource V5ToolbarButton}"
                       Padding="12,8" Margin="0,0,13,0"/>
