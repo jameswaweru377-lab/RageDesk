@@ -110,7 +110,7 @@ export default function SettingsPage({ data, onBack }: { data: DashboardSnapshot
       </Panel></div>}
     <footer className="settings-footer"><span><Shield size={15}/> Read-only preview · all changes remain in the native settings until parity verification</span>
       <button onClick={onBack} className="settings-mini-button">Back to downloads</button>
-      <button className="settings-save" disabled title="Save through WPF until the validated native bridge is implemented"><ExternalLink size={15}/> Save Changes</button>
+      <button className="settings-save" onClick={()=>openNativeDialog("ui.openSettings")} title="Open the existing WPF settings to edit and save"><ExternalLink size={15}/> Edit in native Settings</button>
     </footer>
   </div>;
 }
