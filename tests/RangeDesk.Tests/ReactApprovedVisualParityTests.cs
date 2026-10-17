@@ -36,7 +36,9 @@ public sealed class ReactApprovedVisualParityTests
             Assert.Contains(token, app + skin);
         Assert.Contains("checked={selectedIds.has(r.id)}", app);
         Assert.Contains("aria-label={`Select ${r.name}`}", app);
-        Assert.Contains("onClick={()=>openNativeDialog(\"ui.openAddDownload\")}", app);
+        Assert.Contains("AddDownloadDialog", app);
+        Assert.Contains("sendDirectDownload", Read("frontend/src/NativeDownloadDialogs.tsx"));
+        Assert.Contains("ScheduleDownloadDialog", app);
         Assert.Contains("removeHistory", app);
         Assert.Contains("Remove History", app);
         Assert.Contains("disabled", app); // No destructive bridge until parity is verified.
