@@ -117,6 +117,8 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
         rate.Update(TimeSpan.Zero, 0);
         foreach (var p in piecesList) p.Rate.Update(TimeSpan.Zero, 0);
         long initialBytes = received;
+        using var allStop = CancellationTokenSource.CreateLinkedTokenSource(token);
+        using var timerStop = CancellationTokenSource.CreateLinkedTokenSource(token);
         // A resumed v2 manifest fixes the safe maximum boundary count. The
         // controller only changes live worker concurrency; it never modifies
         // existing durable piece ranges, strong ETags, or checkpoint format.
@@ -170,8 +172,6 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
             }
         }
 
-        using var allStop = CancellationTokenSource.CreateLinkedTokenSource(token);
-        using var timerStop = CancellationTokenSource.CreateLinkedTokenSource(token);
         var timer = Task.Run(async () =>
         {
             using var ticks = new PeriodicTimer(TimeSpan.FromMilliseconds(500));
