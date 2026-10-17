@@ -5,7 +5,7 @@ import {
   Eye, Folder, Globe2, HardDrive, LayoutList, Palette, Power, RefreshCcw,
   Save, Settings2, Shield, SlidersHorizontal, Zap, X, Wrench
 } from "lucide-react";
-import { openNativeDialog, sendBrowserAction, sendPreference, subscribeToActionResults, type DashboardSnapshot } from "./nativeBridge";
+import { openNativeDialog, sendBrowserAction, sendPreference, chooseDownloadFolder, subscribeToActionResults, type DashboardSnapshot } from "./nativeBridge";
 
 type Tab = "General" | "Downloads" | "Browser Capture" | "Connections" | "Appearance" | "Advanced";
 const tabs = [
@@ -39,8 +39,8 @@ function Panel({ icon: Icon, title, subtitle, children, className="" }: {
     <div className="settings-panel-body">{children}</div>
   </section>;
 }
-export default function SettingsPage({ data, onBack }: { data: DashboardSnapshot | null; onBack: () => void }) {
-  const [tab, setTab] = useState<Tab>("General");
+export default function SettingsPage({ data, onBack, initialTab="General" }: { data: DashboardSnapshot | null; onBack: () => void; initialTab?: Tab }) {
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [nativeResult, setNativeResult] = useState("");
   useEffect(() => subscribeToActionResults(setNativeResult), []);
   const actual = data?.settings;
@@ -62,7 +62,7 @@ export default function SettingsPage({ data, onBack }: { data: DashboardSnapshot
       <div className="settings-two-column">
         <Panel className="settings-general" icon={Settings2} title="General Settings" subtitle="Core application behavior and downloads">
           <SettingRow icon={Folder} title="Default download folder" description="The currently configured folder is kept private in this preview">
-            <div className="readonly-field">Current local download folder</div><button className="settings-mini-button" onClick={()=>openNativeDialog("ui.openSettings")} title="Choose folder in existing Windows native settings">Browse</button>
+            <div className="readonly-field">Current local download folder</div><button className="settings-mini-button" onClick={()=>{if(!chooseDownloadFolder())setNativeResult("Native folder picker unavailable.");}} title="Choose default download folder using Windows folder picker">Browse</button>
           </SettingRow>
           <SettingRow icon={Zap} title="Start downloads immediately" description="Automatically start new downloads after adding"><Switch checked={actual?.startImmediately??false} title="Start downloads immediately" onChange={actual?()=>setNative("startImmediately",!actual.startImmediately):undefined}/></SettingRow>
           <SettingRow icon={RefreshCcw} title="Smart retry on failure" description="Retry behavior continues to be managed by the native download engine">
