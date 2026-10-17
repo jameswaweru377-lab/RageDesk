@@ -114,11 +114,19 @@ internal sealed class ReactDashboardPreviewWindow : Window
                         !version.TryGetInt32(out int number) || number != 1 ||
                         !root.TryGetProperty("type", out var type) ||
                         type.ValueKind != JsonValueKind.String ||
-                        !string.Equals(type.GetString(), "dashboard.ready", StringComparison.Ordinal))
+                        type.GetString() is not ("dashboard.ready" or "ui.openSettings" or "ui.openAddDownload"))
                         return;
-                    _ready = true;
-                    PublishSnapshot();
-                    _refresh.Start();
+                    string? messageType = type.GetString();
+                    if (messageType == "dashboard.ready")
+                    {
+                        _ready = true;
+                        PublishSnapshot();
+                        _refresh.Start();
+                    }
+                    else if (_ready && messageType is "ui.openSettings" or "ui.openAddDownload")
+                    {
+                        _source.OpenNativeDialogFromReact(messageType);
+                    }
                 }
                 catch (JsonException) { /* Untrusted renderer messages are ignored. */ }
             };
