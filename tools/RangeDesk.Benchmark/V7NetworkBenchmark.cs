@@ -25,7 +25,8 @@ public static class V7NetworkBenchmark
     private sealed record Measurement(
         string Scenario, int RequestedConnections, int ObservedWorkers,
         int ObservedRangeRequests, int DroppedResponses, int Pauses,
-        long Bytes, double Seconds, double ThroughputMiBs, string Sha256);
+        long Bytes, double Seconds, double ThroughputMiBs, string Sha256,
+        bool AutomaticConnections = false, int PeakActiveConnections = 0);
 
     public static async Task RunAsync(string output)
     {
@@ -77,8 +78,51 @@ public static class V7NetworkBenchmark
         }
     }
 
+    public static async Task RunAutoAsync(string output)
+    {
+        output = Path.GetFullPath(output);
+        Directory.CreateDirectory(output);
+        string scratch = Path.Combine(Path.GetTempPath(),
+            "ragedesk-v7-auto-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(scratch);
+        var scenarios = new[]
+        {
+            new Scenario("auto_per_connection", 32, 25),
+            new Scenario("auto_aggregate_cap", 32, 25, AggregateCap: true),
+            new Scenario("auto_latency_jitter", 32, 14, HeaderDelayMs: 140, JitterMs: 50),
+            new Scenario("auto_tcp_disconnect", 32, 16, DropOnce: true)
+        };
+        var results = new List<Measurement>();
+        string report = Path.Combine(output, "v7-auto-results.json");
+        try
+        {
+            foreach (var scenario in scenarios)
+            {
+                var value = await MeasureAsync(scenario, 32, scratch, automatic: true);
+                results.Add(value);
+                Console.WriteLine("V7_AUTO " + JsonSerializer.Serialize(value));
+                await File.WriteAllTextAsync(report,
+                    JsonSerializer.Serialize(new {
+                        complete = results.Count == scenarios.Length,
+                        laboratory = "localhost TCP, not user's ISP, 32-connection safety ceiling",
+                        observations = results
+                    }, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            if (results[0].PeakActiveConnections <= 2 ||
+                results[0].PeakActiveConnections > 32 ||
+                results[1].PeakActiveConnections > 32)
+                throw new InvalidDataException(
+                    "V7 auto did not increase its workers under per-connection throttle or broke the ceiling.");
+        }
+        finally
+        {
+            try { Directory.Delete(scratch, recursive: true); }
+            catch (IOException) { }
+        }
+    }
+
     private static async Task<Measurement> MeasureAsync(
-        Scenario scenario, int count, string scratch)
+        Scenario scenario, int count, string scratch, bool automatic = false)
     {
         byte[] body = Body(scenario.SizeMiB);
         string hash = Convert.ToHexString(SHA256.HashData(body));
@@ -86,21 +130,29 @@ public static class V7NetworkBenchmark
         string destination = Path.Combine(scratch,
             scenario.Id + "-" + count + ".bin");
         using var engine = new DownloadEngine();
-        var item = engine.Create(server.Url, destination, connections: count);
+        var item = engine.Create(server.Url, destination,
+            connections: count, automaticConnections: automatic);
         var watch = Stopwatch.StartNew();
         if (!engine.Start(item)) throw new InvalidOperationException("Start was rejected.");
+        int peakConnections = 0;
         try
         {
-            await AwaitStatusAsync(item, watch, TimeSpan.FromSeconds(90));
+            var finished = AwaitStatusAsync(item, watch, TimeSpan.FromSeconds(90));
+            while (!finished.IsCompleted)
+            {
+                peakConnections = Math.Max(peakConnections, item.Connections);
+                await Task.Delay(35);
+            }
+            await finished;
             ValidateCompleted(item, destination, body.Length, hash);
             // The engine has a 512 KiB minimum per segment. The 16 MiB
             // body is deliberately large enough for all 32 real workers.
             if (count > 1 && item.WorkerCount != count)
                 throw new InvalidDataException(
                     "The benchmark did not engage the requested worker count.");
-            if (count > 1 && server.RangeRequests < count + 1)
+            if (count > 1 && server.RangeRequests < (automatic ? 3 : count + 1))
                 throw new InvalidDataException(
-                    "Expected actual parallel HTTP 206 requests, not a silent fallback.");
+                    "Expected real parallel HTTP 206 requests, not a silent direct fallback.");
             if (scenario.DropOnce && server.DroppedResponses != 1)
                 throw new InvalidDataException(
                     "The disconnect scenario never triggered exactly one TCP reset.");
@@ -116,7 +168,8 @@ public static class V7NetworkBenchmark
             server.RangeRequests, server.DroppedResponses, 0,
             length, Math.Round(watch.Elapsed.TotalSeconds, 3),
             Math.Round(length / (double)MiB /
-                Math.Max(watch.Elapsed.TotalSeconds, 0.001), 3), hash);
+                Math.Max(watch.Elapsed.TotalSeconds, 0.001), 3), hash,
+            automatic, peakConnections);
     }
 
     private static async Task<Measurement> PauseAndResumeAsync(
