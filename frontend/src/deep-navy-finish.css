@@ -212,3 +212,12 @@ font-size:11px}
 .desktop .file-mark.icon-chrome{background:#163e5e;color:#35d7f1}
 .settings-page .settings-native-result{font-size:12px;color:#97e2ff;border:1px solid #155c9c;border-radius:8px;
 background:#062247;padding:10px}
+
+/* Approved selection-bar layout: batch commands live in one compact menu. */
+.desktop .selection-toolbar {position:relative}
+.desktop .native-bulk-menu {position:absolute;top:34px;left:325px;z-index:60;width:190px;
+padding:6px;display:flex;flex-direction:column;gap:3px;border:1px solid #2389d0;
+border-radius:9px;background:linear-gradient(150deg,#0a2d56,#03142a);box-shadow:0 12px 30px #000b}
+.desktop .native-bulk-menu button {display:flex;align-items:center;gap:8px;min-height:30px;
+width:100%;background:transparent;border:0;color:#e3f4ff;text-align:left;font-size:11px}
+.desktop .native-bulk-menu button:hover {background:#1554a0}
