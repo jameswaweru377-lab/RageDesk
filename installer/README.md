@@ -1,4 +1,4 @@
-# RangeDesk — Windows EXE installer (0.8.0 Preview 1)
+# RangeDesk — Windows EXE installer (0.8.0 Preview 2)
 
 The standard Windows setup wizard is built with **Inno Setup 6**. It
 packages the self-contained Windows x64 application, native browser host,
@@ -38,7 +38,7 @@ BrowserCapture and Scheduler assets under artifact/RangeDesk. Then run:
 
 Output:
 
-    artifact/RangeDesk-Setup-0.8.0-preview.1-win-x64.exe
+    artifact/RangeDesk-Setup-0.8.0-preview.2-win-x64.exe
 
 The existing Windows CI workflow runs installation, registration, upgrade,
 uninstall and data-preservation smoke tests on the release feature branch.
