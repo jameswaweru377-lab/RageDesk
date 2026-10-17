@@ -321,6 +321,69 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+    internal string SaveReactSchedule(Guid id, string localTime, string recurrence, bool remove)
+    {
+        var item = Downloads.FirstOrDefault(entry => entry.Id == id);
+        if (item is null || item.IsMedia || item.Status != DownloadStatus.Queued)
+            return "Only a queued direct-file download can be scheduled.";
+        try
+        {
+            if (remove)
+            {
+                if (!_scheduled.ContainsKey(item.Destination)) return "No schedule exists for this download.";
+                ScheduledQueueStore.Save(_schedulesFile,
+                    _scheduled.Values.Where(s => !s.Destination.Equals(item.Destination,
+                        StringComparison.OrdinalIgnoreCase)));
+                _scheduled.Remove(item.Destination);
+                RefreshFilter();
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+                return "Schedule removed; download remains queued.";
+            }
+            if (!DateTime.TryParseExact(localTime, "yyyy-MM-ddTHH:mm",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dateTime) ||
+                !Enum.TryParse<ScheduleRecurrence>(recurrence, false, out var kind) ||
+                !Enum.IsDefined(kind))
+                return "Choose a valid date, local time and recurrence.";
+            DateTimeOffset due = ScheduledQueueStore.FromLocal(dateTime.Date,
+                dateTime.TimeOfDay, TimeZoneInfo.Local, DateTimeOffset.Now);
+            ScheduledDownload configured = RecurringSchedulePolicy.Configure(
+                new ScheduledDownload(item.Destination, due), kind, TimeZoneInfo.Local);
+            ScheduledQueueStore.Save(_schedulesFile, _scheduled.Values.Where(s =>
+                !s.Destination.Equals(item.Destination, StringComparison.OrdinalIgnoreCase)).Append(configured));
+            _scheduled[item.Destination] = configured;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+            RefreshFilter();
+            return "Schedule saved locally. RageDesk must be running when the start is due.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return "Could not save schedule: " + ex.GetType().Name;
+        }
+    }
+
+    internal string ChooseReactDownloadFolder(Window owner)
+    {
+        var picker = new OpenFolderDialog
+        {
+            Title = "Choose RageDesk default download folder",
+            Multiselect = false
+        };
+        if (Directory.Exists(_preferences.DownloadFolder))
+            picker.InitialDirectory = _preferences.DownloadFolder;
+        if (picker.ShowDialog(owner) != true) return "Folder selection canceled.";
+        try
+        {
+            var updated = (_preferences with { DownloadFolder = picker.FolderName }).Validate();
+            RangeDeskPreferencesStore.Save(_preferencesFile, updated);
+            _preferences = updated;
+            return "Default download folder saved locally.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return "Folder was not changed: " + ex.GetType().Name;
+        }
+    }
+
     internal string UpdateReactPreference(string key, JsonElement value)
     {
         // Restrict writable fields to existing validated local-only preferences.
