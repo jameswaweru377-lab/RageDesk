@@ -1,6 +1,8 @@
 # RangeDesk — Windows EXE installer (0.8.0 Preview 3)
 
-This preview additionally creates a **RageDesk - New UI Preview** Start Menu shortcut. It opens the React/WebView2 dashboard alongside the original WPF window. The React view still has read-only actions; native download management remains in WPF.\n\nThe standard Windows setup wizard is built with **Inno Setup 6**. It
+This preview additionally creates a **RageDesk - New UI Preview** Start Menu shortcut. It opens the React/WebView2 dashboard alongside the original WPF window. The React view still has read-only actions; native download management remains in WPF.
+
+The standard Windows setup wizard is built with **Inno Setup 6**. It
 packages the self-contained Windows x64 application, native browser host,
 optional scheduler helper and unpacked Chrome extension.
 
