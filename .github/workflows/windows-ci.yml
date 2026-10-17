@@ -164,6 +164,12 @@ jobs:
           }
           $startLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RangeDesk.lnk'
           if (-not (Test-Path $startLink)) { throw 'Start Menu shortcut missing' }
+          $newUiLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RageDesk - New UI Preview.lnk'
+          if (-not (Test-Path $newUiLink)) { throw 'New UI Start Menu shortcut missing' }
+          $shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($newUiLink)
+          if ($shortcut.Arguments -ne '--react-preview') { throw 'New UI shortcut does not start React preview' }
+          if (-not (Test-Path (Join-Path $install 'web\index.html'))) { throw 'Offline React UI assets missing after install' }
+
           if (-not (Test-Path (Join-Path $install 'BrowserCapture\chromium\manifest.json'))) {
             throw 'Installed browser extension assets missing'
           }
