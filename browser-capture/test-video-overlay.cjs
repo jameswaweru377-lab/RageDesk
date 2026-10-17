@@ -9,10 +9,10 @@ const path = require("node:path");
 const folder = path.join(__dirname, "chromium");
 const scripts = name => fs.readFileSync(path.join(folder, name), "utf8");
 
-test("Arctic Glass browser confirmation reuses the desktop visual language without changing handoff", () => {
+test("Cobalt Flow browser confirmation preserves all user actions and handoff", () => {
   const overlay = scripts("video-overlay.js");
-  assert.match(overlay, /color-scheme:light/);
-  assert.match(overlay, /#f3f9ff/);
+  assert.match(overlay, /color-scheme:dark/);
+  assert.match(overlay, /#0B213D/);
   assert.match(overlay, /#147df3/);
   assert.match(overlay, /confirmMask\.hidden = true/);
   assert.match(overlay, /job-pill/);
