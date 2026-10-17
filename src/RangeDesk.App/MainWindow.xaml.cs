@@ -183,6 +183,43 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StartQueue_Click(this, new RoutedEventArgs());
             return StatusMessage.Text;
         }
+        if (action == "removeHistory")
+        {
+            // This deliberately NEVER deletes downloaded files or partial checkpoints.
+            // Active/queued/paused jobs cannot be removed; keep their recovery state.
+            if (ids.Count is < 1 or > 64 || ids.Distinct().Count() != ids.Count)
+                return "Select between 1 and 64 unique downloads.";
+            var existing = ids.Select(id => Downloads.FirstOrDefault(d => d.Id == id)).ToArray();
+            if (existing.Any(d => d is null || d.Status is not
+                (DownloadStatus.Completed or DownloadStatus.Failed or DownloadStatus.Canceled)))
+                return "Only completed, canceled or failed downloads may be removed from history.";
+            if (MessageBox.Show(owner,
+                $"Remove {existing.Length} download(s) from the history list?\\n" +
+                "The downloaded files and any resumable checkpoints will NOT be deleted.",
+                "RageDesk — Remove history only", MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return "History removal canceled.";
+            var originalIndices = existing.Select(d => Downloads.IndexOf(d!)).ToArray();
+            foreach (var item in existing) Downloads.Remove(item!);
+            if (!SaveCatalog())
+            {
+                // Revert the visible list if persistence failed.
+                for (int i = 0; i < existing.Length; i++)
+                    Downloads.Insert(Math.Min(originalIndices[i], Downloads.Count), existing[i]!);
+                return "Could not save the updated download history.";
+            }
+            foreach (var item in existing)
+            {
+                _completionTimes.Remove(item!.Id);
+                _lastStatuses.Remove(item.Id);
+            }
+            if (SelectedDownload is not null && ids.Contains(SelectedDownload.Id))
+                SelectedDownload = null;
+            RefreshCounters();
+            RefreshInsights();
+            RefreshDashboard();
+            return $"{existing.Length} download(s) removed from history. Files were not deleted.";
+        }
         if (ids.Count is < 1 or > 64 || ids.Distinct().Count() != ids.Count)
             return "Select between 1 and 64 unique downloads.";
         var selected = ids.Select(id => Downloads.FirstOrDefault(item => item.Id == id)).ToArray();
