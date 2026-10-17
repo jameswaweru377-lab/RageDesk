@@ -25,7 +25,7 @@ public sealed class AutomaticConnectionController
 
     public AutomaticConnectionController(int maximumWorkers)
     {
-        if (maximumWorkers is not (2 or 4 or 8 or 16 or 32))
+        if (maximumWorkers is < 2 or > 32)
             throw new ArgumentOutOfRangeException(nameof(maximumWorkers));
         MaximumWorkers = maximumWorkers;
         TargetWorkers = StartingWorkers;

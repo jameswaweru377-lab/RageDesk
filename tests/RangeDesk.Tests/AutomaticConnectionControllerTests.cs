@@ -49,6 +49,17 @@ public sealed class AutomaticConnectionControllerTests
     }
 
     [Fact]
+    public void AllowsOddLimitDerivedFromSmallVerifiedSegments()
+    {
+        var controller = new AutomaticConnectionController(5);
+        Assert.True(controller.Observe(TimeSpan.FromSeconds(1.5), MiB, 32 * MiB));
+        Assert.Equal(4, controller.TargetWorkers);
+        Assert.True(controller.Observe(TimeSpan.FromSeconds(3), 3 * MiB, 32 * MiB));
+        Assert.Equal(5, controller.TargetWorkers);
+        Assert.False(controller.Observe(TimeSpan.FromSeconds(5), 5 * MiB, 32 * MiB));
+    }
+
+    [Fact]
     public void SuspiciousMeasurementsCannotCauseAggressiveExpansion()
     {
         var controller = new AutomaticConnectionController(32);
@@ -61,7 +72,7 @@ public sealed class AutomaticConnectionControllerTests
     [Theory]
     [InlineData(0)]
     [InlineData(1)]
-    [InlineData(3)]
+    [InlineData(33)]
     [InlineData(64)]
     public void InvalidConnectionCeilingsAreRejected(int limit)
     {
