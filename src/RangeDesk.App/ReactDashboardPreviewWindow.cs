@@ -123,7 +123,8 @@ internal sealed class ReactDashboardPreviewWindow : Window
                         !root.TryGetProperty("type", out var type) ||
                         type.ValueKind != JsonValueKind.String ||
                         type.GetString() is not ("dashboard.ready" or "ui.openSettings" or
-                            "ui.openAddDownload" or "ui.download" or "ui.browser" or "ui.setting"))
+                            "ui.openAddDownload" or "ui.download" or "ui.browser" or "ui.setting" or
+                            "ui.submit" or "ui.schedule" or "ui.folder"))
                         return;
                     string? messageType = type.GetString();
                     if (messageType == "dashboard.ready")
@@ -136,7 +137,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
                     {
                         _source.OpenNativeDialogFromReact(messageType);
                     }
-                    else if (_ready && messageType is "ui.download" or "ui.browser" or "ui.setting")
+                    else if (_ready && messageType is "ui.download" or "ui.browser" or "ui.setting" or "ui.submit" or "ui.schedule" or "ui.folder")
                     {
                         ExecuteNativeCommand(root, messageType);
                     }
@@ -175,6 +176,38 @@ internal sealed class ReactDashboardPreviewWindow : Window
             {
                 if (root.TryGetProperty("ids", out _)) return;
                 message = _source.ExecuteReactBrowserAction(actionName);
+            }
+            else if (messageType == "ui.submit")
+            {
+                if (actionName != "addDownload" ||
+                    !root.TryGetProperty("address", out var address) ||
+                    address.ValueKind != JsonValueKind.String ||
+                    !root.TryGetProperty("queued", out var queued) ||
+                    queued.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    return;
+                message = _source.AddReactDownload(address.GetString() ?? "", queued.GetBoolean());
+            }
+            else if (messageType == "ui.schedule")
+            {
+                if (actionName != "schedule" ||
+                    !root.TryGetProperty("id", out var id) || id.ValueKind != JsonValueKind.String ||
+                    !Guid.TryParseExact(id.GetString(), "N", out var parsedId) ||
+                    !root.TryGetProperty("localTime", out var localTime) ||
+                    localTime.ValueKind != JsonValueKind.String ||
+                    !root.TryGetProperty("recurrence", out var frequency) ||
+                    frequency.ValueKind != JsonValueKind.String ||
+                    !root.TryGetProperty("remove", out var remove) ||
+                    remove.ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    return;
+                string timeText = localTime.GetString() ?? "";
+                string recurrenceText = frequency.GetString() ?? "";
+                if (timeText.Length != 16 || recurrenceText.Length > 9) return;
+                message = _source.SaveReactSchedule(parsedId, timeText, recurrenceText, remove.GetBoolean());
+            }
+            else if (messageType == "ui.folder")
+            {
+                if (actionName != "browse") return;
+                message = _source.ChooseReactDownloadFolder(this);
             }
             else if (messageType == "ui.setting")
             {
