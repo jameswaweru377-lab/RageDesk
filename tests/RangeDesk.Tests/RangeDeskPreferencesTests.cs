@@ -6,6 +6,23 @@ namespace RangeDesk.Tests;
 public sealed class RangeDeskPreferencesTests
 {
     [Fact]
+    public void CobaltIsDefaultAndArcticPersistsForNextLaunch()
+    {
+        var defaults = new RangeDeskPreferences().Validate();
+        Assert.Equal("Cobalt", defaults.Theme);
+        Assert.Throws<ArgumentException>(() =>
+            (new RangeDeskPreferences { Theme = "NotATheme" }).Validate());
+        string directory = Path.Combine(Path.GetTempPath(), "rd-theme-" + Guid.NewGuid().ToString("N"));
+        string file = Path.Combine(directory, "preferences-v5.json");
+        try
+        {
+            RangeDeskPreferencesStore.Save(file, defaults with { Theme = "Arctic" });
+            Assert.Equal("Arctic", RangeDeskPreferencesStore.Load(file).Theme);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public void Defaults_AreValidAndDoNotRequireAnExistingFolder()
     {
         var settings = new RangeDeskPreferences().Validate();
