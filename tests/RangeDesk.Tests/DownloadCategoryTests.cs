@@ -9,6 +9,8 @@ public sealed class DownloadCategoryTests
     [InlineData("GitHubDesktopSetup-x64.exe", "Software")]
     [InlineData("Docker Desktop Installer.msi", "Software")]
     [InlineData("movie.mkv", "Videos")]
+    [InlineData("ambient-track.mp3", "Music")]
+    [InlineData("live-session.flac", "Music")]
     [InlineData("proposal.pdf", "Documents")]
     [InlineData("archive.7z", "Archives")]
     [InlineData("photo.png", "Images")]
