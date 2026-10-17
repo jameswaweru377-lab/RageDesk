@@ -56,12 +56,12 @@ jobs:
       # Deliberately opt-in: one matrix on its own PR, never on main or
       # every ordinary build. Uses localhost only; no public load tests.
       - name: V7 controlled TCP matrix (6 connection counts, limits, recovery)
-        if: github.head_ref == 'feature/ragedesk-v7-network-matrix' || github.head_ref == 'feature/ragedesk-v7-auto-connections'
+        if: github.head_ref == 'feature/ragedesk-v7-network-matrix' || (github.head_ref == 'feature/ragedesk-v7-auto-connections' || github.head_ref == 'feature/ragedesk-v7-1-reprobe')
         timeout-minutes: 12
         shell: pwsh
         run: dotnet run --project tools/RangeDesk.Benchmark/RangeDesk.Benchmark.csproj --configuration Release -- v7 artifact/v7-network-matrix
       - name: Upload V7 network matrix evidence
-        if: always() && (github.head_ref == 'feature/ragedesk-v7-network-matrix' || github.head_ref == 'feature/ragedesk-v7-auto-connections')
+        if: always() && (github.head_ref == 'feature/ragedesk-v7-network-matrix' || (github.head_ref == 'feature/ragedesk-v7-auto-connections' || github.head_ref == 'feature/ragedesk-v7-1-reprobe'))
         uses: actions/upload-artifact@v4
         with:
           name: RangeDesk-V7-Network-Matrix
@@ -69,12 +69,12 @@ jobs:
           retention-days: 7
           if-no-files-found: warn
       - name: V7 auto 4-scenario TCP benchmark
-        if: github.head_ref == 'feature/ragedesk-v7-auto-connections'
+        if: (github.head_ref == 'feature/ragedesk-v7-auto-connections' || github.head_ref == 'feature/ragedesk-v7-1-reprobe')
         timeout-minutes: 5
         shell: pwsh
         run: dotnet run --project tools/RangeDesk.Benchmark/RangeDesk.Benchmark.csproj --configuration Release -- v7auto artifact/v7-auto
       - name: Upload V7 auto benchmark
-        if: always() && github.head_ref == 'feature/ragedesk-v7-auto-connections'
+        if: always() && (github.head_ref == 'feature/ragedesk-v7-auto-connections' || github.head_ref == 'feature/ragedesk-v7-1-reprobe')
         uses: actions/upload-artifact@v4
         with:
           name: RangeDesk-V7-Auto-Benchmark

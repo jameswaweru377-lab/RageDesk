@@ -778,12 +778,12 @@
                   <ComboBoxItem Content="32 connections" Tag="32"/>
                 </ComboBox>
                 <CheckBox x:Name="AutomaticConnectionsChoice" IsChecked="False"
-                          Content="V7 automatic connection optimization (experimental)" Margin="0,0,0,8"
-                          ToolTip="Start with 2 active ranges and increase only when measured throughput improves. Never exceed the maximum selected above; checks for shared bandwidth saturation."/>
+                          Content="V7.1 automatic connection optimization (experimental)" Margin="0,0,0,8"
+                          ToolTip="Start with two connections; use stable measurements and re-test after temporary speed plateaus. Keep working byte ranges safe, and never exceed your selected maximum."/>
                 <CheckBox x:Name="AdaptiveWorkers" IsChecked="False"
                           Content="Adaptive slow-worker redistribution (experimental)" Margin="0,0,0,10"
                           ToolTip="Dynamically divides slow remaining ranges so idle workers can assist. Opt in only after testing."/>
-                <TextBlock Text="V7 starts conservatively, tests increasing concurrency within the selected maximum, and stops expanding when measured total throughput plateaus. This is opt-in, not a promise of multiplying available bandwidth. Verified HTTP 206 and a strong ETag remain required for segmented transfers."
+                <TextBlock Text="V7.1 measures total speed over longer windows, re-tests stalled connection growth later and retires surplus workers after their current ranges. Up to the selected maximum, not guaranteed speed multiplication. Verified HTTP 206 and a strong ETag remain required."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,10"/>
                 <TextBlock Text="Download speed limit" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
                 <ComboBox x:Name="BandwidthChoice" Style="{StaticResource V5Combo}" Width="180" HorizontalAlignment="Left"
@@ -1362,13 +1362,20 @@
 
             <TabItem Header="Connections">
               <Grid Margin="4,8,4,0">
-                <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+                <Grid.RowDefinitions>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="Auto"/>
+                  <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
                 <Grid Margin="0,0,0,7">
                   <TextBlock Text="{Binding SelectedDownload.ConnectionSummary}" FontWeight="SemiBold"/>
                   <TextBlock Text="{Binding SelectedDownload.Host}" HorizontalAlignment="Right"
                              Foreground="{StaticResource V5AccentLightBrush}"/>
                 </Grid>
-                <DataGrid Grid.Row="1" ItemsSource="{Binding SelectedDownload.Workers}" AutoGenerateColumns="False"
+                <TextBlock Grid.Row="1" Text="{Binding SelectedDownload.ConnectionOptimizationStatus}"
+                           TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}"
+                           FontSize="11" Margin="0,0,0,7"/>
+                <DataGrid Grid.Row="2" ItemsSource="{Binding SelectedDownload.Workers}" AutoGenerateColumns="False"
                           IsReadOnly="True" CanUserAddRows="False" HeadersVisibility="Column" GridLinesVisibility="None"
                           RowHeight="26" ColumnHeaderStyle="{StaticResource V5LightHeader}"
                           RowStyle="{StaticResource V5LightGridRow}" CellStyle="{StaticResource V5LightGridCell}"

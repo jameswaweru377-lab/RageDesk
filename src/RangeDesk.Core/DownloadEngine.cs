@@ -197,7 +197,12 @@ public sealed class DownloadEngine : IDisposable
                         void Update() => e.ReportWorkers(metrics);
                         if (_ui is not null) _ui.Post(_ => Update(), null);
                         else Update();
-                    }, token);
+                    }, token, decision =>
+                    {
+                        void Update() => e.ReportOptimization(decision);
+                        if (_ui is not null) _ui.Post(_ => Update(), null);
+                        else Update();
+                    });
                 if (completed)
                 {
                     var assembledLength = new FileInfo(e.Destination).Length;
