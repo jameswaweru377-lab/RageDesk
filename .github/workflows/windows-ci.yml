@@ -24,12 +24,13 @@ jobs:
           node-version: '22'
       - name: Build offline React dashboard
         shell: pwsh
+        working-directory: frontend
         run: |
-          npm install --prefix frontend --no-audit --no-fund
+          npm install --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw "Frontend dependency installation failed" }
-          npm run build --prefix frontend
+          npm run build
           if ($LASTEXITCODE -ne 0) { throw "React typecheck/build failed" }
-          if (-not (Test-Path 'frontend/dist/index.html')) { throw "Offline React bundle missing" }
+          if (-not (Test-Path 'dist/index.html')) { throw "Offline React bundle missing" }
       - name: Set up .NET SDK pinned by global.json
         uses: actions/setup-dotnet@v6
         with:
