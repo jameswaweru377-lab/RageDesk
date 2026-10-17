@@ -712,9 +712,9 @@
 
     <!-- Approved new-download modal, connected to real download requests -->
     <Grid x:Name="AddOverlay" Grid.ColumnSpan="2" Panel.ZIndex="8" Background="#930C2037" Visibility="Collapsed" KeyboardNavigation.TabNavigation="Cycle">
-      <Border Width="396" MaxHeight="530" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,10,0"
-              Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
-              BorderThickness="1" CornerRadius="10" Padding="13">
+      <Border Width="540" MaxHeight="660" HorizontalAlignment="Center" VerticalAlignment="Center" Margin="18"
+              Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+              BorderThickness="1" CornerRadius="17" Padding="21">
         <DockPanel LastChildFill="True">
           <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
             <Button Content="Open folder" Click="OpenDownloadsFolder_Click" Style="{StaticResource V5ToolbarButton}" Margin="0,0,7,0"/>
@@ -895,9 +895,9 @@
 
     <!-- Real, local-first preferences. Defaults affect new downloads only. -->
     <Grid x:Name="SettingsOverlay" Grid.ColumnSpan="2" Panel.ZIndex="9" Background="#930C2037" Visibility="Collapsed">
-      <Border Width="700" MaxHeight="625" HorizontalAlignment="Center" VerticalAlignment="Center"
-              Background="{StaticResource V5ElevatedBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
-              BorderThickness="1" CornerRadius="12" Padding="22">
+      <Border Width="820" MaxHeight="720" HorizontalAlignment="Center" VerticalAlignment="Center"
+              Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}"
+              BorderThickness="1" CornerRadius="17" Padding="26">
         <DockPanel LastChildFill="True">
           <Grid DockPanel.Dock="Top" Margin="0,0,0,16">
             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -1236,10 +1236,10 @@
     <!-- On-demand premium download-details popup. No per-worker graphs in Overview. -->
     <Grid x:Name="DetailsOverlay" Grid.ColumnSpan="2" Panel.ZIndex="30" Background="#930C2037"
           Visibility="Collapsed" KeyboardNavigation.TabNavigation="Cycle">
-      <Border MaxWidth="1120" MinWidth="700" MaxHeight="580" Margin="44,22"
+      <Border MaxWidth="1000" MinWidth="700" MaxHeight="620" Margin="36,22"
               HorizontalAlignment="Stretch" VerticalAlignment="Center"
-              Background="{StaticResource V5SurfaceBrush}" BorderBrush="#B7D7F4" BorderThickness="2"
-              CornerRadius="18" Padding="24" SnapsToDevicePixels="True">
+              Background="{StaticResource V5SurfaceBrush}" BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1"
+              CornerRadius="17" Padding="24" SnapsToDevicePixels="True">
         <Grid>
           <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
           <Grid Margin="0,0,0,18">
