@@ -153,7 +153,7 @@ function App() {
           <div className="extension-art"><MonitorDown size={29}/><span><Package size={22}/></span></div>
           <div className="extension-heading">Install RageDesk<br/>Browser Extension</div>
           <p>Capture links instantly<br/>from your browser.</p>
-          <button type="button" disabled title="Use the existing WPF Browser Capture settings to install">
+          <button type="button" onClick={()=>openNativeDialog("ui.openSettings")} title="Open existing WPF Browser Capture settings">
             Install Extension
           </button>
         </section>
