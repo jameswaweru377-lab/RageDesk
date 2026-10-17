@@ -71,7 +71,7 @@ public sealed class ReactApprovedVisualParityTests
         Assert.Contains("ReactSettingsDisplay", projection);
         Assert.Contains("!string.IsNullOrWhiteSpace(preferences.ProxyUri)", projection);
         Assert.DoesNotContain("new ReactDiskStorage(root", projection);
-        Assert.DoesNotContain("preferences.ProxyUri))", projection);
+        Assert.DoesNotContain("new ReactSettingsDisplay(preferences.ProxyUri", projection);
         Assert.Contains("ui.openSettings", host);
         Assert.Contains("ui.openAddDownload", host);
         Assert.Contains("args.Source", host);
