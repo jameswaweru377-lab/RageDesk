@@ -5,7 +5,7 @@ import {
   FileArchive, FileImage, FileText, Filter, Folder, FolderOpen,
   Globe2, HardDrive, Image as ImageIcon, LayoutGrid, List, Menu,
   MoreHorizontal, Music2, Pause, Play, Search, Settings2,
-  ShieldCheck, SlidersHorizontal, Sparkles, Video, XCircle,
+  ShieldCheck, Video, XCircle,
   Zap, CircleAlert, Plus, ArrowDownToLine
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -217,7 +217,7 @@ function App() {
               </div></div>
           </div>
           <div className="insight-panel"><div className="insight-heading"><span><Globe2 size={16}/> Top Sources</span><span className="subtle-pill">All time</span></div>
-            <div className="source-list">{(data?.sources??[]).map((s,i)=><div className="source-item" key={s.host}>
+            <div className="source-list">{(data?.sources??[]).map(s=><div className="source-item" key={s.host}>
               <Globe2 size={15}/><span title={s.host}>{s.host}</span><span className="source-bytes">{fmtBytes(s.bytes)}</span>
               <div className="source-bar"><span style={{width:`${data?.sources?.[0]?.bytes ? Math.max(2,100*s.bytes/data.sources[0].bytes):0}%`}}/></div></div>)}
               {!data?.sources?.length && <span className="hint">No source data available.</span>}</div>
