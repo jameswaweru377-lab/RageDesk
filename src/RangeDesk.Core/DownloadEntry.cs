@@ -20,7 +20,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     private readonly ObservableCollection<string> _events = new();
     private readonly ObservableCollection<DownloadWorkerState> _workers = new();
 
-    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null, bool adaptive = false, SafePostDownloadAction postDownloadAction = SafePostDownloadAction.None)
+    public DownloadEntry(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null, bool adaptive = false, SafePostDownloadAction postDownloadAction = SafePostDownloadAction.None, bool automaticConnections = false)
     {
         if (connections is not (1 or 2 or 4 or 8 or 16 or 32))
             throw new ArgumentOutOfRangeException(nameof(connections));
@@ -30,10 +30,13 @@ public sealed class DownloadEntry : INotifyPropertyChanged
             (expectedSha256.Length != 64 || expectedSha256.Any(c => !Uri.IsHexDigit(c))))
             throw new ArgumentException("SHA-256 must contain 64 hexadecimal characters.", nameof(expectedSha256));
         PostDownloadAction = PostDownloadActionPolicy.Validate(postDownloadAction);
+        if (automaticConnections && connections < 2)
+            throw new ArgumentException("Automatic connections need a limit of at least 2.", nameof(connections));
+        AutomaticConnections = automaticConnections;
         RequestedConnections = connections;
         BandwidthKiBps = bandwidthKiBps;
         _effectiveBandwidthKiBps = bandwidthKiBps;
-        Adaptive = adaptive;
+        Adaptive = adaptive || automaticConnections;
         ExpectedSha256 = string.IsNullOrWhiteSpace(expectedSha256) ? null : expectedSha256.ToUpperInvariant();
         Id = Guid.NewGuid();
         Url = url;
@@ -48,6 +51,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
 
     public SafePostDownloadAction PostDownloadAction { get; }
     public bool Adaptive { get; }
+    public bool AutomaticConnections { get; }
     public int RequestedConnections { get; }
     public int BandwidthKiBps { get; }
     public int EffectiveBandwidthKiBps => _effectiveBandwidthKiBps;
@@ -110,9 +114,11 @@ public sealed class DownloadEntry : INotifyPropertyChanged
             return samples.Length == 0 ? "—" : FormatSize(samples.Average()) + "/s";
         }
     }
-    public string ConnectionSummary => WorkerCount == 0
-        ? $"{Connections} active"
-        : $"{Connections} active · {IdleWorkers} idle";
+    public string ConnectionSummary => AutomaticConnections
+        ? $"V7 auto · {Connections} active (limit {RequestedConnections})"
+        : WorkerCount == 0
+            ? $"{Connections} active"
+            : $"{Connections} active · {IdleWorkers} idle";
     public string ConnectionFraction => WorkerCount > 0
         ? $"{Connections} / {WorkerCount}"
         : $"{Connections} / {RequestedConnections}";

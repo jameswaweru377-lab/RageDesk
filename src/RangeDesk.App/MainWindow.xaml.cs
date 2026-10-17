@@ -71,7 +71,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
 
     private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None, string? MediaJobId = null, string? MediaFormatId = null, bool MediaCompleted = false,
-        bool MediaQueued = false, string? MediaFileStem = null, string MediaSaveLocation = "default");
+        bool MediaQueued = false, string? MediaFileStem = null, string MediaSaveLocation = "default",
+        bool AutomaticConnections = false);
 
     public MainWindow()
     {
@@ -312,7 +313,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     var item = _engine.Create(record.Url, record.Destination,
                         record.Category, record.Labels, record.Connections is 1 or 2 or 4 or 8 or 16 or 32 ? record.Connections : 1,
                         record.BandwidthKiBps is >= 0 and <= 1048576 ? record.BandwidthKiBps : 0,
-                        record.ExpectedSha256, record.Adaptive, record.PostDownloadAction);
+                        record.ExpectedSha256, record.Adaptive, record.PostDownloadAction,
+                        record.AutomaticConnections && record.Connections > 1);
                     if (File.Exists(item.Destination))
                         item.Report(DownloadStatus.Completed,
                             new FileInfo(item.Destination).Length, new FileInfo(item.Destination).Length);
@@ -358,7 +360,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     d.Adaptive, d.PostDownloadAction, d.MediaJobId, d.MediaFormatId,
                     d.IsMedia && d.Status == DownloadStatus.Completed,
                     deferred is not null && d.Status == DownloadStatus.Queued,
-                    deferred?.FileStem, deferred?.SaveLocation ?? "default");
+                    deferred?.FileStem, deferred?.SaveLocation ?? "default",
+                    d.AutomaticConnections);
             });
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
@@ -1583,6 +1586,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         StartAutomatically.IsChecked = _preferences.StartImmediately;
         QueueOnly.IsChecked = !_preferences.StartImmediately;
         AdaptiveWorkers.IsChecked = false; // Experimental scheduler requires explicit opt-in.
+        AutomaticConnectionsChoice.IsChecked = false; // V7 opt-in until real ISP benchmarks.
     }
     private void CloseAdd_Click(object sender, RoutedEventArgs e)
     {
@@ -1725,7 +1729,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 throw new IOException("That destination is already tracked. Choose another filename.");
             var item = _engine.Create(NewUrl.Text.Trim(), decision.Destination, decision.Category,
                 decision.Labels, connections, bandwidth, checksum,
-                AdaptiveWorkers.IsChecked == true, SelectedPostDownloadAction(PostDownloadChoice));
+                AdaptiveWorkers.IsChecked == true, SelectedPostDownloadAction(PostDownloadChoice),
+                AutomaticConnectionsChoice.IsChecked == true);
             if (File.Exists(item.Destination))
                 throw new IOException("A file already exists at that path. Choose a different name.");
             ScheduledDownload? schedule = null;
@@ -1766,6 +1771,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             VerifyChecksum.IsChecked = false;
             NewChecksum.Clear();
             AdaptiveWorkers.IsChecked = false;
+            AutomaticConnectionsChoice.IsChecked = false;
             ScheduleDownload.IsChecked = false;
             PostDownloadChoice.SelectedIndex = 0;
         }
@@ -1798,7 +1804,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return _engine.Create(candidate.Url, decision.Destination, decision.Category,
                 decision.Labels, connections, bandwidth,
                 adaptive: AdaptiveWorkers.IsChecked == true,
-                postDownloadAction: SelectedPostDownloadAction(PostDownloadChoice));
+                postDownloadAction: SelectedPostDownloadAction(PostDownloadChoice),
+                automaticConnections: AutomaticConnectionsChoice.IsChecked == true);
         }).ToArray();
         if (items.Select(x => x.Destination).Distinct(StringComparer.OrdinalIgnoreCase).Count() != items.Length ||
             items.Any(x => Downloads.Any(d => string.Equals(d.Destination, x.Destination,
@@ -1826,6 +1833,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         QueueOnly.IsChecked = !_preferences.StartImmediately;
         StartAutomatically.IsChecked = _preferences.StartImmediately;
         AdaptiveWorkers.IsChecked = false;
+        AutomaticConnectionsChoice.IsChecked = false;
         ScheduleDownload.IsChecked = false;
         PostDownloadChoice.SelectedIndex = 0;
     }

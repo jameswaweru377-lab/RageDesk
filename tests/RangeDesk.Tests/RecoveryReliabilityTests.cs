@@ -356,7 +356,9 @@ public sealed class RecoveryReliabilityTests
 
     private static async Task Wait(DownloadEntry entry)
     {
-        for (int i = 0; i < 300; i++)
+        // A deliberately stalled response can require the full exponential
+        // retry policy plus CI scheduling delays before reaching Failed.
+        for (int i = 0; i < 650; i++)
         {
             if (entry.Status is DownloadStatus.Completed or DownloadStatus.Failed) return;
             await Task.Delay(40);

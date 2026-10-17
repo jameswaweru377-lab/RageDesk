@@ -777,10 +777,13 @@
                   <ComboBoxItem Content="16 connections" Tag="16"/>
                   <ComboBoxItem Content="32 connections" Tag="32"/>
                 </ComboBox>
+                <CheckBox x:Name="AutomaticConnectionsChoice" IsChecked="False"
+                          Content="V7 automatic connection optimization (experimental)" Margin="0,0,0,8"
+                          ToolTip="Start with 2 active ranges and increase only when measured throughput improves. Never exceed the maximum selected above; checks for shared bandwidth saturation."/>
                 <CheckBox x:Name="AdaptiveWorkers" IsChecked="False"
                           Content="Adaptive slow-worker redistribution (experimental)" Margin="0,0,0,10"
                           ToolTip="Dynamically divides slow remaining ranges so idle workers can assist. Opt in only after testing."/>
-                <TextBlock Text="Uses multiple validated byte ranges only when the server supports HTTP 206 and a strong ETag; otherwise safely downloads with one connection. Your selected maximum is not a guarantee."
+                <TextBlock Text="V7 starts conservatively, tests increasing concurrency within the selected maximum, and stops expanding when measured total throughput plateaus. This is opt-in, not a promise of multiplying available bandwidth. Verified HTTP 206 and a strong ETag remain required for segmented transfers."
                            TextWrapping="Wrap" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,10"/>
                 <TextBlock Text="Download speed limit" Foreground="{StaticResource V5MutedBrush}" Margin="0,0,0,7"/>
                 <ComboBox x:Name="BandwidthChoice" Style="{StaticResource V5Combo}" Width="180" HorizontalAlignment="Left"
