@@ -223,7 +223,7 @@ function App() {
           <div className="selection-toolbar">
             <label className="selection-total"><input type="checkbox" checked={allSelected} onChange={()=>setSelectedIds(allSelected?new Set():new Set(displayRows.map(row=>row.id)))}/>
               {selectedIds.size} selected</label>
-            <button disabled title="Deletion requires verified removal and disk safety checks"><Trash2 size={15}/> Delete</button>
+            <button disabled={!selectedIds.size} onClick={()=>act("removeHistory",targetIds)} title="Remove only completed, failed or canceled entries from history (files are kept)"><Trash2 size={15}/> Remove History</button>
             <button disabled={selectedIds.size!==1} onClick={()=>act("openFolder",targetIds)}><FolderOpen size={15}/> Open Folder</button>
             <button disabled={!selectedIds.size} onClick={()=>act("resume",targetIds)}><Play size={16}/> Start / Resume</button>
             <button disabled={!selectedIds.size} onClick={()=>act("pause",targetIds)}><Pause size={15}/> Pause</button>
@@ -245,7 +245,7 @@ function App() {
                 <td><span className="connections"><Activity size={12}/>{r.connections} / {r.requestedConnections}</span></td>
                 <td className="added">{r.added}</td><td><div className="row-actions">
                   <button aria-label={`Open folder for ${r.name}`} onClick={e=>{e.stopPropagation();act("openFolder",[r.id]);}}><Folder size={16}/></button>
-                  <button disabled title="Deletion is not yet safe to enable"><Trash2 size={16}/></button>
+                  <button title="Remove history entry (keeps downloaded files)" onClick={e=>{e.stopPropagation();act("removeHistory",[r.id]);}}><Trash2 size={16}/></button>
                   <button aria-label={`More actions for ${r.name}`} onClick={e=>{e.stopPropagation();setRowMenu(rowMenu===r.id?null:r.id);}}><MoreHorizontal size={17}/></button>
                   {rowMenu===r.id&&<div className="react-row-menu" onClick={e=>e.stopPropagation()}>
                     <button onClick={()=>act("details",[r.id])}>View transfer details</button>
