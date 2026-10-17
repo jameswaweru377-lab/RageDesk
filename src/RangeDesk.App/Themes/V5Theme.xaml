@@ -1,22 +1,22 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <!-- Arctic Glass: shared light resources for the workspace, dialogs and settings. -->
-  <SolidColorBrush x:Key="V5CanvasBrush" Color="#F2F7FE"/>
-  <SolidColorBrush x:Key="V5SidebarBrush" Color="#F8FBFF"/>
-  <SolidColorBrush x:Key="V5SurfaceBrush" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="V5ElevatedBrush" Color="#F8FBFF"/>
-  <SolidColorBrush x:Key="V5SelectedBrush" Color="#E5F2FF"/>
-  <SolidColorBrush x:Key="V5OutlineBrush" Color="#D7E5F4"/>
+  <!-- Live Cobalt Flow / Arctic Light resources (Cobalt is default). -->
+  <SolidColorBrush x:Key="V5CanvasBrush" Color="#05172F"/>
+  <SolidColorBrush x:Key="V5SidebarBrush" Color="#071A33"/>
+  <SolidColorBrush x:Key="V5SurfaceBrush" Color="#0B213D"/>
+  <SolidColorBrush x:Key="V5ElevatedBrush" Color="#0F2B4D"/>
+  <SolidColorBrush x:Key="V5SelectedBrush" Color="#153C6D"/>
+  <SolidColorBrush x:Key="V5OutlineBrush" Color="#21476E"/>
   <SolidColorBrush x:Key="V5AccentBrush" Color="#147DF3"/>
-  <SolidColorBrush x:Key="V5AccentLightBrush" Color="#166CC7"/>
-  <SolidColorBrush x:Key="V5TextBrush" Color="#192F49"/>
-  <SolidColorBrush x:Key="V5MutedBrush" Color="#63809D"/>
-  <SolidColorBrush x:Key="V5SuccessBrush" Color="#0C9075"/>
-  <SolidColorBrush x:Key="V5WarningBrush" Color="#BC7717"/>
-  <SolidColorBrush x:Key="V5DangerBrush" Color="#C4445C"/>
+  <SolidColorBrush x:Key="V5AccentLightBrush" Color="#58B8FF"/>
+  <SolidColorBrush x:Key="V5TextBrush" Color="#F0F6FF"/>
+  <SolidColorBrush x:Key="V5MutedBrush" Color="#9AB5D2"/>
+  <SolidColorBrush x:Key="V5SuccessBrush" Color="#43D9A4"/>
+  <SolidColorBrush x:Key="V5WarningBrush" Color="#F0BE73"/>
+  <SolidColorBrush x:Key="V5DangerBrush" Color="#F18BA0"/>
   <Style x:Key="V5ToolbarButton" TargetType="Button">
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5ElevatedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5OutlineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Padding" Value="14,9"/>
     <Setter Property="Margin" Value="0,0,8,0"/>
@@ -30,7 +30,7 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Chrome" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.4"/></Trigger>
           </ControlTemplate.Triggers>
@@ -39,13 +39,13 @@
     </Setter>
   </Style>
   <Style x:Key="V5PrimaryButton" TargetType="Button" BasedOn="{StaticResource V5ToolbarButton}">
-    <Setter Property="Background" Value="{StaticResource V5AccentBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5AccentBrush}"/>
     <Setter Property="Foreground" Value="White"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
   <Style x:Key="ArcticPanel" TargetType="{x:Type Border}">
-    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5SurfaceBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5OutlineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="13"/>
     <Setter Property="Padding" Value="14"/>
@@ -58,9 +58,9 @@
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
   <Style x:Key="V5Input" TargetType="TextBox">
-    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5SurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5OutlineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="Padding" Value="10,7"/>
     <Setter Property="FontSize" Value="12"/>
@@ -69,8 +69,8 @@
   <!-- Remove operating-system light chrome: WPF's default ComboBox and TabItem
        templates produced white surfaces against the navy workspace. -->
   <Style x:Key="V5ComboItem" TargetType="ComboBoxItem">
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5SurfaceBrush}"/>
     <Setter Property="Padding" Value="11,9"/>
     <Setter Property="Template">
       <Setter.Value>
@@ -80,10 +80,10 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsHighlighted" Value="True">
-              <Setter TargetName="Choice" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              <Setter TargetName="Choice" Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
             </Trigger>
             <Trigger Property="IsSelected" Value="True">
-              <Setter TargetName="Choice" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              <Setter TargetName="Choice" Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -92,9 +92,9 @@
   </Style>
   <Style x:Key="V5Combo" TargetType="ComboBox">
     <Setter Property="Height" Value="34"/>
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-    <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5ElevatedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5OutlineBrush}"/>
     <Setter Property="ItemContainerStyle" Value="{StaticResource V5ComboItem}"/>
     <Setter Property="Template">
       <Setter.Value>
@@ -104,15 +104,15 @@
               BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="6"/>
             <ContentPresenter IsHitTestVisible="False" Margin="11,0,30,0" HorizontalAlignment="Left" VerticalAlignment="Center"
               Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
-            <Path IsHitTestVisible="False" Data="M 0 0 L 4 4 L 8 0" Stroke="{StaticResource V5MutedBrush}" StrokeThickness="1.5"
+            <Path IsHitTestVisible="False" Data="M 0 0 L 4 4 L 8 0" Stroke="{DynamicResource V5MutedBrush}" StrokeThickness="1.5"
               Width="8" Height="4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,11,0"/>
             <ToggleButton Focusable="False" Background="Transparent" Opacity="0"
               BorderThickness="0" ClickMode="Press"
               IsChecked="{Binding IsDropDownOpen, RelativeSource={RelativeSource TemplatedParent}, Mode=TwoWay}"/>
             <Popup x:Name="PART_Popup" IsOpen="{TemplateBinding IsDropDownOpen}" Placement="Bottom"
               AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
-              <Border Background="{StaticResource V5SurfaceBrush}" MinWidth="{Binding ActualWidth, ElementName=Root}"
-                BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="1" CornerRadius="6" Padding="3">
+              <Border Background="{DynamicResource V5SurfaceBrush}" MinWidth="{Binding ActualWidth, ElementName=Root}"
+                BorderBrush="{DynamicResource V5OutlineBrush}" BorderThickness="1" CornerRadius="6" Padding="3">
                 <ScrollViewer MaxHeight="290" CanContentScroll="True" VerticalScrollBarVisibility="Auto">
                   <ItemsPresenter/>
                 </ScrollViewer>
@@ -124,7 +124,7 @@
               <Setter Property="Opacity" Value="0.45"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Root" Property="BorderBrush" Value="{StaticResource V5AccentLightBrush}"/>
+              <Setter TargetName="Root" Property="BorderBrush" Value="{DynamicResource V5AccentLightBrush}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -132,7 +132,7 @@
     </Setter>
   </Style>
   <Style x:Key="V5TabItem" TargetType="TabItem">
-    <Setter Property="Foreground" Value="{StaticResource V5MutedBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5MutedBrush}"/>
     <Setter Property="Padding" Value="15,10"/>
     <Setter Property="FontSize" Value="12"/>
     <Setter Property="Template">
@@ -146,12 +146,12 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsSelected" Value="True">
-              <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-              <Setter TargetName="Chrome" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
-              <Setter TargetName="Indicator" Property="Background" Value="{StaticResource V5AccentLightBrush}"/>
+              <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
+              <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
+              <Setter TargetName="Indicator" Property="Background" Value="{DynamicResource V5AccentLightBrush}"/>
             </Trigger>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="Chrome" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
+              <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.34"/></Trigger>
           </ControlTemplate.Triggers>
@@ -160,13 +160,13 @@
     </Setter>
   </Style>
   <Style x:Key="V5TabControl" TargetType="TabControl">
-    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5SurfaceBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="ItemContainerStyle" Value="{StaticResource V5TabItem}"/>
   </Style>
   <Style x:Key="V5Progress" TargetType="ProgressBar">
-    <Setter Property="Foreground" Value="{StaticResource V5AccentLightBrush}"/>
-    <Setter Property="Background" Value="#E5EEF9"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5AccentLightBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource FlowBackgroundE5EEF9}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Height" Value="7"/>
   </Style>
@@ -177,7 +177,7 @@
   <!-- WPF system theme must NEVER recolor a selected row white. -->
   <Style x:Key="V5GridCell" TargetType="{x:Type DataGridCell}">
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="8,3"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -186,17 +186,17 @@
       <Setter.Value>
         <ControlTemplate TargetType="{x:Type DataGridCell}">
           <Border x:Name="CellBackground" Background="{TemplateBinding Background}"
-                  BorderBrush="{StaticResource V5OutlineBrush}" BorderThickness="0"
+                  BorderBrush="{DynamicResource V5OutlineBrush}" BorderThickness="0"
                   Padding="{TemplateBinding Padding}">
             <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Stretch"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsSelected" Value="True">
-              <Setter TargetName="CellBackground" Property="Background" Value="{StaticResource V5SelectedBrush}"/>
-              <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+              <Setter TargetName="CellBackground" Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
+              <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
             </Trigger>
             <Trigger Property="IsKeyboardFocusWithin" Value="True">
-              <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+              <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -204,31 +204,31 @@
     </Setter>
   </Style>
   <Style x:Key="V5GridRow" TargetType="{x:Type DataGridRow}">
-    <Setter Property="Background" Value="{StaticResource V5SurfaceBrush}"/>
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5SurfaceBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5OutlineBrush}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="Height" Value="52"/>
     <Setter Property="SnapsToDevicePixels" Value="True"/>
     <Style.Triggers>
       <Trigger Property="IsSelected" Value="True">
-        <Setter Property="Background" Value="{StaticResource V5SelectedBrush}"/>
-        <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource V5SelectedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
       </Trigger>
       <Trigger Property="IsMouseOver" Value="True">
-        <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
+        <Setter Property="Background" Value="{DynamicResource V5ElevatedBrush}"/>
       </Trigger>
     </Style.Triggers>
   </Style>
   <Style x:Key="V5GridText" TargetType="{x:Type TextBlock}">
-    <Setter Property="Foreground" Value="{StaticResource V5TextBrush}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
     <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="V5ProgressFixed" TargetType="{x:Type ProgressBar}">
     <Setter Property="Height" Value="7"/>
-    <Setter Property="Background" Value="#E5EEF9"/>
-    <Setter Property="Foreground" Value="{StaticResource V5AccentLightBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource FlowBackgroundE5EEF9}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5AccentLightBrush}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Template">
       <Setter.Value>
@@ -251,18 +251,18 @@
   </Style>
 
   <!-- The downloads workspace, sidebar, dialog and settings share Arctic tokens. -->
-  <SolidColorBrush x:Key="V5LightCanvas" Color="#F2F7FE"/>
-  <SolidColorBrush x:Key="V5LightSurface" Color="#FFFFFF"/>
-  <SolidColorBrush x:Key="V5LightBorder" Color="#D7E5F4"/>
-  <SolidColorBrush x:Key="V5LightText" Color="#192F49"/>
-  <SolidColorBrush x:Key="V5LightMuted" Color="#63809D"/>
-  <SolidColorBrush x:Key="V5LightSelected" Color="#E5F2FF"/>
-  <SolidColorBrush x:Key="V5LightBlue" Color="#147DF3"/>
+  <SolidColorBrush x:Key="V5LightCanvas" Color="#071B36"/>
+  <SolidColorBrush x:Key="V5LightSurface" Color="#0B213D"/>
+  <SolidColorBrush x:Key="V5LightBorder" Color="#21476E"/>
+  <SolidColorBrush x:Key="V5LightText" Color="#F0F6FF"/>
+  <SolidColorBrush x:Key="V5LightMuted" Color="#9AB5D2"/>
+  <SolidColorBrush x:Key="V5LightSelected" Color="#153C6D"/>
+  <SolidColorBrush x:Key="V5LightBlue" Color="#319DFF"/>
   <Style x:Key="V5LightToolbarButton" TargetType="{x:Type Button}">
     <Setter Property="Padding" Value="13,9"/>
-    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
-    <Setter Property="Background" Value="{StaticResource V5LightSurface}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5LightBorder}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
+    <Setter Property="Background" Value="{DynamicResource V5LightSurface}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5LightBorder}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Cursor" Value="Hand"/>
@@ -276,7 +276,7 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
-              <Setter TargetName="LightChrome" Property="Background" Value="{StaticResource V5LightSelected}"/>
+              <Setter TargetName="LightChrome" Property="Background" Value="{DynamicResource V5LightSelected}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.43"/></Trigger>
           </ControlTemplate.Triggers>
@@ -285,36 +285,36 @@
     </Setter>
   </Style>
   <Style x:Key="V5LightPrimaryButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
-    <Setter Property="Background" Value="{StaticResource V5LightBlue}"/>
+    <Setter Property="Background" Value="{DynamicResource V5LightBlue}"/>
     <Setter Property="Foreground" Value="White"/>
     <Setter Property="BorderThickness" Value="0"/>
   </Style>
   <Style x:Key="V5LightTabButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
     <Setter Property="BorderThickness" Value="0"/>
-    <Setter Property="Background" Value="#F1F7FE"/>
+    <Setter Property="Background" Value="{DynamicResource FlowBackgroundF1F7FE}"/>
     <Setter Property="Padding" Value="13,8"/>
     <Setter Property="Margin" Value="0,0,6,0"/>
   </Style>
   <Style x:Key="V5LightGridRow" TargetType="{x:Type DataGridRow}">
     <Setter Property="Height" Value="44"/>
-    <Setter Property="Background" Value="{StaticResource V5LightSurface}"/>
-    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
-    <Setter Property="BorderBrush" Value="#E2EAF5"/>
+    <Setter Property="Background" Value="{DynamicResource V5LightSurface}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FlowBorderBrushE2EAF5}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="SnapsToDevicePixels" Value="True"/>
     <Style.Triggers>
       <Trigger Property="IsSelected" Value="True">
-        <Setter Property="Background" Value="{StaticResource V5LightSelected}"/>
-        <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+        <Setter Property="Background" Value="{DynamicResource V5LightSelected}"/>
+        <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
       </Trigger>
       <Trigger Property="IsMouseOver" Value="True">
-        <Setter Property="Background" Value="#F2F8FF"/>
+        <Setter Property="Background" Value="{DynamicResource FlowBackgroundF2F8FF}"/>
       </Trigger>
     </Style.Triggers>
   </Style>
   <Style x:Key="V5LightGridCell" TargetType="{x:Type DataGridCell}">
     <Setter Property="Background" Value="Transparent"/>
-    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Padding" Value="7,4"/>
     <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -328,8 +328,8 @@
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsSelected" Value="True">
-              <Setter TargetName="SelectedCell" Property="Background" Value="{StaticResource V5LightSelected}"/>
-              <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+              <Setter TargetName="SelectedCell" Property="Background" Value="{DynamicResource V5LightSelected}"/>
+              <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
             </Trigger>
           </ControlTemplate.Triggers>
         </ControlTemplate>
@@ -337,9 +337,9 @@
     </Setter>
   </Style>
   <Style x:Key="V5LightHeader" TargetType="{x:Type DataGridColumnHeader}">
-    <Setter Property="Background" Value="#F5F9FE"/>
-    <Setter Property="Foreground" Value="{StaticResource V5LightMuted}"/>
-    <Setter Property="BorderBrush" Value="#E2EAF5"/>
+    <Setter Property="Background" Value="{DynamicResource FlowBackgroundF5F9FE}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5LightMuted}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource FlowBorderBrushE2EAF5}"/>
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Height" Value="30"/>
@@ -347,14 +347,14 @@
     <Setter Property="Padding" Value="8,7"/>
   </Style>
   <Style x:Key="V5LightGridText" TargetType="{x:Type TextBlock}">
-    <Setter Property="Foreground" Value="{StaticResource V5LightText}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
     <Setter Property="TextTrimming" Value="CharacterEllipsis"/>
     <Setter Property="VerticalAlignment" Value="Center"/>
   </Style>
   <Style x:Key="V5LightProgress" TargetType="{x:Type ProgressBar}">
     <Setter Property="Height" Value="7"/>
-    <Setter Property="Background" Value="#E5EEF9"/>
-    <Setter Property="Foreground" Value="{StaticResource V5LightBlue}"/>
+    <Setter Property="Background" Value="{DynamicResource FlowBackgroundE5EEF9}"/>
+    <Setter Property="Foreground" Value="{DynamicResource V5LightBlue}"/>
     <Setter Property="BorderThickness" Value="0"/>
     <Setter Property="Template">
       <Setter.Value>
@@ -371,11 +371,78 @@
     </Setter>
   </Style>
   <Style x:Key="V5MetricCard" TargetType="{x:Type Border}">
-    <Setter Property="Background" Value="{StaticResource V5ElevatedBrush}"/>
-    <Setter Property="BorderBrush" Value="{StaticResource V5OutlineBrush}"/>
+    <Setter Property="Background" Value="{DynamicResource V5ElevatedBrush}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5OutlineBrush}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="CornerRadius" Value="10"/>
     <Setter Property="Padding" Value="12,9"/>
     <Setter Property="Margin" Value="0,0,6,0"/>
   </Style>
+  <SolidColorBrush x:Key="FlowForeground7798C4" Color="#A5BFDD"/>
+  <SolidColorBrush x:Key="FlowForeground5E7E9E" Color="#C4D9F2"/>
+  <SolidColorBrush x:Key="FlowForeground2B638F" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground44ABFF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowBackgroundE6F2FE" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowForeground2C6FB8" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground8CC9FF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForegroundAFD1FA" Color="#E8F2FF"/>
+  <SolidColorBrush x:Key="FlowForegroundA3C4F5" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground4E6D8E" Color="#C4D9F2"/>
+  <SolidColorBrush x:Key="FlowForeground30AFFF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground37B0FC" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForegroundAF6FFF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground79AAFF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForegroundFFB33C" Color="#FFB33C"/>
+  <SolidColorBrush x:Key="FlowForeground34D7A0" Color="#34D7A0"/>
+  <SolidColorBrush x:Key="FlowFill229BFA" Color="#183B60"/>
+  <SolidColorBrush x:Key="FlowFill985DF5" Color="#183B60"/>
+  <SolidColorBrush x:Key="FlowFill37DDA3" Color="#12493F"/>
+  <SolidColorBrush x:Key="FlowFillFF9E31" Color="#22436A"/>
+  <SolidColorBrush x:Key="FlowFill2CB5FF" Color="#183B60"/>
+  <SolidColorBrush x:Key="FlowBackgroundDDEFFF" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowForeground192F49" Color="#F0F6FF"/>
+  <SolidColorBrush x:Key="FlowFillFDC443" Color="#173759"/>
+  <SolidColorBrush x:Key="FlowFill19BF78" Color="#12493F"/>
+  <SolidColorBrush x:Key="FlowFill38A5FF" Color="#183B60"/>
+  <SolidColorBrush x:Key="FlowBackgroundF7FBFF" Color="#0E2541"/>
+  <SolidColorBrush x:Key="FlowForeground99C8F4" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground9EBDE2" Color="#A5BFDD"/>
+  <SolidColorBrush x:Key="FlowBackgroundFFFFFF" Color="#0B213D"/>
+  <SolidColorBrush x:Key="FlowBackgroundE9F2FC" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowBackgroundE7F2FD" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowForeground49AEFF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowBorderBrushD3E5F9" Color="#224A70"/>
+  <Color x:Key="FlowColorECF7FF">#071B37</Color>
+  <Color x:Key="FlowColorDDEFFF">#0C2F60</Color>
+  <Color x:Key="FlowColorCBE5FF">#154680</Color>
+  <SolidColorBrush x:Key="FlowFillB6D8FB" Color="#173759"/>
+  <SolidColorBrush x:Key="FlowFillD9EAFC" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowFillB8D9F7" Color="#173759"/>
+  <SolidColorBrush x:Key="FlowStroke0879DC" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground577795" Color="#C4D9F2"/>
+  <SolidColorBrush x:Key="FlowForeground587C9E" Color="#C4D9F2"/>
+  <SolidColorBrush x:Key="FlowForeground107AF6" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground137CF9" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground2C6BB1" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground39ACFF" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForegroundFDBD58" Color="#FDBD58"/>
+  <SolidColorBrush x:Key="FlowForegroundB7A0FC" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowForeground4BE3B3" Color="#4BE3B3"/>
+  <SolidColorBrush x:Key="FlowForegroundFA8496" Color="#FA8496"/>
+  <SolidColorBrush x:Key="FlowAlternatingRowBackgroundFAFCFF" Color="#0E2541"/>
+  <Color x:Key="FlowColorDDECFF">#112D50</Color>
+  <Color x:Key="FlowColorF0F6FF">#0E2541</Color>
+  <SolidColorBrush x:Key="FlowBackgroundEEF6FF" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowForeground256EBB" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowBackgroundE8F3FF" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowForeground1686F4" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowBackground930C2037" Color="#930C2037"/>
+  <SolidColorBrush x:Key="FlowBackgroundE8F2FF" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowBackgroundE4F3FF" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowForeground255BA0" Color="#59B5FF"/>
+  <SolidColorBrush x:Key="FlowBackgroundE5EEF9" Color="#112D50"/>
+  <SolidColorBrush x:Key="FlowBackgroundF1F7FE" Color="#0E2541"/>
+  <SolidColorBrush x:Key="FlowBorderBrushE2EAF5" Color="#224A70"/>
+  <SolidColorBrush x:Key="FlowBackgroundF2F8FF" Color="#0E2541"/>
+  <SolidColorBrush x:Key="FlowBackgroundF5F9FE" Color="#0E2541"/>
 </ResourceDictionary>
