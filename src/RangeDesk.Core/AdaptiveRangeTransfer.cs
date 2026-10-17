@@ -256,7 +256,8 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     output.Flush(true);
                     return;
                 }
-                catch (TimeoutException) when (
+                catch (Exception ex) when (
+                    (ex is TimeoutException or System.Net.Http.HttpIOException) &&
                     Interlocked.Read(ref piece.Downloaded) == piece.To - piece.From + 1 &&
                     !allStop.Token.IsCancellationRequested)
                 {
@@ -268,7 +269,8 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     if (attempt >= HttpRetryPolicy.MaximumAttempts) throw;
                     await Task.Delay(HttpRetryPolicy.Delay(attempt, null), allStop.Token);
                 }
-                catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
+                catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException or
+                    System.Net.Http.HttpIOException) &&
                     attempt < HttpRetryPolicy.MaximumAttempts &&
                     Interlocked.Read(ref piece.Downloaded) < piece.To - piece.From + 1 &&
                     !allStop.Token.IsCancellationRequested)
