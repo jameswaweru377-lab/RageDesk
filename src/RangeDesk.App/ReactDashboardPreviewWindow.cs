@@ -123,7 +123,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
                         !root.TryGetProperty("type", out var type) ||
                         type.ValueKind != JsonValueKind.String ||
                         type.GetString() is not ("dashboard.ready" or "ui.openSettings" or
-                            "ui.openAddDownload" or "ui.download" or "ui.browser"))
+                            "ui.openAddDownload" or "ui.download" or "ui.browser" or "ui.setting"))
                         return;
                     string? messageType = type.GetString();
                     if (messageType == "dashboard.ready")
@@ -136,7 +136,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
                     {
                         _source.OpenNativeDialogFromReact(messageType);
                     }
-                    else if (_ready && messageType is "ui.download" or "ui.browser")
+                    else if (_ready && messageType is "ui.download" or "ui.browser" or "ui.setting")
                     {
                         ExecuteNativeCommand(root, messageType);
                     }
@@ -175,6 +175,13 @@ internal sealed class ReactDashboardPreviewWindow : Window
             {
                 if (root.TryGetProperty("ids", out _)) return;
                 message = _source.ExecuteReactBrowserAction(actionName);
+            }
+            else if (messageType == "ui.setting")
+            {
+                if (root.TryGetProperty("ids", out _) ||
+                    !root.TryGetProperty("value", out var value))
+                    return;
+                message = _source.UpdateReactPreference(actionName, value);
             }
             else
             {
