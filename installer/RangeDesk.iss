@@ -27,7 +27,7 @@ VersionInfoDescription=RangeDesk Windows installer (unsigned preview)
 VersionInfoProductName=RangeDesk
 Compression=lzma2
 SolidCompression=yes
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=dialog
 UsePreviousPrivileges=yes
 UsePreviousAppDir=yes
@@ -126,6 +126,8 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 Name: "{group}\RangeDesk"; Filename: "{app}\RangeDesk.exe"; WorkingDir: "{app}"
 ; Optional React view: WPF still owns engine, settings and native popup.
 Name: "{group}\RageDesk - New UI Preview"; Filename: "{app}\RangeDesk.exe"; Parameters: "--react-preview"; WorkingDir: "{app}"
+; The original full-function WPF interface remains available for advanced operations.
+Name: "{group}\RangeDesk Classic (WPF)"; Filename: "{app}\RangeDesk.exe"; Parameters: "--wpf-classic"; WorkingDir: "{app}"
 Name: "{group}\Uninstall RangeDesk"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\RangeDesk"; Filename: "{app}\RangeDesk.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
