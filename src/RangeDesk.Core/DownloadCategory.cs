@@ -11,6 +11,8 @@ public static class DownloadCategory
         { ".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".svg" };
     private static readonly HashSet<string> Documents = new(StringComparer.OrdinalIgnoreCase)
         { ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt", ".csv" };
+    private static readonly HashSet<string> Music = new(StringComparer.OrdinalIgnoreCase)
+    { ".mp3", ".wav", ".flac", ".aac", ".m4a", ".ogg", ".opus" };
     private static readonly HashSet<string> Archives = new(StringComparer.OrdinalIgnoreCase)
         { ".zip", ".rar", ".7z", ".gz", ".tar", ".xz", ".iso" };
 
