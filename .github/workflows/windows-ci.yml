@@ -198,7 +198,8 @@ jobs:
           $setup = (Resolve-Path 'artifact/RangeDesk-Setup-0.8.0-preview.4-win-x64.exe').Path
           $target = Join-Path $env:ProgramFiles 'RangeDesk-CI-Smoke'
           $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT',
-            '/SUPPRESSMSGBOXES','/NORESTART','/ALLUSERS','/LANG=en',"/DIR=$target") -PassThru -Wait
+            '/SUPPRESSMSGBOXES','/NORESTART','/ALLUSERS','/LANG=en',"/DIR=`"$target`"") -PassThru -Wait
+          Write-Host "All-users install exit code: $($p.ExitCode); expected directory: $target"
           if ($p.ExitCode -ne 0 -or -not (Test-Path (Join-Path $target 'RangeDesk.exe')) -or
               -not (Test-Path (Join-Path $target 'web\index.html'))) { throw 'Program Files installation failed' }
           $p = Start-Process -FilePath (Join-Path $target 'unins000.exe') -ArgumentList @('/VERYSILENT',
