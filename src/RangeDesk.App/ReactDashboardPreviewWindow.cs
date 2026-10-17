@@ -12,7 +12,7 @@ using Microsoft.Web.WebView2.Wpf;
 namespace RangeDesk.App;
 
 /// <summary>
-/// Opt-in local React renderer of the *existing* MainWindow. No duplicate engine or media
+/// Locally bundled primary React renderer of the *existing* MainWindow. No duplicate engine or media
 /// host is created. Commands are allowlisted, ID-scoped and run through existing native services.
 /// </summary>
 internal sealed class ReactDashboardPreviewWindow : Window
