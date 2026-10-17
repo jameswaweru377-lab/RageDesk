@@ -379,7 +379,7 @@ public sealed class DownloadEngine : IDisposable
             }
             catch (Exception ex) when (attempt < HttpRetryPolicy.MaximumAttempts &&
                 !token.IsCancellationRequested &&
-                (ex is TimeoutException or EndOfStreamException ||
+                (ex is TimeoutException or EndOfStreamException or System.Net.Http.HttpIOException ||
                  ex is HttpRequestException httpError &&
                  (httpError.StatusCode is null || HttpRetryPolicy.IsTemporary(httpError.StatusCode.Value))))
             {
