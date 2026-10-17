@@ -1,4 +1,7 @@
 using System.ComponentModel;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
+using System.Windows.Media.Effects;
 using System.IO;
 using System.Windows;
 using System.Windows.Controls;
@@ -17,12 +20,19 @@ public sealed class DownloadProgressWindow : Window
 {
     public enum Command { StartOrResume, Pause, Stop, OpenFolder }
 
-    private static readonly Brush TextColor = Brush("#EFF6FF");
-    private static readonly Brush Muted = Brush("#9BB4D2");
-    private static readonly Brush Accent = Brush("#1689FF");
-    private static readonly Brush Surface = Brush("#081A30");
-    private static readonly Brush Card = Brush("#0C2544");
-    private static readonly Brush Outline = Brush("#22446B");
+    private static readonly Brush TextColor = Brush("#EFF8FF");
+    private static readonly Brush Muted = Brush("#A4C2E4");
+    private static readonly Brush Accent = Brush("#26B5FF");
+    private static readonly Brush Surface = Brush("#030E20");
+    private static readonly Brush Card = Brush("#071B37");
+    private static readonly Brush Outline = Brush("#1D4B81");
+    private static readonly Brush PremiumPanelFill = new LinearGradientBrush(
+        Color.FromRgb(13, 42, 79), Color.FromRgb(4, 18, 39), new Point(0, 0), new Point(1, 1));
+    private static readonly Brush PremiumProgressFill = new LinearGradientBrush(
+        Color.FromRgb(44, 213, 255), Color.FromRgb(5, 95, 250), new Point(0, 0), new Point(1, 0));
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
 
     private readonly DownloadEntry _entry;
     private readonly Action<DownloadEntry, Command> _onCommand;
@@ -35,7 +45,8 @@ public sealed class DownloadProgressWindow : Window
     private readonly TextBlock _speed = Label("", 16, Accent, true);
     private readonly TextBlock _eta = Label("", 16, Muted);
     private readonly TextBlock _percent = Label("", 22, Accent, true);
-    private readonly ProgressBar _progress = new() { Height = 13, Minimum = 0, Maximum = 100, Background = Card, Foreground = Accent };
+    private readonly ProgressBar _progress = new() { Height = 13, Minimum = 0, Maximum = 100,
+        Background = Brush("#061528"), Foreground = PremiumProgressFill, BorderBrush = Outline, BorderThickness = new Thickness(0) };
     private readonly TextBlock _details = Label("", 12, TextColor);
     private readonly TextBlock _workersNotice = Label("", 12, Muted);
     private readonly Button _primary = ActionButton("", true);
@@ -56,6 +67,24 @@ public sealed class DownloadProgressWindow : Window
         MinHeight = 550;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ShowInTaskbar = true;
+        Resources.MergedDictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("/RangeDesk;component/Themes/ProgressWindowPremium.xaml", UriKind.Relative)
+        });
+        _primary.Style = (Style)FindResource("PremiumPrimaryButton");
+        _pause.Style = (Style)FindResource("PremiumSecondaryButton");
+        _stop.Style = (Style)FindResource("PremiumSecondaryButton");
+        _dismiss.Style = (Style)FindResource("PremiumSecondaryButton");
+        SourceInitialized += (_, _) =>
+        {
+            try
+            {
+                int enabled = 1;
+                DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref enabled, sizeof(int));
+            }
+            catch (DllNotFoundException) { } // Old Windows build; keep functional chrome.
+            catch (EntryPointNotFoundException) { }
+        };
         Background = Surface;
         Foreground = TextColor;
         FontFamily = new FontFamily("Segoe UI");
@@ -75,12 +104,10 @@ public sealed class DownloadProgressWindow : Window
         new() { Text = value, FontSize = size, Foreground = brush, FontWeight = bold ? FontWeights.SemiBold : FontWeights.Normal,
                 TextTrimming = TextTrimming.CharacterEllipsis, VerticalAlignment = VerticalAlignment.Center };
     private static Button ActionButton(string title, bool primary = false) =>
-        new() { Content = title, Height = 39, MinWidth = 112, Margin = new Thickness(6, 0, 0, 0),
-                Padding = new Thickness(15, 6, 15, 6), BorderBrush = Outline,
-                BorderThickness = new Thickness(1), Foreground = TextColor,
-                Background = primary ? Accent : Card };
+        new() { Content = title, Height = 39, MinWidth = primary ? 148 : 112,
+                Margin = new Thickness(6, 0, 0, 0), Padding = new Thickness(15, 6, 15, 6) };
     private static Border Panel(UIElement child, Thickness? margin = null, Thickness? padding = null) =>
-        new() { Child = child, Background = Card, BorderBrush = Outline,
+        new() { Child = child, Background = PremiumPanelFill, BorderBrush = Outline,
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12),
                 Margin = margin ?? new Thickness(0), Padding = padding ?? new Thickness(14) };
 
@@ -102,9 +129,14 @@ public sealed class DownloadProgressWindow : Window
         summary.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
         summary.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var preview = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        preview.Children.Add(Label(PreviewSymbol(_kind), 76, Accent, true));
+        var previewIcon = Label(PreviewSymbol(_kind), 76, Accent, true);
+        previewIcon.Effect = new DropShadowEffect { Color = Color.FromRgb(0, 153, 255), BlurRadius = 17, ShadowDepth = 0, Opacity = 0.4 };
+        preview.Children.Add(previewIcon);
         preview.Children.Add(Label(_kind, 14, Muted, true));
-        Grid.SetColumn(preview, 0); summary.Children.Add(Panel(preview, new Thickness(0, 0, 16, 0), new Thickness(28)));
+        Grid.SetColumn(preview, 0);
+        var artwork = Panel(preview, new Thickness(0, 0, 16, 0), new Thickness(28));
+        artwork.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 17, ShadowDepth = 3, Opacity = 0.22 };
+        summary.Children.Add(artwork);
         var file = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
         file.Children.Add(_name);
         file.Children.Add(_origin);
@@ -131,7 +163,7 @@ public sealed class DownloadProgressWindow : Window
         var tabs = new TabControl { Margin = new Thickness(0, 5, 0, 18),
             Background = Surface, Foreground = TextColor, BorderBrush = Outline };
         var workerList = new ListView { ItemsSource = _entry.Workers, Background = Surface,
-            Foreground = TextColor, BorderBrush = Outline };
+            Foreground = TextColor, BorderBrush = Outline, BorderThickness = new Thickness(0) };
         var gv = new GridView();
         gv.Columns.Add(new GridViewColumn { Header = "#", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.Title)), Width = 75 });
         gv.Columns.Add(new GridViewColumn { Header = "Downloaded", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.BytesLabel)), Width = 210 });
