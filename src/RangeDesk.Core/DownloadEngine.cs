@@ -61,12 +61,12 @@ public sealed class DownloadEngine : IDisposable
             && u.Host.Length > 0;
     }
 
-    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null, bool adaptive = false, SafePostDownloadAction postDownloadAction = SafePostDownloadAction.None)
+    public DownloadEntry Create(string url, string destination, string category = "Other", string labels = "", int connections = 1, int bandwidthKiBps = 0, string? expectedSha256 = null, bool adaptive = false, SafePostDownloadAction postDownloadAction = SafePostDownloadAction.None, bool automaticConnections = false)
     {
         if (!IsAllowedUrl(url)) throw new ArgumentException("Enter a valid HTTP or HTTPS download URL without credentials.");
         if (string.IsNullOrWhiteSpace(destination) || !Path.IsPathFullyQualified(destination))
             throw new ArgumentException("Choose a complete local filename for the download.");
-        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections, bandwidthKiBps, expectedSha256, adaptive, postDownloadAction);
+        return new DownloadEntry(url, Path.GetFullPath(destination), category, labels, connections, bandwidthKiBps, expectedSha256, adaptive, postDownloadAction, automaticConnections);
     }
 
     public bool Start(DownloadEntry entry)

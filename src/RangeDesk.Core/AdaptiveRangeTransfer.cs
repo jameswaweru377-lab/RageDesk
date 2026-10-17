@@ -117,6 +117,19 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
         rate.Update(TimeSpan.Zero, 0);
         foreach (var p in piecesList) p.Rate.Update(TimeSpan.Zero, 0);
         long initialBytes = received;
+        // A resumed v2 manifest fixes the safe maximum boundary count. The
+        // controller only changes live worker concurrency; it never modifies
+        // existing durable piece ranges, strong ETags, or checkpoint format.
+        var auto = entry.AutomaticConnections
+            ? new AutomaticConnectionController(Math.Min(entry.RequestedConnections, saved.Connections))
+            : null;
+        var workerTasks = new List<Task>();
+
+        void StartWorkersUnderLock(int target)
+        {
+            while (workerTasks.Count < target)
+                workerTasks.Add(Task.Run(() => WorkerLoop(), allStop.Token));
+        }
 
         void PersistManifestUnderLock()
         {
@@ -175,6 +188,8 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                         currentBytes = Interlocked.Read(ref transferred);
                         currentRate = rate.Update(clock.Elapsed, currentBytes - initialBytes);
                         currentActive = activeCount;
+                        if (auto?.Observe(clock.Elapsed, currentBytes, saved.Length) == true)
+                            StartWorkersUnderLock(auto.TargetWorkers);
                         metrics = piecesList.OrderBy(p => p.Id).Select(p =>
                         {
                             long bytes = Interlocked.Read(ref p.Downloaded);
@@ -333,7 +348,21 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
 
         try
         {
-            await Task.WhenAll(Enumerable.Range(0, saved.Connections).Select(_ => WorkerLoop()));
+            lock (sync)
+                StartWorkersUnderLock(auto?.TargetWorkers ?? saved.Connections);
+            // A worker executes many pending pieces. The timer may add more
+            // workers while the initial tasks are still active. Wait for each
+            // wave, including tasks added since the previous snapshot.
+            while (true)
+            {
+                Task[] snapshot;
+                lock (sync) snapshot = workerTasks.ToArray();
+                await Task.WhenAll(snapshot);
+                lock (sync)
+                {
+                    if (workerTasks.Count == snapshot.Length) break;
+                }
+            }
             List<Piece> verified;
             lock (sync) verified = piecesList.OrderBy(p => p.From).ToList();
             long next = 0;
