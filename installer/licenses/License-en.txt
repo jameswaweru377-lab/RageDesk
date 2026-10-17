@@ -1,0 +1,49 @@
+RANGEDESK PREVIEW SOFTWARE AGREEMENT
+Version 0.8.0 Preview 1 — October 2026
+
+Please read before installing RangeDesk.
+
+1. About RangeDesk
+RangeDesk is an independent Windows download manager in preview. This
+installer includes its application, local browser-integration tools, and
+optional scheduler components. RangeDesk is not affiliated with Internet
+Download Manager, Google, YouTube, or other download sites.
+
+2. Your permission to use the software
+You may install and use this preview on computers you own or are authorized
+to manage. The project may change or stop providing preview versions.
+These terms govern use of the prebuilt preview installer; they do not
+change any separate license terms for source code or third-party tools.
+
+3. Responsible downloading
+Download only material you are legally allowed to access and save.
+Respect copyright, service terms, access restrictions, and your
+organization's network policies. RangeDesk does not grant rights to
+download protected or unauthorized content.
+
+4. Local data and browser access
+The app stores download history, preferences and resumable checkpoints
+on your computer. Browser capture is opt-in and must be configured
+separately. Installing RangeDesk does not silently enable a Chrome
+extension or request access to your browser's saved credentials.
+
+5. Preview quality and warranties
+This is prerelease software provided AS IS, without a promise that every
+download, browser site, or configuration will work. To the extent
+permitted by applicable law, the project disclaims warranties and
+liability for data loss or interruption. Nothing here removes rights
+that cannot legally be excluded.
+
+6. Installation and removal
+You may choose a per-user or administrator-approved all-users
+installation. The standard uninstaller removes program files, but
+deliberately retains your downloaded files, local preferences, history,
+and partial download checkpoints. You may erase those separately when
+you choose.
+
+7. Updates and support
+There is no automatic-update or paid-support guarantee. Review future
+releases from the official project page:
+https://github.com/jameswaweru377-lab/RageDesk/releases
+
+By selecting "I accept", you acknowledge these preview terms.
