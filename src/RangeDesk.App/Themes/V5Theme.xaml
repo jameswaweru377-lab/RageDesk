@@ -394,16 +394,16 @@
   <SolidColorBrush x:Key="FlowForeground79AAFF" Color="#59B5FF"/>
   <SolidColorBrush x:Key="FlowForegroundFFB33C" Color="#FFB33C"/>
   <SolidColorBrush x:Key="FlowForeground34D7A0" Color="#34D7A0"/>
-  <SolidColorBrush x:Key="FlowFill229BFA" Color="#183B60"/>
-  <SolidColorBrush x:Key="FlowFill985DF5" Color="#183B60"/>
-  <SolidColorBrush x:Key="FlowFill37DDA3" Color="#12493F"/>
-  <SolidColorBrush x:Key="FlowFillFF9E31" Color="#22436A"/>
-  <SolidColorBrush x:Key="FlowFill2CB5FF" Color="#183B60"/>
+  <SolidColorBrush x:Key="FlowFill229BFA" Color="#229BFA"/>
+  <SolidColorBrush x:Key="FlowFill985DF5" Color="#985DF5"/>
+  <SolidColorBrush x:Key="FlowFill37DDA3" Color="#37DDA3"/>
+  <SolidColorBrush x:Key="FlowFillFF9E31" Color="#FF9E31"/>
+  <SolidColorBrush x:Key="FlowFill2CB5FF" Color="#2CB5FF"/>
   <SolidColorBrush x:Key="FlowBackgroundDDEFFF" Color="#112D50"/>
   <SolidColorBrush x:Key="FlowForeground192F49" Color="#F0F6FF"/>
-  <SolidColorBrush x:Key="FlowFillFDC443" Color="#173759"/>
-  <SolidColorBrush x:Key="FlowFill19BF78" Color="#12493F"/>
-  <SolidColorBrush x:Key="FlowFill38A5FF" Color="#183B60"/>
+  <SolidColorBrush x:Key="FlowFillFDC443" Color="#FDC443"/>
+  <SolidColorBrush x:Key="FlowFill19BF78" Color="#19BF78"/>
+  <SolidColorBrush x:Key="FlowFill38A5FF" Color="#38A5FF"/>
   <SolidColorBrush x:Key="FlowBackgroundF7FBFF" Color="#0E2541"/>
   <SolidColorBrush x:Key="FlowForeground99C8F4" Color="#59B5FF"/>
   <SolidColorBrush x:Key="FlowForeground9EBDE2" Color="#A5BFDD"/>
@@ -430,8 +430,8 @@
   <SolidColorBrush x:Key="FlowForeground4BE3B3" Color="#4BE3B3"/>
   <SolidColorBrush x:Key="FlowForegroundFA8496" Color="#FA8496"/>
   <SolidColorBrush x:Key="FlowAlternatingRowBackgroundFAFCFF" Color="#0E2541"/>
-  <Color x:Key="FlowColorDDECFF">#112D50</Color>
-  <Color x:Key="FlowColorF0F6FF">#0E2541</Color>
+  <Color x:Key="FlowColorDDECFF">#153C6D</Color>
+  <Color x:Key="FlowColorF0F6FF">#F0F6FF</Color>
   <SolidColorBrush x:Key="FlowBackgroundEEF6FF" Color="#112D50"/>
   <SolidColorBrush x:Key="FlowForeground256EBB" Color="#59B5FF"/>
   <SolidColorBrush x:Key="FlowBackgroundE8F3FF" Color="#112D50"/>
