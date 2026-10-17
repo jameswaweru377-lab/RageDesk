@@ -63,6 +63,34 @@ export function sendPreference(key: PreferenceKey, value: boolean | string | num
   });
   return true;
 }
+/** A direct URL is sent only to the bundled local C# host after explicit submission.
+ * It is never included in the periodic dashboard snapshots or remote assets. */
+export function sendDirectDownload(address: string, queued: boolean): boolean {
+  if (!window.chrome?.webview || !/^https?:\/\//i.test(address) || address.length > 3500)
+    return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.submit", requestId: crypto.randomUUID(),
+    action: "addDownload", address, queued
+  });
+  return true;
+}
+export type ScheduleRecurrence = "Once" | "Daily" | "Weekdays" | "Weekly";
+export function sendSchedule(id: string, localTime: string, recurrence: ScheduleRecurrence, remove=false): boolean {
+  if (!window.chrome?.webview || !/^[0-9a-f]{32}$/i.test(id)) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.schedule", requestId: crypto.randomUUID(),
+    action: "schedule", id, localTime, recurrence, remove
+  });
+  return true;
+}
+export function chooseDownloadFolder(): boolean {
+  if (!window.chrome?.webview) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.folder", requestId: crypto.randomUUID(), action: "browse"
+  });
+  return true;
+}
+
 export function subscribeToActionResults(onResult: (message: string) => void): () => void {
   const bridge = window.chrome?.webview;
   if (!bridge) return () => undefined;
