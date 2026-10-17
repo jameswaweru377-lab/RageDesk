@@ -135,12 +135,16 @@ public static class V7NetworkBenchmark
                 throw new InvalidOperationException("First start was rejected.");
             try
             {
-                while (entry.Received < 64 * 1024 &&
+                // UI/worker progress can tick after the transfer has already
+                // finished on localhost (especially with 32 workers). Pause
+                // when the server has emitted 1 MiB instead: this forces a
+                // genuinely partial checkpoint, regardless of telemetry lag.
+                while (server.PayloadBytesSent < MiB &&
                        entry.Status is not (DownloadStatus.Failed or DownloadStatus.Completed) &&
                        watch.Elapsed < TimeSpan.FromSeconds(20))
-                    await Task.Delay(10);
-                if (entry.Received < 64 * 1024 ||
-                    entry.Status != DownloadStatus.Downloading)
+                    await Task.Delay(5);
+                if (server.PayloadBytesSent < MiB ||
+                    entry.Status is DownloadStatus.Failed or DownloadStatus.Completed)
                     throw new InvalidDataException("Could not interrupt an active partial transfer.");
                 firstEngine.Pause(entry);
                 await AwaitPausedAsync(entry);
@@ -283,6 +287,9 @@ public static class V7NetworkBenchmark
         private readonly byte[] _bytes;
         private readonly Scenario _scenario;
         private int _rangeRequests, _dropped;
+        private long _payloadBytesSent;
+        // Network bytes sent, not a claim about durable client-side progress.
+        public long PayloadBytesSent => Interlocked.Read(ref _payloadBytesSent);
         public int RangeRequests => Volatile.Read(ref _rangeRequests);
         public int DroppedResponses => Volatile.Read(ref _dropped);
         public string Url { get; }
@@ -380,6 +387,7 @@ public static class V7NetworkBenchmark
                     try
                     {
                         await network.WriteAsync(_bytes.AsMemory((int)at, length), cancel);
+                        Interlocked.Add(ref _payloadBytesSent, length);
                         await Task.Delay(_scenario.ChunkDelayMs, cancel);
                     }
                     finally { _aggregate.Release(); }
@@ -387,6 +395,7 @@ public static class V7NetworkBenchmark
                 else
                 {
                     await network.WriteAsync(_bytes.AsMemory((int)at, length), cancel);
+                    Interlocked.Add(ref _payloadBytesSent, length);
                     if (_scenario.ChunkDelayMs > 0)
                         await Task.Delay(_scenario.ChunkDelayMs, cancel);
                 }
