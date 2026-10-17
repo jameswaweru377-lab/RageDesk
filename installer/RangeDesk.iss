@@ -1,24 +1,24 @@
-; RangeDesk 0.8.0 Preview 2 — English / Kiswahili installer.
+; RangeDesk 0.8.0 Preview 3 — English / Kiswahili installer.
 ; Compatible with the existing RangeDesk installer AppId. All downloader
 ; settings, browser opt-ins, jobs and partial checkpoints stay outside {app}.
 #ifndef SourceDir
   #define SourceDir "..\artifact\RangeDesk"
 #endif
 #define MyAppName "RangeDesk"
-#define MyAppVersion "0.8.0-preview.2"
-#define MyVersionNumbers "0.8.0.2"
+#define MyAppVersion "0.8.0-preview.3"
+#define MyVersionNumbers "0.8.0.3"
 [Setup]
 AppId={{F7B609F5-0C3F-4E1E-8D9C-70214C371CF4}
 AppName={#MyAppName}
 AppVersion={#MyVersionNumbers}
-AppVerName={#MyAppName} 0.8.0 Preview 2
+AppVerName={#MyAppName} 0.8.0 Preview 3
 AppPublisher=RangeDesk Independent Project
 AppPublisherURL=https://github.com/jameswaweru377-lab/RageDesk
 AppSupportURL=https://github.com/jameswaweru377-lab/RageDesk/issues
 AppUpdatesURL=https://github.com/jameswaweru377-lab/RageDesk/releases
 DefaultDirName={autopf}\RangeDesk
 DefaultGroupName=RangeDesk
-UninstallDisplayName=RangeDesk 0.8.0 Preview 2
+UninstallDisplayName=RangeDesk 0.8.0 Preview 3
 UninstallDisplayIcon={app}\RangeDesk.exe
 OutputDir={#SourceDir}\..
 OutputBaseFilename=RangeDesk-Setup-{#MyAppVersion}-win-x64
@@ -124,6 +124,8 @@ Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs 
 
 [Icons]
 Name: "{group}\RangeDesk"; Filename: "{app}\RangeDesk.exe"; WorkingDir: "{app}"
+; Optional React view: WPF still owns engine, settings and native popup.
+Name: "{group}\RageDesk - New UI Preview"; Filename: "{app}\RangeDesk.exe"; Parameters: "--react-preview"; WorkingDir: "{app}"
 Name: "{group}\Uninstall RangeDesk"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\RangeDesk"; Filename: "{app}\RangeDesk.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
