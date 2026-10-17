@@ -169,6 +169,100 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
+
+    /// <summary>
+    /// The React renderer may operate only on IDs in the existing local download catalog.
+    /// No JavaScript URL, destination, filename, or arbitrary command is accepted.
+    /// These actions reuse the working C# engine and Windows dialogs.
+    /// </summary>
+    internal string ExecuteReactDownloadAction(string action, IReadOnlyList<Guid> ids, Window owner)
+    {
+        if (action == "startQueue")
+        {
+            if (ids.Count != 0) return "Queue action must not include selection.";
+            StartQueue_Click(this, new RoutedEventArgs());
+            return StatusMessage.Text;
+        }
+        if (ids.Count is < 1 or > 64 || ids.Distinct().Count() != ids.Count)
+            return "Select between 1 and 64 unique downloads.";
+        var selected = ids.Select(id => Downloads.FirstOrDefault(item => item.Id == id)).ToArray();
+        if (selected.Any(item => item is null))
+            return "Download selection changed. Refresh and try again.";
+        if (action is "openFolder" or "openFile" or "details" or "schedule" or "earlier" or "later"
+            && ids.Count != 1)
+            return "Select exactly one download for this action.";
+        if (action is not ("pause" or "resume" or "stop" or "openFolder" or "openFile" or
+            "details" or "schedule" or "earlier" or "later"))
+            return "Unsupported download command.";
+        if (action == "stop" && MessageBox.Show(owner,
+            "Stop the selected download(s)? Incomplete transfers can retain resumable data.",
+            "RageDesk — Confirm stop", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return "Stop canceled.";
+
+        int changed = 0;
+        foreach (var item in selected)
+        {
+            if (item is null) continue;
+            switch (action)
+            {
+                case "pause" when !item.IsMedia && item.Status == DownloadStatus.Downloading:
+                    _engine.Pause(item); changed++; break;
+                case "resume" when item.Status is DownloadStatus.Queued or DownloadStatus.Paused or DownloadStatus.Failed or DownloadStatus.Canceled:
+                    if (StartManually(item)) changed++;
+                    break;
+                case "stop" when item.Status is DownloadStatus.Downloading or DownloadStatus.Queued or DownloadStatus.Paused:
+                    StopManually(item); changed++; break;
+                case "openFolder":
+                    SelectedDownload = item;
+                    OpenFolder_Click(this, new RoutedEventArgs()); changed++; break;
+                case "openFile" when item.Status == DownloadStatus.Completed && File.Exists(item.Destination):
+                    SelectedDownload = item;
+                    OpenFile_Click(this, new RoutedEventArgs()); changed++; break;
+                case "details":
+                    SelectedDownload = item;
+                    ShowTransferWindow(item); changed++; break;
+                case "schedule" when !item.IsMedia && item.Status == DownloadStatus.Queued:
+                    SelectedDownload = item;
+                    Activate();
+                    OpenScheduleEditor(item); changed++; break;
+                case "earlier":
+                    MoveQueue(item, -1); changed++; break;
+                case "later":
+                    MoveQueue(item, 1); changed++; break;
+            }
+        }
+        return changed > 0 ? $"{changed} download action(s) completed." :
+            "No selected downloads support that action in their current state.";
+    }
+
+    internal string ExecuteReactBrowserAction(string action)
+    {
+        try
+        {
+            switch (action)
+            {
+                case "connect":
+                    ChromeIntegrationSetup.Register(AppContext.BaseDirectory);
+                    return "Chrome native host registered. Load the bundled extension in Chrome manually, then test the connection.";
+                case "extensionFolder":
+                    OpenChromeExtensionFolder_Click(this, new RoutedEventArgs());
+                    return "Opening the local Chrome extension folder.";
+                case "extensionsPage":
+                    OpenChromeExtensions_Click(this, new RoutedEventArgs());
+                    return "Opening Chrome extension settings.";
+                case "check":
+                    return ChromeIntegrationSetup.IsRegistered(AppContext.BaseDirectory)
+                        ? "Native messaging host registered. Verify the extension's own connection badge in Chrome."
+                        : "Native messaging host is not registered.";
+                default: return "Unsupported browser action.";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return "Browser integration failed: " + ex.GetType().Name;
+        }
+    }
+
     internal ReactDashboardSnapshot BuildReactPreviewSnapshot() =>
         ReactDashboardSnapshot.Capture(Downloads, _completionTimes, SelectedDownload,
             _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel, _preferences);
