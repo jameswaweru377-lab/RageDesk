@@ -33,7 +33,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
         SharedBandwidthLimiter limiter,
         Action<long, long, double, int> progress,
         Action<IReadOnlyList<WorkerMetric>>? workerProgress,
-        CancellationToken token)
+        CancellationToken token, Action<string>? optimizationProgress = null)
     {
         if (entry.RequestedConnections < 2) return false;
         string folder = entry.Destination + ".rdadaptive";
@@ -126,11 +126,19 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
             ? new AutomaticConnectionController(Math.Min(entry.RequestedConnections, saved.Connections))
             : null;
         var workerTasks = new List<Task>();
+        var workerSlots = new Task?[saved.Connections];
 
         void StartWorkersUnderLock(int target)
         {
-            while (workerTasks.Count < target)
-                workerTasks.Add(Task.Run(() => WorkerLoop(), allStop.Token));
+            for (int slot = 0; slot < target; slot++)
+            {
+                if (workerSlots[slot] is not null && !workerSlots[slot]!.IsCompleted)
+                    continue;
+                int workerSlot = slot;
+                Task worker = Task.Run(() => WorkerLoop(workerSlot), allStop.Token);
+                workerSlots[slot] = worker;
+                workerTasks.Add(worker);
+            }
         }
 
         void PersistManifestUnderLock()
@@ -188,8 +196,11 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                         currentBytes = Interlocked.Read(ref transferred);
                         currentRate = rate.Update(clock.Elapsed, currentBytes - initialBytes);
                         currentActive = activeCount;
-                        if (auto?.Observe(clock.Elapsed, currentBytes, saved.Length) == true)
-                            StartWorkersUnderLock(auto.TargetWorkers);
+                        if (auto is not null)
+                        {
+                            if (auto.Observe(clock.Elapsed, currentBytes, saved.Length))
+                                StartWorkersUnderLock(auto.TargetWorkers);
+                        }
                         metrics = piecesList.OrderBy(p => p.Id).Select(p =>
                         {
                             long bytes = Interlocked.Read(ref p.Downloaded);
@@ -200,6 +211,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                         }).ToList();
                     }
                     progress(currentBytes, saved.Length, currentRate, currentActive);
+                    if (auto is not null) optimizationProgress?.Invoke(auto.Decision);
                     workerProgress?.Invoke(metrics);
                 }
             }
@@ -297,7 +309,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
             }
         }
 
-        async Task WorkerLoop()
+        async Task WorkerLoop(int slot)
         {
             while (true)
             {
@@ -305,6 +317,10 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                 Piece? piece = null;
                 lock (sync)
                 {
+                    // A plateau or failed re-test retires surplus worker slots
+                    // *after* their current validated range is saved. Never
+                    // cancel a live response just to lower concurrency.
+                    if (auto is not null && slot >= auto.TargetWorkers) return;
                     if (pending.Count > 0)
                     {
                         piece = pending.Dequeue();

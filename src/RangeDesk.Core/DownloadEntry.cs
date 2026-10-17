@@ -53,6 +53,14 @@ public sealed class DownloadEntry : INotifyPropertyChanged
     public bool Adaptive { get; }
     public bool AutomaticConnections { get; }
     public int RequestedConnections { get; }
+    public string ConnectionOptimizationStatus { get; private set; } = "";
+    public void ReportOptimization(string summary)
+    {
+        if (!AutomaticConnections || summary == ConnectionOptimizationStatus) return;
+        ConnectionOptimizationStatus = summary.Length > 200 ? summary[..200] : summary;
+        PropertyChanged?.Invoke(this,
+            new PropertyChangedEventArgs(nameof(ConnectionOptimizationStatus)));
+    }
     public int BandwidthKiBps { get; }
     public int EffectiveBandwidthKiBps => _effectiveBandwidthKiBps;
     public string? ExpectedSha256 { get; }
@@ -115,7 +123,7 @@ public sealed class DownloadEntry : INotifyPropertyChanged
         }
     }
     public string ConnectionSummary => AutomaticConnections
-        ? $"V7 auto · {Connections} active (limit {RequestedConnections})"
+        ? $"V7.1 auto · {Connections} active (limit {RequestedConnections})"
         : WorkerCount == 0
             ? $"{Connections} active"
             : $"{Connections} active · {IdleWorkers} idle";
