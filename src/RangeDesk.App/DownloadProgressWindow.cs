@@ -50,6 +50,7 @@ public sealed class DownloadProgressWindow : Window
     private readonly TextBlock _fileCategory = Label("", 13, TextColor);
     private readonly TextBlock _fileTypeChip = Label("", 13, TextColor);
     private readonly Grid _previewSlot = new();
+    private bool _popupClosed;
     private bool _localIconApplied;
     private bool _localIconPending;
     private readonly ProgressBar _progress = new() { Height = 13, Minimum = 0, Maximum = 100,
@@ -95,14 +96,27 @@ public sealed class DownloadProgressWindow : Window
         Background = Surface;
         Foreground = TextColor;
         FontFamily = new FontFamily("Segoe UI");
-        Content = BuildLayout();
+        Content = new Border
+        {
+            Background = Surface,
+            BorderThickness = new Thickness(1.5),
+            CornerRadius = new CornerRadius(12),
+            BorderBrush = new LinearGradientBrush(
+                new GradientStopCollection {
+                    new GradientStop(Color.FromRgb(37, 216, 255), 0),
+                    new GradientStop(Color.FromRgb(11, 104, 247), 0.42),
+                    new GradientStop(Color.FromRgb(12, 67, 172), 0.8),
+                    new GradientStop(Color.FromRgb(25, 159, 255), 1)
+                }, new Point(0, 0), new Point(1, 1)),
+            Child = BuildLayout()
+        };
         _primary.Click += (_, _) => _onCommand(_entry,
             _entry.Status == DownloadStatus.Completed ? Command.OpenFolder : Command.StartOrResume);
         _pause.Click += (_, _) => _onCommand(_entry, Command.Pause);
         _stop.Click += (_, _) => _onCommand(_entry, Command.Stop);
         _dismiss.Click += (_, _) => Close();
         _entry.PropertyChanged += OnEntryChanged;
-        Closed += (_, _) => _entry.PropertyChanged -= OnEntryChanged;
+        Closed += (_, _) => { _popupClosed = true; _entry.PropertyChanged -= OnEntryChanged; };
         Refresh();
         _ = TryApplyLocalIconAsync();
     }
@@ -174,7 +188,7 @@ public sealed class DownloadProgressWindow : Window
         try
         {
             var icon = await RageDeskPopupArtwork.TryReadLocalExecutableIconAsync(_entry);
-            if (icon is null || Dispatcher.HasShutdownStarted) return;
+            if (icon is null || Dispatcher.HasShutdownStarted || _popupClosed) return;
             _previewSlot.Children.Clear();
             _previewSlot.Children.Add(new Image { Source = icon, Width = 112, Height = 112,
                 Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center });
@@ -344,7 +358,8 @@ public sealed class DownloadProgressWindow : Window
             ? DownloadEntry.FormatSize(_entry.BytesPerSecond) + "/s" : "0 MB/s";
         _eta.Text = DisplayRemainingTime(_entry);
         _connectionCaption.Text = $"Connections ({(status == DownloadStatus.Downloading ? _entry.Connections : 0)})";
-        _percent.Text = _entry.Percent is double percentage ? $"{percentage:0}%" : "0%";
+        _percent.Text = _entry.Percent is double percentage ? $"{percentage:0}%" :
+            status == DownloadStatus.Downloading ? "Measuring" : "0%";
         if (status == DownloadStatus.Completed && !_localIconApplied) _ = TryApplyLocalIconAsync();
         _progress.IsIndeterminate = _entry.IsIndeterminate;
         _progress.Value = _entry.Percent ?? 0;
