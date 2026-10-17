@@ -155,6 +155,24 @@ internal sealed class ReactDashboardPreviewWindow : Window
     }
 
 
+    internal bool OfferCapturedLink(string address)
+    {
+        if (!_ready || _closed || !IsVisible || _browser.CoreWebView2 is null ||
+            address.Length is < 8 or > 3500 ||
+            !Uri.TryCreate(address, UriKind.Absolute, out Uri? parsed) ||
+            parsed.Scheme is not ("http" or "https") ||
+            !string.IsNullOrWhiteSpace(parsed.UserInfo))
+            return false;
+        // This user-selected link is sent only to our bundled, CSP-locked local UI.
+        // It is never included in telemetry, logs, or periodic dashboard snapshots.
+        _browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
+        {
+            version = 1, type = "ui.browserCaptured", payload = new { address }
+        }, _json));
+        Activate();
+        return true;
+    }
+
     private void ExecuteNativeCommand(JsonElement root, string messageType)
     {
         // Only the bundled, locally mapped, top-level origin is permitted. The caller
