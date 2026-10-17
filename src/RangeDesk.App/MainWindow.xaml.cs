@@ -155,7 +155,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     internal ReactDashboardSnapshot BuildReactPreviewSnapshot() =>
         ReactDashboardSnapshot.Capture(Downloads, _completionTimes, SelectedDownload,
-            _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel);
+            _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel, _preferences);
 
     private void ApplyTitleBarTheme()
     {
