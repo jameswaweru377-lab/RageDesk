@@ -122,6 +122,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RunDueSchedules();
             CheckBrowserInbox();
             await ApplyBandwidthCalendarAsync();
+            RefreshInsights();
         };
         _scheduleTimer.Start();
         _browserCaptureTimer.Tick += (_, _) =>
@@ -138,6 +139,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshFilter();
         RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
+        RefreshInsights();
     }
 
     private void ApplyTitleBarTheme()
@@ -174,6 +176,23 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public string AggregateSpeedLabel => DownloadingCount == 0 ? "—" :
         DownloadEntry.FormatSize(Downloads.Where(d => d.Status == DownloadStatus.Downloading)
             .Sum(d => d.BytesPerSecond)) + "/s";
+
+    public string[] TopSourceSummaries => Downloads
+        .Where(d => d.Received > 0 && !string.IsNullOrEmpty(d.Host))
+        .GroupBy(d => d.Host, StringComparer.OrdinalIgnoreCase)
+        .Select(g => new { Host = g.Key, Total = g.Sum(d => (double)d.Received) })
+        .OrderByDescending(s => s.Total).Take(5)
+        .Select(s => s.Host + "  ·  " + DownloadEntry.FormatSize(s.Total)).ToArray();
+
+    public string[] RecentActivitySummaries => Downloads
+        .OrderByDescending(d => d.AddedAt).Take(5)
+        .Select(d => d.Status + "  ·  " + d.Name).ToArray();
+
+    private void RefreshInsights()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TopSourceSummaries)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RecentActivitySummaries)));
+    }
 
     private IReadOnlyList<DownloadEntry> KnownPendingDownloads() =>
         Downloads.Where(d => d.Status is not (DownloadStatus.Completed or DownloadStatus.Canceled or DownloadStatus.Failed)
@@ -232,6 +251,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public int QueueCount => Downloads.Count(d => d.Status != DownloadStatus.Completed);
     public int ScheduledCount => _scheduled.Count;
     public int SoftwareCount => CategoryCount("Software");
+    public int MusicCount => CategoryCount("Music");
     public int VideosCount => CategoryCount("Videos");
     public int DocumentsCount => CategoryCount("Documents");
     public int ArchivesCount => CategoryCount("Archives");
@@ -257,6 +277,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var property in new[] {
             nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount), nameof(ScheduledCount),
             nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount), nameof(FailedCount),
+            nameof(MusicCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
             nameof(WorkCount), nameof(PersonalCount), nameof(ResearchCount), nameof(ImportantCount),
@@ -393,6 +414,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _lastStatuses[item.Id] = item.Status;
         Downloads.Add(item);
         RefreshCounters();
+        RefreshInsights();
         RefreshDashboard();
         item.PropertyChanged += (_, _) =>
         {
@@ -409,6 +431,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     if (item.Status == DownloadStatus.Completed)
                         _completionTimes[item.Id] = DateTimeOffset.Now;
                     RefreshCounters();
+                    RefreshInsights();
                     if (item.Status == DownloadStatus.Failed)
                         StatusMessage.Text = "Download failed: " + item.Name +
                             ". Select it to inspect the error and resume.";
@@ -1177,6 +1200,11 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void ShowDownloadDetails()
     {
         if (SelectedDownload is not null) ShowTransferWindow(SelectedDownload);
+    }
+
+    private void Analytics_Click(object sender, RoutedEventArgs e)
+    {
+        AnalyticsGraph.BringIntoView();
     }
 
     private void ShowTransferWindow(DownloadEntry item)
