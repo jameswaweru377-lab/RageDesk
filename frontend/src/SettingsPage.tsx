@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import RageDeskMark from "./RageDeskMark";
 import {
   Bell, CheckCircle2, ChevronDown, CloudDownload, Download, ExternalLink,
   Eye, Folder, Globe2, HardDrive, LayoutList, Palette, Power, RefreshCcw,
@@ -23,7 +24,7 @@ function Switch({ checked, title }: { checked: boolean; title: string }) {
   return <span className={`settings-switch ${checked ? "on" : ""}`} role="img" aria-label={`${title}: ${checked ? "on" : "off"} (read-only)`}/>;
 }
 function SettingRow({ icon: Icon, title, description, children }: {
-  icon: typeof Download; title: string; description?: string; children?: React.ReactNode
+  icon: typeof Download; title: string; description?: string; children?: ReactNode
 }) {
   return <div className="setting-row"><Icon size={23} className="setting-row-icon"/>
     <div className="setting-row-copy"><strong>{title}</strong>{description && <span>{description}</span>}</div>
@@ -31,7 +32,7 @@ function SettingRow({ icon: Icon, title, description, children }: {
   </div>;
 }
 function Panel({ icon: Icon, title, subtitle, children, className="" }: {
-  icon: typeof Download; title: string; subtitle?: string; children: React.ReactNode; className?: string
+  icon: typeof Download; title: string; subtitle?: string; children: ReactNode; className?: string
 }) {
   return <section className={`settings-panel ${className}`}>
     <div className="settings-panel-heading"><Icon size={25}/><div><strong>{title}</strong>{subtitle && <span>{subtitle}</span>}</div></div>
@@ -43,7 +44,7 @@ export default function SettingsPage({ data, onBack }: { data: DashboardSnapshot
   const actual = data?.settings;
   const accent = data?.theme === "Arctic" ? "Arctic Light" : "Cobalt Dark";
   return <div className="settings-page">
-    <header className="settings-hero"><div className="settings-hero-mark"><Settings2 size={31}/></div>
+    <header className="settings-hero"><div className="settings-brand"><RageDeskMark/><strong>RageDesk</strong></div><div className="settings-hero-mark"><Settings2 size={31}/></div>
       <div className="settings-hero-copy"><h1>Settings</h1><p>Customize your experience and manage application preferences</p></div>
       <button className="settings-back" onClick={onBack} aria-label="Back to downloads"><X size={20}/></button>
     </header>
