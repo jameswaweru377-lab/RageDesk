@@ -45,6 +45,18 @@ internal static class RageDeskPopupArtwork
         return view;
     }
 
+    internal static ImageSource WindowIcon()
+    {
+        // Render the exact same local vector mark into the native Windows title-bar icon.
+        var mark = BrandMark(48);
+        mark.Measure(new Size(54, 58));
+        mark.Arrange(new Rect(0, 0, 54, 58));
+        var bitmap = new RenderTargetBitmap(64, 64, 96, 96, PixelFormats.Pbgra32);
+        bitmap.Render(mark);
+        bitmap.Freeze();
+        return bitmap;
+    }
+
     internal static string RecognizedSource(DownloadEntry item)
     {
         string name = item.Name;
