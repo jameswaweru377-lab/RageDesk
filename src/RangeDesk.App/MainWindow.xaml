@@ -6,6 +6,35 @@
         Background="{DynamicResource V5CanvasBrush}" Foreground="{DynamicResource V5TextBrush}"
         FontFamily="Segoe UI" FontSize="12">
   <Window.Resources>
+
+    <!-- Premium Cobalt skin: paint-only, no changes to the download layout or bindings. -->
+    <LinearGradientBrush x:Key="PremiumMetricFill" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Color="#133B70" Offset="0"/>
+      <GradientStop Color="#0B2549" Offset="0.44"/>
+      <GradientStop Color="#05152D" Offset="1"/>
+    </LinearGradientBrush>
+    <LinearGradientBrush x:Key="PremiumPanelFill" StartPoint="0,0" EndPoint="1,1">
+      <GradientStop Color="#102F57" Offset="0"/>
+      <GradientStop Color="#061C37" Offset="0.55"/>
+      <GradientStop Color="#051327" Offset="1"/>
+    </LinearGradientBrush>
+    <Style x:Key="PremiumMetricCard" TargetType="{x:Type Border}">
+      <Setter Property="Background" Value="{StaticResource PremiumMetricFill}"/>
+      <Setter Property="BorderBrush" Value="#2873B7"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="12"/>
+      <Setter Property="Padding" Value="15,12"/>
+      <Setter Property="Effect">
+        <Setter.Value><DropShadowEffect Color="#0074EC" BlurRadius="17" ShadowDepth="0" Opacity="0.19"/></Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PremiumDashboardPanel" TargetType="{x:Type Border}">
+      <Setter Property="Background" Value="{StaticResource PremiumPanelFill}"/>
+      <Setter Property="BorderBrush" Value="#1D548C"/>
+      <Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="CornerRadius" Value="11"/>
+      <Setter Property="Padding" Value="11"/>
+    </Style>
     <charts:LightStatusBackgroundConverter x:Key="LightStatusBackground"/>
     <charts:LightStatusTextConverter x:Key="LightStatusText"/>
     <charts:DownloadActionGlyphConverter x:Key="DownloadActionGlyph"/>
@@ -69,7 +98,7 @@
             </Border>
             <ControlTemplate.Triggers>
               <Trigger Property="IsMouseOver" Value="True">
-                <Setter TargetName="Chrome" Property="Background" Value="#E8F3FF"/>
+                <Setter TargetName="Chrome" Property="Background" Value="#103A6E"/>
               </Trigger>
               <Trigger Property="IsKeyboardFocused" Value="True">
                 <Setter TargetName="Chrome" Property="BorderBrush" Value="#239FFD"/>
@@ -390,7 +419,7 @@
         </Grid>
       </Border>
 
-<!-- RageDesk live overview; all values come from download state. --><Grid Grid.Row="1" Margin="12,12,12,9"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Grid.Column="0" Margin="0,0,7,0" Background="#081E39" CornerRadius="12" BorderBrush="#1A4F86" BorderThickness="1" Padding="15,12"><StackPanel><TextBlock Text="ACTIVE DOWNLOADS" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding DownloadingCount}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Active transfers" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border><Border Grid.Column="1" Margin="7,0,7,0" Background="#081E39" CornerRadius="12" BorderBrush="#1A4F86" BorderThickness="1" Padding="15,12"><StackPanel><TextBlock Text="CURRENT SPEED" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding AggregateSpeedLabel}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Measured network speed" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border><Border Grid.Column="2" Margin="7,0,7,0" Background="#081E39" CornerRadius="12" BorderBrush="#1A4F86" BorderThickness="1" Padding="15,12"><StackPanel><TextBlock Text="DOWNLOADED TODAY" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding DownloadedTodayLabel}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Known completions today" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border><Border Grid.Column="3" Margin="7,0,0,0" Background="#081E39" CornerRadius="12" BorderBrush="#1A4F86" BorderThickness="1" Padding="15,12"><StackPanel><TextBlock Text="TIME REMAINING" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding AggregateEtaLabel}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Estimated active duration" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border></Grid>
+<!-- RageDesk live overview; all values come from download state. --><Grid Grid.Row="1" Margin="12,12,12,9"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Border Grid.Column="0" Margin="0,0,7,0" Style="{StaticResource PremiumMetricCard}"><StackPanel><TextBlock Text="ACTIVE DOWNLOADS" FontSize="10" FontWeight="SemiBold" Foreground="#C0D8F4"/><TextBlock Text="{Binding DownloadingCount}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Active transfers" Foreground="#62D5FF" FontSize="11"/></StackPanel></Border><Border Grid.Column="1" Margin="7,0,7,0" Style="{StaticResource PremiumMetricCard}"><StackPanel><TextBlock Text="CURRENT SPEED" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding AggregateSpeedLabel}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Measured network speed" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border><Border Grid.Column="2" Margin="7,0,7,0" Style="{StaticResource PremiumMetricCard}"><StackPanel><TextBlock Text="DOWNLOADED TODAY" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding DownloadedTodayLabel}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Known completions today" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border><Border Grid.Column="3" Margin="7,0,0,0" Style="{StaticResource PremiumMetricCard}"><StackPanel><TextBlock Text="TIME REMAINING" FontSize="10" FontWeight="SemiBold" Foreground="#9EBCE0"/><TextBlock Text="{Binding AggregateEtaLabel}" FontSize="24" FontWeight="Bold" Foreground="#F0F6FF" Margin="0,5,0,0"/><TextBlock Text="Estimated active duration" Foreground="#39B8FF" FontSize="11"/></StackPanel></Border></Grid>
       <!-- Approved compact status controls. Good morning banner above is untouched. -->
       <Grid Grid.Row="2" Margin="12,4,12,4">
         <Grid.ColumnDefinitions><ColumnDefinition Width="*" MinWidth="395"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -655,24 +684,24 @@
       </StackPanel>
       <Grid Grid.Row="4" Margin="12,6,12,5">
         <Grid.ColumnDefinitions><ColumnDefinition Width="1.2*"/><ColumnDefinition Width="1*"/><ColumnDefinition Width="1*"/></Grid.ColumnDefinitions>
-        <Border Grid.Column="0" Margin="0,0,8,0" Background="#081B34" BorderBrush="#21476E" BorderThickness="1" CornerRadius="11" Padding="11">
+        <Border Grid.Column="0" Margin="0,0,8,0" Style="{StaticResource PremiumDashboardPanel}">
           <Grid>
             <Grid.RowDefinitions><RowDefinition Height="29"/><RowDefinition Height="*"/></Grid.RowDefinitions>
             <TextBlock Text="Network &amp; Performance · selected download" FontWeight="SemiBold" FontSize="12" Foreground="#E8F3FF"/>
             <charts:SpeedGraph x:Name="AnalyticsGraph" Grid.Row="1" Source="{Binding SelectedDownload}"/>
           </Grid>
         </Border>
-        <Border Grid.Column="1" Margin="0,0,8,0" Background="#081B34" BorderBrush="#21476E" BorderThickness="1" CornerRadius="11" Padding="11">
+        <Border Grid.Column="1" Margin="0,0,8,0" Style="{StaticResource PremiumDashboardPanel}">
           <StackPanel>
             <TextBlock Text="Top Sources" FontWeight="SemiBold" FontSize="12" Foreground="#E8F3FF" Margin="0,0,0,10"/>
             <ItemsControl ItemsSource="{Binding TopSourceSummaries}">
               <ItemsControl.ItemTemplate><DataTemplate>
-                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" Foreground="#A7C8E9" FontSize="11" Margin="0,0,0,7"/>
+                <TextBlock Text="{Binding}" TextTrimming="CharacterEllipsis" Foreground="#C6DDFA" FontSize="11" Margin="0,0,0,7"/>
               </DataTemplate></ItemsControl.ItemTemplate>
             </ItemsControl>
           </StackPanel>
         </Border>
-        <Border Grid.Column="2" Background="#081B34" BorderBrush="#21476E" BorderThickness="1" CornerRadius="11" Padding="11">
+        <Border Grid.Column="2" Style="{StaticResource PremiumDashboardPanel}">
           <StackPanel>
             <TextBlock Text="Recent Activities" FontWeight="SemiBold" FontSize="12" Foreground="#E8F3FF" Margin="0,0,0,10"/>
             <ItemsControl ItemsSource="{Binding RecentActivitySummaries}">
