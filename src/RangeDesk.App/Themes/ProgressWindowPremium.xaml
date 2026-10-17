@@ -184,4 +184,111 @@
       </Trigger>
     </Style.Triggers>
   </Style>
+
+  <!-- Rounded neon progress for the main transfer and measured worker lanes. -->
+  <Style TargetType="{x:Type ProgressBar}">
+    <Setter Property="Height" Value="13"/>
+    <Setter Property="Background" Value="#06172F"/>
+    <Setter Property="Foreground">
+      <Setter.Value>
+        <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+          <GradientStop Color="#28D9FF" Offset="0"/>
+          <GradientStop Color="#11B8FC" Offset="0.6"/>
+          <GradientStop Color="#0865F8" Offset="1"/>
+        </LinearGradientBrush>
+      </Setter.Value>
+    </Setter>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ProgressBar}">
+          <Grid SnapsToDevicePixels="True">
+            <Border Background="{TemplateBinding Background}" CornerRadius="8"
+                    BorderBrush="#185A9D" BorderThickness="1"/>
+            <Grid x:Name="PART_Track" Margin="1" ClipToBounds="True">
+              <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}"
+                      HorizontalAlignment="Left" CornerRadius="7">
+                <Border.Effect>
+                  <DropShadowEffect Color="#16A6FF" ShadowDepth="0" BlurRadius="10" Opacity="0.32"/>
+                </Border.Effect>
+              </Border>
+            </Grid>
+          </Grid>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
+  <!-- In-window scrollbars are dark, slim, draggable and softly rounded. -->
+  <Style x:Key="PopupScrollPageButton" TargetType="{x:Type RepeatButton}">
+    <Setter Property="Focusable" Value="False"/>
+    <Setter Property="Background" Value="Transparent"/>
+    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="Template">
+      <Setter.Value><ControlTemplate TargetType="{x:Type RepeatButton}">
+        <Border Background="Transparent"/>
+      </ControlTemplate></Setter.Value>
+    </Setter>
+  </Style>
+  <Style x:Key="PopupScrollThumb" TargetType="{x:Type Thumb}">
+    <Setter Property="MinHeight" Value="24"/>
+    <Setter Property="MinWidth" Value="24"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type Thumb}">
+          <Border x:Name="ThumbFace" CornerRadius="6" Margin="1"
+                  BorderBrush="#5CB9FF" BorderThickness="1">
+            <Border.Background>
+              <LinearGradientBrush StartPoint="0,0" EndPoint="1,0">
+                <GradientStop Color="#1BA6F9" Offset="0"/>
+                <GradientStop Color="#1165B8" Offset="1"/>
+              </LinearGradientBrush>
+            </Border.Background>
+          </Border>
+          <ControlTemplate.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+              <Setter TargetName="ThumbFace" Property="BorderBrush" Value="#A6F0FF"/>
+            </Trigger>
+            <Trigger Property="IsDragging" Value="True">
+              <Setter TargetName="ThumbFace" Property="BorderBrush" Value="#FFFFFF"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+  <Style TargetType="{x:Type ScrollBar}">
+    <Setter Property="Width" Value="12"/>
+    <Setter Property="Background" Value="#081E3A"/>
+    <Setter Property="Template">
+      <Setter.Value>
+        <ControlTemplate TargetType="{x:Type ScrollBar}">
+          <Grid Background="{TemplateBinding Background}" SnapsToDevicePixels="True">
+            <Border Background="#07172E" CornerRadius="6"/>
+            <Track x:Name="PART_Track" Orientation="{TemplateBinding Orientation}"
+                   IsDirectionReversed="True" Margin="1">
+              <Track.DecreaseRepeatButton>
+                <RepeatButton Command="{x:Static ScrollBar.PageUpCommand}"
+                              Style="{StaticResource PopupScrollPageButton}"/>
+              </Track.DecreaseRepeatButton>
+              <Track.Thumb>
+                <Thumb Style="{StaticResource PopupScrollThumb}"/>
+              </Track.Thumb>
+              <Track.IncreaseRepeatButton>
+                <RepeatButton Command="{x:Static ScrollBar.PageDownCommand}"
+                              Style="{StaticResource PopupScrollPageButton}"/>
+              </Track.IncreaseRepeatButton>
+            </Track>
+          </Grid>
+          <ControlTemplate.Triggers>
+            <Trigger Property="Orientation" Value="Horizontal">
+              <Setter Property="Height" Value="12"/>
+              <Setter Property="Width" Value="Auto"/>
+              <Setter TargetName="PART_Track" Property="IsDirectionReversed" Value="False"/>
+            </Trigger>
+          </ControlTemplate.Triggers>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
+
 </ResourceDictionary>
