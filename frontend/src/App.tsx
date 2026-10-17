@@ -116,6 +116,7 @@ function App() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
   const [actionMessage, setActionMessage] = useState("");
   const [rowMenu, setRowMenu] = useState<string | null>(null);
+  const [bulkMenu, setBulkMenu] = useState(false);
   const act = (action: DownloadCommand, ids: string[]) => {
     if (!sendDownloadAction(action, ids)) setActionMessage("Native RageDesk connection unavailable.");
     else setRowMenu(null);
@@ -235,9 +236,13 @@ function App() {
               {selectedIds.size} selected</label>
             <button disabled={!selectedIds.size} onClick={()=>act("removeHistory",targetIds)} title="Remove only completed, failed or canceled entries from history (files are kept)"><Trash2 size={15}/> Remove History</button>
             <button disabled={selectedIds.size!==1} onClick={()=>act("openFolder",targetIds)}><FolderOpen size={15}/> Open Folder</button>
-            <button disabled={!selectedIds.size} onClick={()=>act("resume",targetIds)}><Play size={16}/> Start / Resume</button>
-            <button disabled={!selectedIds.size} onClick={()=>act("pause",targetIds)}><Pause size={15}/> Pause</button>
-            <button disabled={!selectedIds.size} onClick={()=>act("stop",targetIds)}><AlertTriangle size={15}/> Stop</button>
+            <button disabled={!selectedIds.size} onClick={()=>setBulkMenu(!bulkMenu)} aria-expanded={bulkMenu}><MoreHorizontal size={16}/> More Actions</button>
+            {bulkMenu&&<div className="native-bulk-menu">
+              <button onClick={()=>{act("resume",targetIds);setBulkMenu(false);}}><Play size={14}/> Start / Resume</button>
+              <button onClick={()=>{act("pause",targetIds);setBulkMenu(false);}}><Pause size={14}/> Pause</button>
+              <button onClick={()=>{act("stop",targetIds);setBulkMenu(false);}}><AlertTriangle size={14}/> Stop (confirm)</button>
+              <button onClick={()=>{act("startQueue",[]);setBulkMenu(false);}}><Play size={14}/> Start all queued</button>
+            </div>}
           </div>
           <div className="table-scroll">
             {!cardView ? <table className="download-table"><thead><tr><th aria-label="Select all visible downloads" className="check-col">
