@@ -37,7 +37,7 @@ public sealed class ReactApprovedVisualParityTests
         Assert.Contains("checked={selectedIds.has(r.id)}", app);
         Assert.Contains("aria-label={`Select ${r.name}`}", app);
         Assert.Contains("onClick={()=>openNativeDialog(\"ui.openAddDownload\")}", app);
-        Assert.Contains("title=\"Delete requires a validated native confirmation flow\"", app);
+        Assert.Contains("title=\"Deletion is not yet safe to enable\"", app);
         Assert.Contains("disabled", app); // No destructive bridge until parity is verified.
     }
 
