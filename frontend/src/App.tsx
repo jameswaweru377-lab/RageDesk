@@ -137,6 +137,7 @@ function App() {
       const status = normalizedStatus(r);
       if (nav === "completed" && status !== "completed") return false;
       if (nav === "queued" && status !== "queued") return false;
+      if (nav === "scheduled" && !r.isScheduled) return false;
       if (nav === "category" && selectedCategory !== "All Downloads" && categoryFor(r.category) !== selectedCategory) return false;
       if (nav === "source" && selectedSite !== null && !matchesSource(r.host, selectedSite)) return false;
       if (filter !== "all" && status !== filter) return false;
