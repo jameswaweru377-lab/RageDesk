@@ -1869,6 +1869,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         else StatusMessage.Text = $"{started} download(s) started.";
     }
 
+    // Unified download dialog actions are scoped to the entry being inspected.
+    // Never operate on other checked rows when the user clicks Pause/Resume here.
+    private void DetailsPause_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedDownload is { IsMedia: false, Status: DownloadStatus.Downloading } entry)
+            _engine.Pause(entry);
+    }
+
+    private void DetailsResume_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedDownload is { IsMedia: false } entry)
+            StartManually(entry);
+    }
+
     private void OpenFile_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedDownload is { Status: DownloadStatus.Completed } item && File.Exists(item.Destination))
