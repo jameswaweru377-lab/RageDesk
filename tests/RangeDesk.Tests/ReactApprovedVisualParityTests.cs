@@ -57,7 +57,9 @@ public sealed class ReactApprovedVisualParityTests
         Assert.Contains("actual?.defaultConnections", settings);
         Assert.Contains("actual?.startImmediately", settings);
         Assert.Contains("openNativeDialog(\"ui.openSettings\")", settings);
-        Assert.Contains("read-only", settings, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sendPreference", settings);
+        Assert.Contains("sendBrowserAction", settings);
+        Assert.Contains("defaultConnections", settings);
     }
 
     [Fact]
