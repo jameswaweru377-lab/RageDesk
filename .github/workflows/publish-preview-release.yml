@@ -61,7 +61,7 @@ jobs:
           $zip = 'artifact/RangeDesk-Preview-win-x64.zip'
           if (-not (Test-Path $zip)) { throw 'Successful CI ZIP was not downloaded' }
           Expand-Archive -LiteralPath $zip -DestinationPath artifact/RangeDesk -Force
-          foreach ($required in @('RangeDesk.exe',
+          foreach ($required in @('RangeDesk.exe', 'web/index.html', 'Preview-New-RageDesk.cmd',
             'NativeHost/RangeDesk.NativeHost.exe',
             'SchedulerWake/RangeDesk.SchedulerWake.exe',
             'BrowserCapture/chromium/manifest.json')) {
@@ -118,6 +118,11 @@ jobs:
             if (-not $entry -or -not $entry.UninstallString) { throw 'Missing Apps & Features registration' }
             $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RangeDesk.lnk'
             if (-not (Test-Path $shortcut)) { throw 'Missing Start Menu shortcut' }
+            $newUiLink = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RageDesk - New UI Preview.lnk'
+            if (-not (Test-Path $newUiLink)) { throw 'Missing New UI Preview shortcut' }
+            $newUiShortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($newUiLink)
+            if ($newUiShortcut.Arguments -ne '--react-preview') { throw 'Installed preview shortcut has incorrect launch arguments' }
+
             $uninstaller = Join-Path $install 'unins000.exe'
             if (-not (Test-Path $uninstaller)) { throw 'Missing uninstaller' }
             $p = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT',
