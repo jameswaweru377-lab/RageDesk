@@ -27,7 +27,13 @@ interface NativeWebView {
 }
 declare global { interface Window { chrome?: { webview?: NativeWebView } } }
 
-/** Only the trusted local C# host can publish snapshots. This slice deliberately has no command bridge. */
+/** Only two explicitly allowlisted presentation commands can leave the React preview.
+ * Both open the existing native WPF dialogs and cannot commit any changes directly. */
+export function openNativeDialog(type: "ui.openSettings" | "ui.openAddDownload"): void {
+  window.chrome?.webview?.postMessage({ version: 1, type });
+}
+
+/** Only the trusted local C# host can publish snapshots. Native write actions are not exposed. */
 export function subscribeToNativeDashboard(
   onData: (data: DashboardSnapshot) => void,
   onConnection: (connection: "connecting" | "connected" | "unavailable") => void
