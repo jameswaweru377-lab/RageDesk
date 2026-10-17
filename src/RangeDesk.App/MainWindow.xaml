@@ -375,6 +375,8 @@
           <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="14,0,0,0">
 <Button Content="Add Link" Click="PasteLink_Click" Style="{StaticResource V5LightToolbarButton}" Padding="11,8" Margin="0,0,8,0"/>
 <Button Content="+ New Download" Click="Add_Click" Style="{StaticResource V5LightPrimaryButton}" Padding="13,8" Margin="0,0,8,0"/>
+<Button Content="▶" Click="Resume_Click" Style="{StaticResource V5LightToolbarButton}" ToolTip="Start or resume selected download" Padding="12,8" Margin="0,0,5,0"/>
+<Button Content="Ⅱ" Click="Pause_Click" Style="{StaticResource V5LightToolbarButton}" ToolTip="Pause selected download" Padding="12,8" Margin="0,0,8,0"/>
             <Border Background="{DynamicResource FlowBackgroundE7F2FD}" CornerRadius="6" Padding="8,5" Margin="0,0,8,0">
               <StackPanel Orientation="Horizontal">
                 <TextBlock FontFamily="{StaticResource V5IconFont}" Text="&#xE753;" Foreground="{DynamicResource FlowForeground49AEFF}" Margin="0,0,5,0"/>
