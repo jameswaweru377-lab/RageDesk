@@ -736,7 +736,7 @@
                       FontSize="17" Padding="5,0"/>
             </Grid>
             <TabControl x:Name="AddDownloadTabs" Background="{DynamicResource V5ElevatedBrush}" BorderThickness="0" Style="{StaticResource V5TabControl}">
-              <TabItem Header="General">
+              <TabItem Header="⚙  General">
                 <StackPanel Margin="7,18,7,7">
                   <TextBlock Text="Download URL (one link, or multiple links on separate lines)" Foreground="{DynamicResource V5MutedBrush}"/>
                   <Grid Margin="0,7,0,12">
@@ -814,7 +814,7 @@
                              Foreground="{DynamicResource V5MutedBrush}" TextWrapping="Wrap" FontSize="10" Margin="0,10,0,0"/>
                 </StackPanel>
               </TabItem>
-              <TabItem Header="Automation">
+              <TabItem Header="⚡  Automation">
                 <StackPanel Margin="8,17">
                   <TextBlock Text="Download behavior" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,11"/>
                   <CheckBox x:Name="StartAutomatically" Content="Start automatically" IsChecked="True"
@@ -923,7 +923,15 @@
                       Style="{StaticResource V5PrimaryButton}" Padding="21,9"/>
             </Grid>
           </StackPanel>
-          <TabControl x:Name="SettingsTabControl" Style="{StaticResource V5TabControl}" Background="{DynamicResource V5SurfaceBrush}">
+          <TabControl x:Name="SettingsTabControl" Style="{StaticResource V5TabControl}"
+                      Background="{DynamicResource V5SurfaceBrush}" TabStripPlacement="Left">
+            <TabControl.ItemContainerStyle>
+              <Style TargetType="TabItem" BasedOn="{StaticResource V5TabItem}">
+                <Setter Property="Width" Value="166"/>
+                <Setter Property="HorizontalContentAlignment" Value="Left"/>
+                <Setter Property="Margin" Value="0,0,9,4"/>
+              </Style>
+            </TabControl.ItemContainerStyle>
             <TabItem Header="General">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
@@ -945,10 +953,23 @@
                                  Foreground="{DynamicResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,7,0,0"/>
                     </StackPanel>
                   </Border>
+                  <Border Background="{DynamicResource V5ElevatedBrush}" BorderBrush="{DynamicResource V5OutlineBrush}"
+                          BorderThickness="1" CornerRadius="10" Padding="15" Margin="0,18,0,0">
+                    <StackPanel>
+                      <TextBlock Text="Appearance" FontWeight="SemiBold" FontSize="14"/>
+                      <TextBlock Text="Choose a theme for RangeDesk. This change applies when you save."
+                                 Foreground="{DynamicResource V5MutedBrush}" TextWrapping="Wrap" Margin="0,5,0,10"/>
+                      <ComboBox x:Name="SettingsAppearanceChoice" Style="{StaticResource V5Combo}"
+                                Width="245" HorizontalAlignment="Left">
+                        <ComboBoxItem Tag="Cobalt" Content="Cobalt Dark (default)"/>
+                        <ComboBoxItem Tag="Arctic" Content="Arctic Light"/>
+                      </ComboBox>
+                    </StackPanel>
+                  </Border>
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
-            <TabItem Header="Downloads">
+            <TabItem Header="↓  Downloads">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
                   <TextBlock Text="Simultaneous downloads" FontWeight="SemiBold" FontSize="13" Margin="0,0,0,6"/>
@@ -993,7 +1014,7 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
-            <TabItem Header="Bandwidth calendar">
+            <TabItem Header="▥  Bandwidth">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,14,10,15">
                   <TextBlock Text="Daily bandwidth windows" FontSize="14" FontWeight="SemiBold"/>
@@ -1139,7 +1160,7 @@
                 </StackPanel>
               </ScrollViewer>
             </TabItem>
-            <TabItem Header="Network">
+            <TabItem Header="☷  Network">
               <ScrollViewer VerticalScrollBarVisibility="Auto">
                 <StackPanel Margin="10,16,10,16">
                   <TextBlock Text="HTTP proxy (optional)" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,7"/>
