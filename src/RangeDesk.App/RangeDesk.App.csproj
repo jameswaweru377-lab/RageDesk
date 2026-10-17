@@ -10,5 +10,12 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\RangeDesk.Core\RangeDesk.Core.csproj" />
+    <!-- Lightweight shared Evergreen WebView2 Runtime: no Electron or fixed Chromium payload. -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <!-- CI builds Vite before publish. WPF works normally even when dist is absent locally. -->
+    <Content Include="..\..\frontend\dist\**\*"
+             Link="web\%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

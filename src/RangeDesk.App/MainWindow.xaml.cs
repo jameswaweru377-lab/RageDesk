@@ -67,6 +67,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<Guid, DownloadStatus> _lastStatuses = new();
     private readonly Dictionary<Guid, DateTimeOffset> _completionTimes = new();
     private readonly Dictionary<Guid, DownloadProgressWindow> _progressWindows = new();
+    private bool _reactPreviewOpened;
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -140,7 +141,21 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
         RefreshInsights();
+        // Opt-in React renderer preview only; the existing WPF MainWindow owns all services.
+        // Never launch a second engine or remove the approved WPF UI during migration.
+        Loaded += (_, _) =>
+        {
+            if (_reactPreviewOpened || !Environment.GetCommandLineArgs()
+                .Skip(1).Contains("--react-preview", StringComparer.OrdinalIgnoreCase))
+                return;
+            _reactPreviewOpened = true;
+            new ReactDashboardPreviewWindow(this).Show();
+        };
     }
+
+    internal ReactDashboardSnapshot BuildReactPreviewSnapshot() =>
+        ReactDashboardSnapshot.Capture(Downloads, _completionTimes, SelectedDownload,
+            _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel);
 
     private void ApplyTitleBarTheme()
     {

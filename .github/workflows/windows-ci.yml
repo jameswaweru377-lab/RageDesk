@@ -18,6 +18,19 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
+      - name: Set up Node for locally bundled optional React dashboard
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build offline React dashboard
+        shell: pwsh
+        working-directory: frontend
+        run: |
+          npm install --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw "Frontend dependency installation failed" }
+          npm run build
+          if ($LASTEXITCODE -ne 0) { throw "React typecheck/build failed" }
+          if (-not (Test-Path 'dist/index.html')) { throw "Offline React bundle missing" }
       - name: Set up .NET SDK pinned by global.json
         uses: actions/setup-dotnet@v6
         with:
@@ -83,6 +96,13 @@ jobs:
           if-no-files-found: warn
       - name: Publish portable Windows build
         run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
+      - name: Verify offline React dashboard is packaged with Windows app
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'artifact/RangeDesk/web/index.html')) { throw "WebView2 offline index missing in publish" }
+          $js = Get-ChildItem 'artifact/RangeDesk/web/assets' -File -Filter '*.js'
+          $css = Get-ChildItem 'artifact/RangeDesk/web/assets' -File -Filter '*.css'
+          if ($js.Count -lt 1 -or $css.Count -lt 1) { throw "Bundled JS/CSS missing from portable RageDesk" }
       - name: Publish restricted browser native host
         run: dotnet publish src/RangeDesk.NativeHost/RangeDesk.NativeHost.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk/NativeHost
       - name: Verify browser native messaging framing
