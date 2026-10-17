@@ -1260,8 +1260,8 @@
               <Border Background="#E4F3FF" CornerRadius="14" Padding="12,6" Margin="0,0,12,0">
                 <TextBlock Text="{Binding SelectedDownload.Status}" Foreground="#255BA0" FontSize="12"/>
               </Border>
-              <Button Content="Resume" Click="Resume_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Resume paused download"/>
-               <Button Content="Pause" Click="Pause_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Pause active download"/>
+              <Button Content="Resume" Click="DetailsResume_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Resume paused download"/>
+               <Button Content="Pause" Click="DetailsPause_Click" Style="{StaticResource V5ToolbarButton}" Padding="12,8" Margin="0,0,7,0" ToolTip="Pause active download"/>
                <Button Content="Open file" Click="OpenFile_Click" Style="{StaticResource V5ToolbarButton}"
                       Padding="12,8" Margin="0,0,8,0"/>
               <Button Content="Folder" Click="OpenFolder_Click" Style="{StaticResource V5ToolbarButton}"
