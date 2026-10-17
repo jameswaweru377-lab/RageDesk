@@ -119,6 +119,70 @@ public sealed class DownloadProgressWindow : Window
                 BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(12),
                 Margin = margin ?? new Thickness(0), Padding = padding ?? new Thickness(14) };
 
+    private static Border InfoChip(TextBlock text) =>
+        new() { Child = text, Background = Brush("#0B2A50"), BorderBrush = Brush("#215B97"),
+            BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8),
+            Padding = new Thickness(13, 8, 13, 8), Margin = new Thickness(0, 0, 7, 0) };
+
+    private static TextBlock Icon(string glyph, double size = 17) =>
+        new() { Text = glyph, FontFamily = new FontFamily("Segoe MDL2 Assets"),
+            FontSize = size, Foreground = Accent, VerticalAlignment = VerticalAlignment.Center };
+
+    private static StackPanel ReadoutWithIcon(string glyph, TextBlock caption)
+    {
+        var group = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        group.Children.Add(Icon(glyph, 18));
+        caption.Margin = new Thickness(9, 0, 0, 0);
+        group.Children.Add(caption);
+        return group;
+    }
+
+    private static StackPanel TabHeader(string glyph, TextBlock title)
+    {
+        var line = new StackPanel { Orientation = Orientation.Horizontal,
+            HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+        line.Children.Add(Icon(glyph, 16));
+        title.Margin = new Thickness(8, 0, 0, 0);
+        line.Children.Add(title);
+        return line;
+    }
+
+    private static StackPanel ButtonCaption(string glyph, string caption)
+    {
+        var line = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
+        line.Children.Add(Icon(glyph));
+        line.Children.Add(new TextBlock { Text = caption, Margin = new Thickness(9, 0, 0, 0),
+            FontSize = 13, Foreground = TextColor, FontWeight = FontWeights.SemiBold });
+        return line;
+    }
+
+    private static string DisplayRemainingTime(DownloadEntry item)
+    {
+        if (item.Status != DownloadStatus.Downloading) return "00:00:00";
+        if (item.Total is not > 0 || item.BytesPerSecond <= 0) return "Calculating";
+        double seconds = Math.Max(0, (item.Total.Value - item.Received) / item.BytesPerSecond);
+        if (!double.IsFinite(seconds) || seconds > TimeSpan.MaxValue.TotalSeconds) return "Calculating";
+        var time = TimeSpan.FromSeconds(seconds);
+        return time.TotalHours >= 100 ? "99:59:59+" : time.ToString(@"hh\:mm\:ss");
+    }
+
+    private async Task TryApplyLocalIconAsync()
+    {
+        if (_localIconPending || _localIconApplied) return;
+        if (_entry.Status != DownloadStatus.Completed) return;
+        _localIconPending = true;
+        try
+        {
+            var icon = await RageDeskPopupArtwork.TryReadLocalExecutableIconAsync(_entry);
+            if (icon is null || Dispatcher.HasShutdownStarted) return;
+            _previewSlot.Children.Clear();
+            _previewSlot.Children.Add(new Image { Source = icon, Width = 112, Height = 112,
+                Stretch = Stretch.Uniform, HorizontalAlignment = HorizontalAlignment.Center });
+            _localIconApplied = true;
+        }
+        finally { _localIconPending = false; }
+    }
+
     private FrameworkElement BuildLayout()
     {
         var root = new Grid { Margin = new Thickness(22, 18, 22, 20) };
@@ -192,10 +256,21 @@ public sealed class DownloadProgressWindow : Window
         var workerList = new ListView { ItemsSource = _entry.Workers, Background = Surface,
             Foreground = TextColor, BorderBrush = Outline, BorderThickness = new Thickness(0) };
         var gv = new GridView();
-        gv.Columns.Add(new GridViewColumn { Header = "#", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.Title)), Width = 75 });
-        gv.Columns.Add(new GridViewColumn { Header = "Downloaded", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.BytesLabel)), Width = 210 });
-        gv.Columns.Add(new GridViewColumn { Header = "Speed", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.SpeedLabel)), Width = 155 });
-        gv.Columns.Add(new GridViewColumn { Header = "Status", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.StateLabel)), Width = 130 });
+        gv.Columns.Add(new GridViewColumn { Header = "#", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.Title)), Width = 50 });
+        gv.Columns.Add(new GridViewColumn { Header = "Downloaded", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.BytesLabel)), Width = 190 });
+        gv.Columns.Add(new GridViewColumn { Header = "Speed", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.SpeedLabel)), Width = 112 });
+        gv.Columns.Add(new GridViewColumn { Header = "Status", DisplayMemberBinding = new Binding(nameof(DownloadWorkerState.StateLabel)), Width = 134 });
+        var progressColumn = new GridViewColumn { Header = "Progress", Width = 126 };
+        var progressTemplate = new DataTemplate();
+        var progressBar = new FrameworkElementFactory(typeof(ProgressBar));
+        progressBar.SetValue(ProgressBar.HeightProperty, 10d);
+        progressBar.SetValue(ProgressBar.WidthProperty, 102d);
+        progressBar.SetValue(ProgressBar.MinimumProperty, 0d);
+        progressBar.SetValue(ProgressBar.MaximumProperty, 100d);
+        progressBar.SetBinding(ProgressBar.ValueProperty, new Binding(nameof(DownloadWorkerState.Percent)));
+        progressTemplate.VisualTree = progressBar;
+        progressColumn.CellTemplate = progressTemplate;
+        gv.Columns.Add(progressColumn);
         workerList.View = gv;
         var connectionLayout = new DockPanel();
         DockPanel.SetDock(_workersNotice, Dock.Top);
@@ -211,6 +286,11 @@ public sealed class DownloadProgressWindow : Window
         tabs.Items.Add(new TabItem { Header = TabHeader("\uE8EF", Label("Log", 12, TextColor)),
             Content = new ListBox { ItemsSource = _entry.Events,
                 Background = Surface, Foreground = TextColor, BorderThickness = new Thickness(0) } });
+        tabs.SizeChanged += (_, _) =>
+        {
+            double width = Math.Max(115, (tabs.ActualWidth - 10) / 4);
+            foreach (TabItem tab in tabs.Items) tab.Width = width;
+        };
         Grid.SetRow(tabs, 3); root.Children.Add(tabs);
 
         var actions = new DockPanel { LastChildFill = false };
@@ -255,9 +335,17 @@ public sealed class DownloadProgressWindow : Window
         _type.Text = _kind + " · " + Path.GetExtension(_entry.Name).ToUpperInvariant();
         _size.Text = _entry.Total is long total ? "File size: " + DownloadEntry.FormatSize(total) : "File size: unknown";
         _bytes.Text = _entry.TransferredLabel;
-        _speed.Text = "↓ " + _entry.SpeedLabel;
-        _eta.Text = "ETA: " + _entry.EtaLabel;
-        _percent.Text = _entry.ProgressLabel;
+        _sourceCaption.Text = "Source: " + (_entry.Host.Length > 0 ? _entry.Host : "Local file");
+        _fileTypeChip.Text = Path.GetExtension(_entry.Name).TrimStart('.').ToUpperInvariant() is { Length: > 0 } ext ? ext : "FILE";
+        bool identifiedGame = _entry.Category.Equals("Game", StringComparison.OrdinalIgnoreCase) ||
+                              _entry.Category.Equals("Games", StringComparison.OrdinalIgnoreCase);
+        _fileCategory.Text = identifiedGame ? "Game" : _kind;
+        _speed.Text = _entry.BytesPerSecond > 0 && status == DownloadStatus.Downloading
+            ? DownloadEntry.FormatSize(_entry.BytesPerSecond) + "/s" : "0 MB/s";
+        _eta.Text = DisplayRemainingTime(_entry);
+        _connectionCaption.Text = $"Connections ({(status == DownloadStatus.Downloading ? _entry.Connections : 0)})";
+        _percent.Text = _entry.Percent is double percentage ? $"{percentage:0}%" : "0%";
+        if (status == DownloadStatus.Completed && !_localIconApplied) _ = TryApplyLocalIconAsync();
         _progress.IsIndeterminate = _entry.IsIndeterminate;
         _progress.Value = _entry.Percent ?? 0;
         _workersNotice.Text = _entry.IsMedia
@@ -267,8 +355,9 @@ public sealed class DownloadProgressWindow : Window
         _details.TextWrapping = TextWrapping.Wrap;
         _primary.Visibility = status == DownloadStatus.Downloading || (status != DownloadStatus.Completed && _entry.IsMedia && status != DownloadStatus.Queued)
             ? Visibility.Collapsed : Visibility.Visible;
-        _primary.Content = status == DownloadStatus.Completed ? "Open Folder" :
-            status == DownloadStatus.Queued ? "Start Download" : "Resume";
+        _primary.Content = status == DownloadStatus.Completed ? ButtonCaption("\uE8B7", "Open Folder") :
+            status == DownloadStatus.Queued ? ButtonCaption("\uE896", "Start Download") :
+            ButtonCaption("\uE768", "Resume");
         _pause.Visibility = status == DownloadStatus.Downloading && !_entry.IsMedia ? Visibility.Visible : Visibility.Collapsed;
         _stop.Visibility = status == DownloadStatus.Downloading ? Visibility.Visible : Visibility.Collapsed;
         _dismiss.Content = status == DownloadStatus.Queued ? "Cancel" : "Close";
