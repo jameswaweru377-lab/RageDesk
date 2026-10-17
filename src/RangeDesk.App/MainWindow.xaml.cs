@@ -68,6 +68,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private readonly Dictionary<Guid, DateTimeOffset> _completionTimes = new();
     private readonly Dictionary<Guid, DownloadProgressWindow> _progressWindows = new();
     private bool _reactPreviewOpened;
+    private ReactDashboardPreviewWindow? _reactDashboard;
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -141,16 +142,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
         RefreshInsights();
-        // Opt-in React renderer preview only; the existing WPF MainWindow owns all services.
-        // Never launch a second engine or remove the approved WPF UI during migration.
+        // The approved React UI is the primary window; the existing WPF MainWindow
+        // continues to own every native service, with --wpf-classic as a safe fallback.
         Loaded += (_, _) =>
         {
-            if (_reactPreviewOpened || !Environment.GetCommandLineArgs()
-                .Skip(1).Contains("--react-preview", StringComparer.OrdinalIgnoreCase))
+            if (_reactPreviewOpened || Environment.GetCommandLineArgs()
+                .Skip(1).Contains("--wpf-classic", StringComparer.OrdinalIgnoreCase))
                 return;
             _reactPreviewOpened = true;
-            new ReactDashboardPreviewWindow(this).Show();
+            _reactDashboard = new ReactDashboardPreviewWindow(this);
+            _reactDashboard.Closed += (_, _) => _reactDashboard = null;
+            _reactDashboard.Show();
         };
+    }
+
+    internal void ReactDashboardReady()
+    {
+        if (_reactDashboard?.IsVisible == true) Hide();
+    }
+
+    private void ReturnToReactIfReady()
+    {
+        if (_reactDashboard?.IsVisible != true ||
+            AddOverlay.Visibility == Visibility.Visible ||
+            SettingsOverlay.Visibility == Visibility.Visible ||
+            ScheduledEditOverlay.Visibility == Visibility.Visible ||
+            CustomSiteOverlay.Visibility == Visibility.Visible) return;
+        Hide();
+        _reactDashboard.Activate();
     }
 
     internal void OpenNativeDialogFromReact(string command)
@@ -159,19 +178,305 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         // download-side operations remain behind the validated WPF forms.
         if (command == "ui.openSettings")
         {
+            Show();
             Activate();
             Settings_Click(this, new RoutedEventArgs());
         }
         else if (command == "ui.openAddDownload")
         {
+            Show();
             Activate();
             Add_Click(this, new RoutedEventArgs());
         }
     }
 
+
+    /// <summary>
+    /// The React renderer may operate only on IDs in the existing local download catalog.
+    /// No JavaScript URL, destination, filename, or arbitrary command is accepted.
+    /// These actions reuse the working C# engine and Windows dialogs.
+    /// </summary>
+    internal string ExecuteReactDownloadAction(string action, IReadOnlyList<Guid> ids, Window owner)
+    {
+        if (action == "startQueue")
+        {
+            if (ids.Count != 0) return "Queue action must not include selection.";
+            StartQueue_Click(this, new RoutedEventArgs());
+            return StatusMessage.Text;
+        }
+        if (action == "removeHistory")
+        {
+            // This deliberately NEVER deletes downloaded files or partial checkpoints.
+            // Active/queued/paused jobs cannot be removed; keep their recovery state.
+            if (ids.Count is < 1 or > 64 || ids.Distinct().Count() != ids.Count)
+                return "Select between 1 and 64 unique downloads.";
+            var existing = ids.Select(id => Downloads.FirstOrDefault(d => d.Id == id)).ToArray();
+            if (existing.Any(d => d is null || d.Status is not
+                (DownloadStatus.Completed or DownloadStatus.Failed or DownloadStatus.Canceled)))
+                return "Only completed, canceled or failed downloads may be removed from history.";
+            if (MessageBox.Show(owner,
+                $"Remove {existing.Length} download(s) from the history list?\\n" +
+                "The downloaded files and any resumable checkpoints will NOT be deleted.",
+                "RageDesk — Remove history only", MessageBoxButton.YesNo,
+                MessageBoxImage.Question) != MessageBoxResult.Yes)
+                return "History removal canceled.";
+            var originals = existing.Select(d => (Index: Downloads.IndexOf(d!), Item: d!))
+                .OrderBy(x => x.Index).ToArray();
+            foreach (var old in originals) Downloads.Remove(old.Item);
+            if (!SaveCatalog())
+            {
+                // Restore original positions in ascending order if atomic save failed.
+                foreach (var old in originals)
+                    Downloads.Insert(Math.Min(old.Index, Downloads.Count), old.Item);
+                return "Could not save the updated download history.";
+            }
+            foreach (var item in existing)
+            {
+                _completionTimes.Remove(item!.Id);
+                _lastStatuses.Remove(item.Id);
+            }
+            if (SelectedDownload is not null && ids.Contains(SelectedDownload.Id))
+                SelectedDownload = null;
+            RefreshCounters();
+            RefreshInsights();
+            RefreshDashboard();
+            return $"{existing.Length} download(s) removed from history. Files were not deleted.";
+        }
+        if (ids.Count is < 1 or > 64 || ids.Distinct().Count() != ids.Count)
+            return "Select between 1 and 64 unique downloads.";
+        var selected = ids.Select(id => Downloads.FirstOrDefault(item => item.Id == id)).ToArray();
+        if (selected.Any(item => item is null))
+            return "Download selection changed. Refresh and try again.";
+        if (action is "openFolder" or "openFile" or "details" or "schedule" or "earlier" or "later"
+            && ids.Count != 1)
+            return "Select exactly one download for this action.";
+        if (action is not ("pause" or "resume" or "stop" or "openFolder" or "openFile" or
+            "details" or "schedule" or "earlier" or "later"))
+            return "Unsupported download command.";
+        if (action == "stop" && MessageBox.Show(owner,
+            "Stop the selected download(s)? Incomplete transfers can retain resumable data.",
+            "RageDesk — Confirm stop", MessageBoxButton.YesNo, MessageBoxImage.Warning) != MessageBoxResult.Yes)
+            return "Stop canceled.";
+
+        int changed = 0;
+        foreach (var item in selected)
+        {
+            if (item is null) continue;
+            switch (action)
+            {
+                case "pause" when !item.IsMedia && item.Status == DownloadStatus.Downloading:
+                    _engine.Pause(item); changed++; break;
+                case "resume" when item.Status is DownloadStatus.Queued or DownloadStatus.Paused or DownloadStatus.Failed or DownloadStatus.Canceled:
+                    if (StartManually(item)) changed++;
+                    break;
+                case "stop" when item.Status is DownloadStatus.Downloading or DownloadStatus.Queued or DownloadStatus.Paused:
+                    StopManually(item); changed++; break;
+                case "openFolder":
+                    SelectedDownload = item;
+                    OpenFolder_Click(this, new RoutedEventArgs()); changed++; break;
+                case "openFile" when item.Status == DownloadStatus.Completed && File.Exists(item.Destination):
+                    SelectedDownload = item;
+                    OpenFile_Click(this, new RoutedEventArgs()); changed++; break;
+                case "details":
+                    SelectedDownload = item;
+                    ShowTransferWindow(item); changed++; break;
+                case "schedule" when !item.IsMedia && item.Status == DownloadStatus.Queued:
+                    SelectedDownload = item;
+                    Activate();
+                    OpenScheduleEditor(item); changed++; break;
+                case "earlier":
+                    MoveQueue(item, -1); changed++; break;
+                case "later":
+                    MoveQueue(item, 1); changed++; break;
+            }
+        }
+        return changed > 0 ? $"{changed} download action(s) completed." :
+            "No selected downloads support that action in their current state.";
+    }
+
+    /// <summary>
+    /// User-submitted HTTP(S) direct URL from the trusted local React UI. Resolve
+    /// the destination exclusively beneath the user's existing validated download
+    /// directory. Do not accept executable paths, arbitrary filenames or secrets
+    /// from the UI, and do not echo signed URLs into WebView2 responses.
+    /// </summary>
+    internal string AddReactDownload(string address, bool queued)
+    {
+        if (string.IsNullOrWhiteSpace(address) || address.Length > 3500 ||
+            !DownloadEngine.IsAllowedUrl(address.Trim()) ||
+            !Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri) ||
+            !string.IsNullOrEmpty(uri.UserInfo))
+            return "Enter a valid direct HTTP or HTTPS URL.";
+        try
+        {
+            string name = Path.GetFileName(uri.LocalPath);
+            if (name is "" or "." or ".." || name.Length > 120 ||
+                name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                name = "download-" + Guid.NewGuid().ToString("N")[..12] + ".bin";
+            string destination = Path.Combine(_preferences.DownloadFolder, name);
+            string category = DownloadCategory.Guess(name);
+            var decision = DownloadAutomationPolicy.Apply(uri.AbsoluteUri, destination,
+                category, "", _preferences.DownloadFolder, _automationRules);
+            string target = Path.GetFullPath(decision.Destination);
+            if (Downloads.Any(d => string.Equals(d.Destination, target,
+                    StringComparison.OrdinalIgnoreCase)) ||
+                File.Exists(target) || File.Exists(target + ".rdpartial") ||
+                Directory.Exists(target + ".rdsegments") ||
+                Directory.Exists(target + ".rdadaptive"))
+                return "A download with this filename or recovery data already exists. Use the native Add Download dialog to choose another name.";
+            var item = _engine.Create(uri.AbsoluteUri, target, decision.Category,
+                decision.Labels, _preferences.DefaultConnections,
+                _preferences.DefaultBandwidthKiBps);
+            Track(item);
+            SelectedDownload = item;
+            if (!SaveCatalog())
+                return "The transfer is in the current session, but saving history failed. Check available disk space.";
+            if (!queued && !_engine.Start(item))
+                return "Download was added to the queue because it could not start immediately.";
+            return queued ? "Download safely added to the queue." : "Download started.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+            IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return "Could not add download: " + ex.GetType().Name;
+        }
+    }
+
+    internal string SaveReactSchedule(Guid id, string localTime, string recurrence, bool remove)
+    {
+        var item = Downloads.FirstOrDefault(entry => entry.Id == id);
+        if (item is null || item.IsMedia || item.Status != DownloadStatus.Queued)
+            return "Only a queued direct-file download can be scheduled.";
+        try
+        {
+            if (remove)
+            {
+                if (!_scheduled.ContainsKey(item.Destination)) return "No schedule exists for this download.";
+                ScheduledQueueStore.Save(_schedulesFile,
+                    _scheduled.Values.Where(s => !s.Destination.Equals(item.Destination,
+                        StringComparison.OrdinalIgnoreCase)));
+                _scheduled.Remove(item.Destination);
+                RefreshFilter();
+                PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+                return "Schedule removed; download remains queued.";
+            }
+            if (!DateTime.TryParseExact(localTime, "yyyy-MM-ddTHH:mm",
+                    CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime dateTime) ||
+                !Enum.TryParse<ScheduleRecurrence>(recurrence, false, out var kind) ||
+                !Enum.IsDefined(kind))
+                return "Choose a valid date, local time and recurrence.";
+            DateTimeOffset due = ScheduledQueueStore.FromLocal(dateTime.Date,
+                dateTime.TimeOfDay, TimeZoneInfo.Local, DateTimeOffset.Now);
+            ScheduledDownload configured = RecurringSchedulePolicy.Configure(
+                new ScheduledDownload(item.Destination, due), kind, TimeZoneInfo.Local);
+            ScheduledQueueStore.Save(_schedulesFile, _scheduled.Values.Where(s =>
+                !s.Destination.Equals(item.Destination, StringComparison.OrdinalIgnoreCase)).Append(configured));
+            _scheduled[item.Destination] = configured;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(ScheduledCount)));
+            RefreshFilter();
+            return "Schedule saved locally. RageDesk must be running when the start is due.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return "Could not save schedule: " + ex.GetType().Name;
+        }
+    }
+
+    internal string ChooseReactDownloadFolder(Window owner)
+    {
+        var picker = new OpenFolderDialog
+        {
+            Title = "Choose RageDesk default download folder",
+            Multiselect = false
+        };
+        if (Directory.Exists(_preferences.DownloadFolder))
+            picker.InitialDirectory = _preferences.DownloadFolder;
+        if (picker.ShowDialog(owner) != true) return "Folder selection canceled.";
+        try
+        {
+            var updated = (_preferences with { DownloadFolder = picker.FolderName }).Validate();
+            RangeDeskPreferencesStore.Save(_preferencesFile, updated);
+            _preferences = updated;
+            return "Default download folder saved locally.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return "Folder was not changed: " + ex.GetType().Name;
+        }
+    }
+
+    internal string UpdateReactPreference(string key, JsonElement value)
+    {
+        // Restrict writable fields to existing validated local-only preferences.
+        // Proxy address and filesystem paths are intentionally excluded from WebView2.
+        RangeDeskPreferences updated;
+        try
+        {
+            updated = key switch
+            {
+                "startImmediately" when value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    => _preferences with { StartImmediately = value.GetBoolean() },
+                "theme" when value.ValueKind == JsonValueKind.String &&
+                    value.GetString() is "Cobalt" or "Arctic"
+                    => _preferences with { Theme = value.GetString()! },
+                "defaultConnections" when value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetInt32(out int connections)
+                    => _preferences with { DefaultConnections = connections },
+                "maxConcurrentDownloads" when value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetInt32(out int maxConcurrent)
+                    => _preferences with { MaxConcurrentDownloads = maxConcurrent },
+                "bandwidthLimit" when value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetInt32(out int kbps)
+                    => _preferences with { DefaultBandwidthKiBps = kbps },
+                _ => throw new ArgumentException("Unsupported preference or value.")
+            };
+            updated = updated.Validate();
+            bool restart = updated.MaxConcurrentDownloads != _preferences.MaxConcurrentDownloads;
+            RangeDeskPreferencesStore.Save(_preferencesFile, updated);
+            _preferences = updated;
+            RangeDeskTheme.Apply(updated.Theme);
+            ApplyTitleBarTheme();
+            return restart ? "Setting saved. Restart RageDesk to change simultaneous transfers." :
+                "Setting saved locally.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return "Setting not saved: " + ex.GetType().Name;
+        }
+    }
+
+    internal string ExecuteReactBrowserAction(string action)
+    {
+        try
+        {
+            switch (action)
+            {
+                case "connect":
+                    ChromeIntegrationSetup.Register(AppContext.BaseDirectory);
+                    return "Chrome native host registered. Load the bundled extension in Chrome manually, then test the connection.";
+                case "extensionFolder":
+                    OpenChromeExtensionFolder_Click(this, new RoutedEventArgs());
+                    return "Opening the local Chrome extension folder.";
+                case "extensionsPage":
+                    OpenChromeExtensions_Click(this, new RoutedEventArgs());
+                    return "Opening Chrome extension settings.";
+                case "check":
+                    return ChromeIntegrationSetup.IsRegistered(AppContext.BaseDirectory)
+                        ? "Native messaging host registered. Verify the extension's own connection badge in Chrome."
+                        : "Native messaging host is not registered.";
+                default: return "Unsupported browser action.";
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            return "Browser integration failed: " + ex.GetType().Name;
+        }
+    }
+
     internal ReactDashboardSnapshot BuildReactPreviewSnapshot() =>
         ReactDashboardSnapshot.Capture(Downloads, _completionTimes, SelectedDownload,
-            _preferences.Theme, ScheduledCount, AggregateSpeedLabel, AggregateEtaLabel, _preferences);
+            _preferences.Theme, ScheduledCount, _scheduled.Keys.ToArray(),
+            AggregateSpeedLabel, AggregateEtaLabel, _preferences);
 
     private void ApplyTitleBarTheme()
     {
@@ -1084,6 +1389,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _editingSchedule = null;
         ScheduledEditOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
     }
 
     private void SaveEditedSchedule_Click(object sender, RoutedEventArgs e)
@@ -1534,7 +1840,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         {
             string? url = BrowserLinkInbox.TryTake(BrowserLinkInbox.DefaultDirectory);
             if (url is null) return;
+            // Only explicit manual direct-file captures are offered to the local React
+            // dialog. Media pages still use the existing native extractor review.
+            if (!OptionalMediaExtractor.IsPageCandidate(url) &&
+                _reactDashboard?.OfferCapturedLink(url) == true)
+            {
+                StatusMessage.Text = "Captured direct download ready for review in RageDesk.";
+                return;
+            }
             Add_Click(this, new RoutedEventArgs());
+            // The native media/advanced review is still necessary for unsupported links.
+            // Bring its owner forward rather than leaving an invisible overlay behind React.
+            Show();
+            if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
+            Activate();
             NewUrl.Text = url;
             if (OptionalMediaExtractor.IsPageCandidate(url))
             {
@@ -1708,6 +2027,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void CloseAdd_Click(object sender, RoutedEventArgs e)
     {
         AddOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
         BrowserMediaNotice.Visibility = Visibility.Collapsed;
         AddDownloadTitle.Text = "Add Download";
         AddStartButton.IsEnabled = true;
@@ -1877,6 +2197,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 throw new InvalidOperationException("Could not start this download.");
             SelectedDownload = item;
             AddOverlay.Visibility = Visibility.Collapsed;
+            ReturnToReactIfReady();
             StatusMessage.Text = (schedule is not null ? "Scheduled: " :
                 queued ? "Added to queue: " : "Download started: ") + item.Name;
             NewUrl.Clear();
@@ -1940,6 +2261,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (StartManually(item)) started++;
         SelectedDownload = items.LastOrDefault();
         AddOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
         StatusMessage.Text = queued
             ? $"Added {items.Length} distinct links to the queue."
             : $"Added {items.Length} distinct links; started {started}. Other transfers may wait for available slots.";
@@ -2359,6 +2681,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RangeDeskTheme.Apply(updated.Theme);
             ApplyTitleBarTheme();
             SettingsOverlay.Visibility = Visibility.Collapsed;
+            ReturnToReactIfReady();
             StatusMessage.Text = restartNeeded
                 ? "Settings saved. Restart RangeDesk to apply the changed network or simultaneous-download settings."
                 : "Settings saved. New downloads will use these defaults; active transfers are unchanged.";
@@ -2369,6 +2692,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void CloseSettings_Click(object sender, RoutedEventArgs e) =>
+    private void CloseSettings_Click(object sender, RoutedEventArgs e)
+    {
         SettingsOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
+    }
 }

@@ -27,11 +27,13 @@ internal sealed record ReactDashboardSnapshot(
         DownloadEntry? selected,
         string theme,
         int scheduledCount,
+        IReadOnlyCollection<string> scheduledDestinations,
         string currentSpeed,
         string remainingTime,
         RangeDeskPreferences preferences)
     {
         var entries = downloads.ToArray();
+        var scheduled = new HashSet<string>(scheduledDestinations, StringComparer.OrdinalIgnoreCase);
         var counts = new ReactCounts(
             entries.Length,
             entries.Count(d => d.Status == DownloadStatus.Downloading),
@@ -82,7 +84,8 @@ internal sealed record ReactDashboardSnapshot(
                 d.Percent is double pct && double.IsFinite(pct) ? Math.Clamp(pct, 0, 100) : null,
                 double.IsFinite(d.BytesPerSecond) ? Math.Max(0, d.BytesPerSecond) : 0,
                 d.EtaLabel, Math.Max(0, d.Connections), d.RequestedConnections,
-                d.AddedLabel, d.AddedAt.ToUniversalTime().ToString("O"))).ToArray();
+                d.AddedLabel, d.AddedAt.ToUniversalTime().ToString("O"),
+                scheduled.Contains(d.Destination))).ToArray();
         double[] history = selected?.SpeedSamples.TakeLast(60)
             .Select(value => double.IsFinite(value) ? Math.Max(0, value) : 0).ToArray()
             ?? Array.Empty<double>();
@@ -122,7 +125,7 @@ internal sealed record ReactCounts(int All, int Downloading, int Completed, int 
 internal sealed record ReactDownloadRow(
     string Id, string Name, string Host, string Category, string Status, long ReceivedBytes,
     long? TotalBytes, double? Percent, double BytesPerSecond, string Eta,
-    int Connections, int RequestedConnections, string Added, string AddedAt);
+    int Connections, int RequestedConnections, string Added, string AddedAt, bool IsScheduled);
 internal sealed record ReactSource(string Host, double Bytes);
 internal sealed record ReactRecent(string Id, string Added, string Description);
 

@@ -33,6 +33,9 @@ public sealed class InstallerReleaseContractTests
         Assert.Contains("LicenseFile: \"licenses\\License-en.txt\"", setup);
         Assert.Contains("LicenseFile: \"licenses\\License-sw.txt\"", setup);
         Assert.Contains("PrivilegesRequiredOverridesAllowed=dialog", setup);
+        Assert.Contains("PrivilegesRequired=admin", setup);
+        Assert.Contains("UsePreviousPrivileges=yes", setup);
+        Assert.Contains("--wpf-classic", setup);
         Assert.Contains("DefaultDirName={autopf}\\RangeDesk", setup);
         Assert.Contains("UninstallDisplayName=RangeDesk", setup);
         Assert.Contains("Name: \"{group}\\RangeDesk\";", setup);
@@ -56,9 +59,11 @@ public sealed class InstallerReleaseContractTests
         Assert.Contains("run-id:", workflow);
         Assert.Contains("--prerelease", workflow);
         Assert.Contains("SHA256SUMS.txt", workflow);
-        Assert.Contains("Uninstall", Source("releases/v0.8.0-preview.3.md"),
+        Assert.Contains("HTML_FILE", workflow);
+        Assert.Contains("RangeDesk-HTML-0.8.0-preview.4.zip", Source("releases/v0.8.0-preview.4.md"));
+        Assert.Contains("Uninstall", Source("releases/v0.8.0-preview.4.md"),
             StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("<Version>0.8.0-preview.3</Version>",
+        Assert.Contains("<Version>0.8.0-preview.4</Version>",
             Source("src/RangeDesk.App/RangeDesk.App.csproj"));
     }
 }

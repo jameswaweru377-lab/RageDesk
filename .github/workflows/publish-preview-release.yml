@@ -26,10 +26,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     env:
-      RELEASE_VERSION: 0.8.0-preview.3
-      RELEASE_TAG: v0.8.0-preview.3
-      SETUP_FILE: RangeDesk-Setup-0.8.0-preview.3-win-x64.exe
-      PORTABLE_FILE: RangeDesk-Portable-0.8.0-preview.3-win-x64.zip
+      RELEASE_VERSION: 0.8.0-preview.4
+      RELEASE_TAG: v0.8.0-preview.4
+      SETUP_FILE: RangeDesk-Setup-0.8.0-preview.4-win-x64.exe
+      PORTABLE_FILE: RangeDesk-Portable-0.8.0-preview.4-win-x64.zip
+      HTML_FILE: RangeDesk-HTML-0.8.0-preview.4.zip
     steps:
       - name: Check out the verified Windows CI commit
         uses: actions/checkout@v4
@@ -70,6 +71,13 @@ jobs:
             }
           }
           Copy-Item $zip (Join-Path artifact $env:PORTABLE_FILE) -Force
+
+      - name: Package HTML/CSS/JS frontend from verified native build
+        shell: pwsh
+        run: |
+          if (-not (Test-Path 'artifact/RangeDesk/web/index.html')) { throw 'Verified frontend HTML is missing' }
+          Compress-Archive -Path artifact/RangeDesk/web/* -DestinationPath (Join-Path artifact $env:HTML_FILE) -Force
+          if (-not (Test-Path (Join-Path artifact $env:HTML_FILE))) { throw 'HTML bundle could not be packaged' }
 
       - name: Locate Inno Setup
         shell: pwsh
@@ -137,7 +145,7 @@ jobs:
       - name: Prepare SHA-256 integrity hashes
         shell: pwsh
         run: |
-          $files = @((Join-Path artifact $env:SETUP_FILE),(Join-Path artifact $env:PORTABLE_FILE))
+          $files = @((Join-Path artifact $env:SETUP_FILE),(Join-Path artifact $env:PORTABLE_FILE),(Join-Path artifact $env:HTML_FILE))
           $lines = foreach ($f in $files) {
             "$((Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())  $(Split-Path $f -Leaf)"
           }
@@ -146,7 +154,7 @@ jobs:
       - name: Upload verified installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RangeDesk-Setup-0.8.0-preview.3-win-x64
+          name: RangeDesk-Setup-0.8.0-preview.4-win-x64
           path: artifact/${{ env.SETUP_FILE }}
           retention-days: 14
           if-no-files-found: error
@@ -157,6 +165,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
         run: |
-          gh release create $env:RELEASE_TAG (Join-Path artifact $env:SETUP_FILE) (Join-Path artifact $env:PORTABLE_FILE) artifact/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:VERIFIED_SHA --title 'RageDesk 0.8 — Deep Navy UI | Windows Preview 3' --notes-file releases/v0.8.0-preview.3.md --prerelease --latest=false
+          gh release create $env:RELEASE_TAG (Join-Path artifact $env:SETUP_FILE) (Join-Path artifact $env:PORTABLE_FILE) (Join-Path artifact $env:HTML_FILE) artifact/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:VERIFIED_SHA --title 'RageDesk 0.8 — Connected Deep Navy UI | Windows Preview 4' --notes-file releases/v0.8.0-preview.4.md --prerelease --latest=false
           if ($LASTEXITCODE -ne 0) { throw 'Release could not be published' }
           gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json url --jq .url

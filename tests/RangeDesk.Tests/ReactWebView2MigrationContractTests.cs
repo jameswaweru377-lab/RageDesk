@@ -16,12 +16,13 @@ public sealed class ReactWebView2MigrationContractTests
     }
 
     [Fact]
-    public void WpfMainWindowIsStillDefaultAndPreviewMustBeOptedInto()
+    public void ReactIsPrimaryWhileWpfStillOwnsTheNativeEngine()
     {
         string app = Read("src/RangeDesk.App/App.xaml");
         string main = Read("src/RangeDesk.App/MainWindow.xaml.cs");
         Assert.Contains("StartupUri=\"MainWindow.xaml\"", app);
-        Assert.Contains("--react-preview", main);
+        Assert.Contains("--wpf-classic", main);
+        Assert.Contains("ReactDashboardReady", main);
         Assert.Contains("new ReactDashboardPreviewWindow(this)", main);
         Assert.Contains("_engine = new DownloadEngine", main);
         Assert.Contains("LoadCatalog()", main);

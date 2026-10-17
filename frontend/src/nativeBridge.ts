@@ -2,7 +2,7 @@ export type DownloadRow = {
   id: string; name: string; host: string; category: string; status: string;
   receivedBytes: number; totalBytes: number | null; percent: number | null;
   bytesPerSecond: number; eta: string; connections: number; requestedConnections: number;
-  added: string; addedAt: string;
+  added: string; addedAt: string; isScheduled: boolean;
 };
 export type DashboardSnapshot = {
   theme: "Cobalt" | "Arctic";
@@ -18,7 +18,15 @@ export type DashboardSnapshot = {
   storage: { freeBytes: number; totalBytes: number } | null;
   settings: { startImmediately: boolean; defaultConnections: number; maxConcurrentDownloads: number; defaultBandwidthKiBps: number; proxyEnabled: boolean };
 };
-type NativeEnvelope = { version: number; type: "dashboard.snapshot"; payload: DashboardSnapshot };
+export type DownloadCommand = "pause" | "resume" | "stop" | "startQueue" | "openFolder" | "openFile" | "details" | "schedule" | "earlier" | "later" | "removeHistory";
+export type BrowserCommand = "connect" | "check" | "extensionFolder" | "extensionsPage";
+export type PreferenceKey = "startImmediately" | "theme" | "defaultConnections" | "maxConcurrentDownloads" | "bandwidthLimit";
+export type NativeActionResult = { requestId: string; message: string };
+
+type NativeEnvelope =
+  | { version: number; type: "dashboard.snapshot"; payload: DashboardSnapshot }
+  | { version: number; type: "ui.actionResult"; payload: NativeActionResult }
+  | { version: number; type: "ui.browserCaptured"; payload: { address: string } };
 
 interface NativeWebView {
   postMessage: (message: unknown) => void;
@@ -33,7 +41,86 @@ export function openNativeDialog(type: "ui.openSettings" | "ui.openAddDownload")
   window.chrome?.webview?.postMessage({ version: 1, type });
 }
 
-/** Only the trusted local C# host can publish snapshots. Native write actions are not exposed. */
+/** Send only catalog IDs, never file paths or signed URLs. Native C# validates all IDs
+ * and handles state transitions. The browser extension stays a separate opt-in integration. */
+export function sendDownloadAction(action: DownloadCommand, ids: string[]): boolean {
+  if (!window.chrome?.webview || ids.length > 64) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.download", requestId: crypto.randomUUID(), action, ids
+  });
+  return true;
+}
+export function sendBrowserAction(action: BrowserCommand): boolean {
+  if (!window.chrome?.webview) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.browser", requestId: crypto.randomUUID(), action
+  });
+  return true;
+}
+export function sendPreference(key: PreferenceKey, value: boolean | string | number): boolean {
+  if (!window.chrome?.webview) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.setting", requestId: crypto.randomUUID(), action: key, value
+  });
+  return true;
+}
+/** A direct URL is sent only to the bundled local C# host after explicit submission.
+ * It is never included in the periodic dashboard snapshots or remote assets. */
+export function sendDirectDownload(address: string, queued: boolean): boolean {
+  if (!window.chrome?.webview || !/^https?:\/\//i.test(address) || address.length > 3500)
+    return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.submit", requestId: crypto.randomUUID(),
+    action: "addDownload", address, queued
+  });
+  return true;
+}
+export type ScheduleRecurrence = "Once" | "Daily" | "Weekdays" | "Weekly";
+export function sendSchedule(id: string, localTime: string, recurrence: ScheduleRecurrence, remove=false): boolean {
+  if (!window.chrome?.webview || !/^[0-9a-f]{32}$/i.test(id)) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.schedule", requestId: crypto.randomUUID(),
+    action: "schedule", id, localTime, recurrence, remove
+  });
+  return true;
+}
+export function chooseDownloadFolder(): boolean {
+  if (!window.chrome?.webview) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.folder", requestId: crypto.randomUUID(), action: "browse"
+  });
+  return true;
+}
+
+export function subscribeToActionResults(onResult: (message: string) => void): () => void {
+  const bridge = window.chrome?.webview;
+  if (!bridge) return () => undefined;
+  const listener = (event: MessageEvent<NativeEnvelope>) => {
+    const response = event.data;
+    if (response?.version === 1 && response.type === "ui.actionResult" &&
+      typeof response.payload?.message === "string") onResult(response.payload.message);
+  };
+  bridge.addEventListener("message", listener);
+  return () => bridge.removeEventListener("message", listener);
+}
+
+/** Manual browser handoff is a user-selected link from the local C# inbox,
+ * not a web-page event or remote fetch. It is not persisted by React. */
+export function subscribeToCapturedLinks(onCaptured: (address: string) => void): () => void {
+  const bridge = window.chrome?.webview;
+  if (!bridge) return () => undefined;
+  const listener = (event: MessageEvent<NativeEnvelope>) => {
+    const msg = event.data;
+    if (msg?.version === 1 && msg.type === "ui.browserCaptured" &&
+        typeof msg.payload?.address === "string" &&
+        msg.payload.address.length <= 3500 && /^https?:\/\//i.test(msg.payload.address))
+      onCaptured(msg.payload.address);
+  };
+  bridge.addEventListener("message", listener);
+  return () => bridge.removeEventListener("message", listener);
+}
+
+/** The trusted local C# host publishes bounded and versioned snapshots. */
 export function subscribeToNativeDashboard(
   onData: (data: DashboardSnapshot) => void,
   onConnection: (connection: "connecting" | "connected" | "unavailable") => void

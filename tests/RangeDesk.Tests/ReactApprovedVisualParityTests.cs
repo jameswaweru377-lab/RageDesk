@@ -36,8 +36,11 @@ public sealed class ReactApprovedVisualParityTests
             Assert.Contains(token, app + skin);
         Assert.Contains("checked={selectedIds.has(r.id)}", app);
         Assert.Contains("aria-label={`Select ${r.name}`}", app);
-        Assert.Contains("onClick={()=>openNativeDialog(\"ui.openAddDownload\")}", app);
-        Assert.Contains("title=\"Delete requires a validated native confirmation flow\"", app);
+        Assert.Contains("AddDownloadDialog", app);
+        Assert.Contains("sendDirectDownload", Read("frontend/src/NativeDownloadDialogs.tsx"));
+        Assert.Contains("ScheduleDownloadDialog", app);
+        Assert.Contains("removeHistory", app);
+        Assert.Contains("Remove History", app);
         Assert.Contains("disabled", app); // No destructive bridge until parity is verified.
     }
 
@@ -56,7 +59,9 @@ public sealed class ReactApprovedVisualParityTests
         Assert.Contains("actual?.defaultConnections", settings);
         Assert.Contains("actual?.startImmediately", settings);
         Assert.Contains("openNativeDialog(\"ui.openSettings\")", settings);
-        Assert.Contains("read-only", settings, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("sendPreference", settings);
+        Assert.Contains("sendBrowserAction", settings);
+        Assert.Contains("defaultConnections", settings);
     }
 
     [Fact]
