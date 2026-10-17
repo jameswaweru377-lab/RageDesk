@@ -133,7 +133,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         Closing += (_, _) => { _scheduleTimer.Stop(); _browserCaptureTimer.Stop(); _mediaOperation?.Cancel(); _engine.Dispose(); };
         SourceInitialized += (_, _) =>
         {
-            int enabled = 1;
+            int enabled = 0; // Arctic Glass uses the light Windows title bar.
             try { DwmSetWindowAttribute(new WindowInteropHelper(this).Handle, 20, ref enabled, sizeof(int)); }
             catch (DllNotFoundException) { }
         };
@@ -1867,6 +1867,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             if (StartManually(item)) started++;
         if (started == 0) StatusMessage.Text = "No selected downloads could be started.";
         else StatusMessage.Text = $"{started} download(s) started.";
+    }
+
+    // Unified download dialog actions are scoped to the entry being inspected.
+    // Never operate on other checked rows when the user clicks Pause/Resume here.
+    private void DetailsPause_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedDownload is { IsMedia: false, Status: DownloadStatus.Downloading } entry)
+            _engine.Pause(entry);
+    }
+
+    private void DetailsResume_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedDownload is { IsMedia: false } entry)
+            StartManually(entry);
     }
 
     private void OpenFile_Click(object sender, RoutedEventArgs e)

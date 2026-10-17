@@ -11,58 +11,58 @@
   const shadow = host.attachShadow({ mode: "closed" });
   const style = document.createElement("style");
   style.textContent = [
-    ":host{color-scheme:dark}",
-    ".panel{font:12px/1.4 system-ui,Segoe UI,sans-serif;pointer-events:auto;min-width:142px;color:#ebf4ff;}",
+    ":host{color-scheme:light}",
+    ".panel{font:12px/1.4 system-ui,Segoe UI,sans-serif;pointer-events:auto;min-width:142px;color:#19304d;}",
     ".toggle{all:unset;cursor:pointer;box-sizing:border-box;display:block;padding:9px 12px;border-radius:9px;",
-    "background:#086ccc;color:#fff;font-weight:700;box-shadow:0 3px 16px #0009;white-space:nowrap;}",
-    ".toggle:focus-visible,.choice:focus-visible{outline:2px solid #9ddcff;outline-offset:2px}",
-    ".menu{margin-top:5px;padding:8px;border:1px solid #31506e;background:#0a1b30;border-radius:10px;",
-    "box-shadow:0 6px 24px #000a;max-width:255px;max-height:270px;overflow-y:auto;}",
+    "background:#147df3;color:#fff;font-weight:700;box-shadow:0 6px 20px #1b5da94d;white-space:nowrap;}",
+    ".toggle:focus-visible,.choice:focus-visible{outline:2px solid #147df3;outline-offset:2px}",
+    ".menu{margin-top:5px;padding:8px;border:1px solid #d6e4f3;background:#ffffff;border-radius:10px;",
+    "box-shadow:0 10px 32px #31588130;max-width:255px;max-height:270px;overflow-y:auto;}",
     ".header{font-weight:700;font-size:12px;margin:2px 5px 7px;}",
-    ".hint{color:#b3c7df;font-size:11px;margin:2px 5px 8px;}",
+    ".hint{color:#607d99;font-size:11px;margin:2px 5px 8px;}",
     ".choice{all:unset;cursor:pointer;box-sizing:border-box;display:block;padding:9px 8px;width:100%;",
-    "border-radius:7px;background:#163453;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
-    ".choice:hover{background:#245682}",
-    ".choice.selected{background:#245b89;outline:1px solid #8bd1ff;}",
+    "border-radius:7px;background:#f2f7fe;color:#19304d;margin:3px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}",
+    ".choice:hover{background:#e4f1ff}",
+    ".choice.selected{background:#e4f1ff;outline:1px solid #147df3;}",
     ".confirm-mask{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;",
-    "padding:18px;background:#000a;pointer-events:auto;z-index:2147483647;box-sizing:border-box;}",
+    "padding:18px;background:#0d22335e;pointer-events:auto;z-index:2147483647;box-sizing:border-box;}",
     ".confirm{width:min(560px,calc(100vw - 32px));max-height:85vh;overflow:auto;box-sizing:border-box;",
-    "background:linear-gradient(140deg,#0e2439,#091725);border:1px solid #2e5174;",
-    "box-shadow:0 16px 65px #000c;border-radius:15px;padding:22px;color:#eaf4ff;",
+    "background:linear-gradient(145deg,#ffffff,#f3f9ff);border:1px solid #d5e4f3;",
+    "box-shadow:0 24px 68px #112f5660;border-radius:16px;padding:24px;color:#19304d;",
     "font:14px/1.5 system-ui,Segoe UI,sans-serif;}",
     ".confirm-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:16px;}",
     ".confirm-brand{font-size:21px;font-weight:750;}",
     ".confirm-body{display:grid;grid-template-columns:112px minmax(0,1fr);gap:14px;}",
-    ".confirm-thumb{height:80px;border-radius:9px;background:#163755;object-fit:cover;width:112px;}",
+    ".confirm-thumb{height:80px;border-radius:9px;background:#e8f3ff;object-fit:cover;width:112px;}",
     ".confirm-thumb[hidden]+.confirm-detail{grid-column:1/-1;}",
     ".confirm-detail{min-width:0;}",
     ".confirm-title{font-size:16px;font-weight:700;overflow-wrap:anywhere;}",
-    ".confirm-sub{color:#adbfce;font-size:12px;margin:2px 0 12px;}",
+    ".confirm-sub{color:#63809d;font-size:12px;margin:2px 0 12px;}",
     ".confirm-form{display:grid;grid-template-columns:84px minmax(0,1fr);gap:9px;align-items:center;}",
-    ".confirm-label{font-size:12px;color:#d0e1f1;}",
-    ".confirm-field{box-sizing:border-box;width:100%;min-width:0;min-height:37px;background:#12283b;",
-    "border:1px solid #48647d;border-radius:6px;color:#f1f7fc;padding:7px 9px;font:13px system-ui;}",
+    ".confirm-label{font-size:12px;color:#486a8c;}",
+    ".confirm-field{box-sizing:border-box;width:100%;min-width:0;min-height:37px;background:#ffffff;",
+    "border:1px solid #cadff3;border-radius:6px;color:#19304d;padding:7px 9px;font:13px system-ui;}",
     ".confirm-actions{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;",
     "gap:9px;margin-top:19px;}",
-    ".confirm-btn{cursor:pointer;min-height:39px;border:1px solid #58738a;border-radius:7px;",
-    "padding:9px 14px;background:#142b3c;color:#fff;font-weight:600;}",
-    ".confirm-btn.primary{background:#087bed;border-color:#1595ff;}",
+    ".confirm-btn{cursor:pointer;min-height:39px;border:1px solid #d1e2f4;border-radius:7px;",
+    "padding:9px 14px;background:#f4f9ff;color:#1b426b;font-weight:600;}",
+    ".confirm-btn.primary{background:#147df3;border-color:#147df3;color:#ffffff;}",
     ".confirm-btn:disabled{opacity:.55;cursor:not-allowed;}",
-    ".confirm-btn:focus-visible,.confirm-field:focus-visible{outline:2px solid #8ed5ff;outline-offset:2px;}",
-    ".confirm-note{font-size:12px;color:#b6c9db;margin-top:10px;overflow-wrap:anywhere;}",
+    ".confirm-btn:focus-visible,.confirm-field:focus-visible{outline:2px solid #147df3;outline-offset:2px;}",
+    ".confirm-note{font-size:12px;color:#5d7a98;margin-top:10px;overflow-wrap:anywhere;}",
     ".confirm-rights{display:flex;align-items:center;gap:8px;margin-top:12px;font-size:12px;}",
     ".job-pill{position:absolute;right:0;top:43px;box-sizing:border-box;width:min(325px,calc(100vw - 18px));",
-    "pointer-events:auto;color:#eaf4ff;background:#0d2236;border:1px solid #396585;",
-    "border-radius:11px;box-shadow:0 8px 26px #000b;padding:9px;}",
+    "pointer-events:auto;color:#19304d;background:#ffffff;border:1px solid #d7e5f4;",
+    "border-radius:11px;box-shadow:0 8px 26px #1a466533;padding:9px;}",
     ".job-pill-row{display:flex;align-items:center;gap:7px;}",
     ".job-pill-toggle{all:unset;cursor:pointer;flex:1;min-width:0;padding:5px;",
-    "color:#eaf4ff;font:600 12px/1.35 system-ui,Segoe UI,sans-serif;}",
-    ".job-pill-close{all:unset;cursor:pointer;padding:3px 8px;color:#c8d9e8;font-size:20px;}",
-    ".job-pill-toggle:focus-visible,.job-pill-close:focus-visible{outline:2px solid #9ddcff;outline-offset:2px;}",
-    ".job-pill-detail{padding:4px 6px 3px;color:#c0d6e7;font:12px/1.4 system-ui,Segoe UI,sans-serif;overflow-wrap:anywhere;}",
+    "color:#19304d;font:600 12px/1.35 system-ui,Segoe UI,sans-serif;}",
+    ".job-pill-close{all:unset;cursor:pointer;padding:3px 8px;color:#486a8c;font-size:20px;}",
+    ".job-pill-toggle:focus-visible,.job-pill-close:focus-visible{outline:2px solid #147df3;outline-offset:2px;}",
+    ".job-pill-detail{padding:4px 6px 3px;color:#587795;font:12px/1.4 system-ui,Segoe UI,sans-serif;overflow-wrap:anywhere;}",
     "@media(max-width:560px){.confirm{padding:14px}.confirm-body{grid-template-columns:1fr;}",
     ".confirm-thumb{display:none}.confirm-form{grid-template-columns:1fr;gap:5px}}",
-    ".status{font-size:11px;color:#b3c7df;margin:7px 5px 3px;max-width:235px;overflow-wrap:break-word;}",
+    ".status{font-size:11px;color:#607d99;margin:7px 5px 3px;max-width:235px;overflow-wrap:break-word;}",
     "[hidden]{display:none!important}"
   ].join("");
   const panel = document.createElement("div");
@@ -95,12 +95,12 @@
   confirmPanel.className = "confirm";
   confirmPanel.setAttribute("role", "dialog");
   confirmPanel.setAttribute("aria-modal", "true");
-  confirmPanel.setAttribute("aria-label", "RangeDesk video download");
+  confirmPanel.setAttribute("aria-label", "RangeDesk download confirmation");
   const confirmHead = document.createElement("div");
   confirmHead.className = "confirm-head";
   const brand = document.createElement("div");
   brand.className = "confirm-brand";
-  brand.textContent = "↓  RangeDesk · Download video";
+  brand.textContent = "↓  RangeDesk · Download";
   const confirmX = document.createElement("button");
   confirmX.className = "confirm-btn";
   confirmX.textContent = "×";
@@ -693,7 +693,7 @@
     const page = document.createElement("button");
     page.type = "button";
     page.className = "page-choice";
-    page.style.cssText = "cursor:pointer;display:block;width:100%;color:#eaf4ff;background:#245682;border:0;border-radius:7px;padding:9px 7px;margin-top:8px";
+    page.style.cssText = "cursor:pointer;display:block;width:100%;color:#eaf4ff;background:#e4f1ff;border:0;border-radius:7px;padding:9px 7px;margin-top:8px";
     page.textContent = "Open advanced Media options";
     page.title = "Analyze permitted video formats in RangeDesk; no automatic download";
     page.addEventListener("click", () => { void sendPageForAnalysis(page); });
