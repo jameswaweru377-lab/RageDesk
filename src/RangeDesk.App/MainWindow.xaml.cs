@@ -1883,6 +1883,34 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             StartManually(entry);
     }
 
+    private void DetailsDownloadAgain_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedDownload is not { Status: DownloadStatus.Completed, IsMedia: false } original)
+            return;
+        try
+        {
+            // Downloading again creates a *new* task with a new destination.
+            // Do not touch the completed file or its verified metadata.
+            string next = DownloadAgainPath.Create(original.Destination,
+                Downloads.Select(d => d.Destination));
+            var copy = _engine.Create(original.Url, next, original.Category,
+                original.Labels, original.RequestedConnections, original.BandwidthKiBps,
+                original.ExpectedSha256, original.Adaptive, original.PostDownloadAction,
+                original.AutomaticConnections);
+            Track(copy);
+            SaveCatalog();
+            SelectedDownload = copy;
+            if (!_engine.Start(copy))
+                StatusMessage.Text = "Download Again was queued. Press Start to retry.";
+            else
+                StatusMessage.Text = "Downloading another copy: " + copy.Name;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage.Text = "Download Again could not start: " + ex.Message;
+        }
+    }
+
     private void OpenFile_Click(object sender, RoutedEventArgs e)
     {
         if (SelectedDownload is { Status: DownloadStatus.Completed } item && File.Exists(item.Destination))
