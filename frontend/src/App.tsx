@@ -6,7 +6,7 @@ import {
   Globe2, HardDrive, Image as ImageIcon, LayoutGrid, List, Menu,
   MoreHorizontal, Music2, Pause, Play, Search, Settings2,
   ShieldCheck, Video, XCircle, Home, Trash2, Package, MonitorDown,
-  Zap, CircleAlert, Plus, ArrowDownToLine
+  Zap, Plus, ArrowDownToLine
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { subscribeToNativeDashboard, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
