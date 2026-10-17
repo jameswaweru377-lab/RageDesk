@@ -63,6 +63,6 @@ public sealed class ReactNativeActionContractTests
         Assert.Contains("sendBrowserAction(\"connect\")", react);
         Assert.Contains("sendBrowserAction(\"extensionFolder\")", react);
         Assert.Contains("sendBrowserAction(\"check\")", react);
-        Assert.Contains("Chrome native host", react);
+        Assert.Contains("Native host connection", react);
     }
 }
