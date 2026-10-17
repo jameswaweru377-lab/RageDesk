@@ -74,6 +74,10 @@ public sealed class ReactApprovedVisualParityTests
         Assert.Contains("overflow-y: auto;", polish);
         Assert.Contains(".desktop.theme-dark", polish);
         Assert.Contains(".desktop.theme-light .downloads-panel", polish);
+        string nativeFrame = Read("src/RangeDesk.App/ReactDashboardPreviewWindow.cs");
+        Assert.Contains("DwmSetWindowAttribute", nativeFrame);
+        Assert.Contains("UpdateNativeFrameTheme", nativeFrame);
+        Assert.Contains("snapshot.Theme != RangeDeskTheme.Arctic", nativeFrame);
         Assert.Contains("import \"./visual-parity.css\";", entrypoint);
         Assert.Contains("import \"./deep-navy-finish.css\";", entrypoint);
         Assert.True(entrypoint.IndexOf("visual-parity.css", StringComparison.Ordinal) <
