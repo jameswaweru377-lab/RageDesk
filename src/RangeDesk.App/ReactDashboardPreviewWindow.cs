@@ -12,8 +12,8 @@ using Microsoft.Web.WebView2.Wpf;
 namespace RangeDesk.App;
 
 /// <summary>
-/// Opt-in read-only React renderer of the *existing* MainWindow. No engine or media host is
-/// created here, and no JavaScript-to-C# write command is supported during this migration slice.
+/// Opt-in local React renderer of the *existing* MainWindow. No duplicate engine or media
+/// host is created. Commands are allowlisted, ID-scoped and run through existing native services.
 /// </summary>
 internal sealed class ReactDashboardPreviewWindow : Window
 {
@@ -35,7 +35,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
     {
         _source = owner;
         Owner = owner;
-        Title = "RageDesk — React dashboard preview (read-only)";
+        Title = "RageDesk — New UI";
         Width = 1480;
         Height = 900;
         MinWidth = 1000;
@@ -111,7 +111,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
                 if (!string.Equals(args.Source, StartAddress.AbsoluteUri, StringComparison.OrdinalIgnoreCase))
                     return;
                 string json = args.WebMessageAsJson;
-                if (json.Length > 200) return;
+                if (json.Length > 4096) return;
                 try
                 {
                     using var doc = JsonDocument.Parse(json);
@@ -122,7 +122,8 @@ internal sealed class ReactDashboardPreviewWindow : Window
                         !version.TryGetInt32(out int number) || number != 1 ||
                         !root.TryGetProperty("type", out var type) ||
                         type.ValueKind != JsonValueKind.String ||
-                        type.GetString() is not ("dashboard.ready" or "ui.openSettings" or "ui.openAddDownload"))
+                        type.GetString() is not ("dashboard.ready" or "ui.openSettings" or
+                            "ui.openAddDownload" or "ui.download" or "ui.browser"))
                         return;
                     string? messageType = type.GetString();
                     if (messageType == "dashboard.ready")
@@ -135,6 +136,10 @@ internal sealed class ReactDashboardPreviewWindow : Window
                     {
                         _source.OpenNativeDialogFromReact(messageType);
                     }
+                    else if (_ready && messageType is "ui.download" or "ui.browser")
+                    {
+                        ExecuteNativeCommand(root, messageType);
+                    }
                 }
                 catch (JsonException) { /* Untrusted renderer messages are ignored. */ }
             };
@@ -146,6 +151,62 @@ internal sealed class ReactDashboardPreviewWindow : Window
             ShowPreviewError("React preview could not start (WebView2 Runtime or bundled assets " +
                              "may be unavailable). Your original WPF application is unchanged.");
         }
+    }
+
+
+    private void ExecuteNativeCommand(JsonElement root, string messageType)
+    {
+        // Only the bundled, locally mapped, top-level origin is permitted. The caller
+        // may identify an existing download, but never supply a file path, URL or shell command.
+        if (!root.TryGetProperty("requestId", out var request) ||
+            request.ValueKind != JsonValueKind.String ||
+            !Guid.TryParseExact(request.GetString(), "D", out var requestId) ||
+            !root.TryGetProperty("action", out var action) ||
+            action.ValueKind != JsonValueKind.String)
+            return;
+
+        string actionName = action.GetString() ?? "";
+        if (actionName.Length is < 2 or > 32 || !actionName.All(c => char.IsAsciiLetter(c)))
+            return;
+        string message;
+        try
+        {
+            if (messageType == "ui.browser")
+            {
+                if (root.TryGetProperty("ids", out _)) return;
+                message = _source.ExecuteReactBrowserAction(actionName);
+            }
+            else
+            {
+                if (!root.TryGetProperty("ids", out var idsJson) ||
+                    idsJson.ValueKind != JsonValueKind.Array ||
+                    idsJson.GetArrayLength() > 64)
+                    return;
+                var ids = new List<Guid>();
+                foreach (var id in idsJson.EnumerateArray())
+                {
+                    if (id.ValueKind != JsonValueKind.String ||
+                        !Guid.TryParseExact(id.GetString(), "N", out var parsed))
+                        return;
+                    ids.Add(parsed);
+                }
+                message = _source.ExecuteReactDownloadAction(actionName, ids, this);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or
+            UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+        {
+            // Never return download URLs, paths, tokens or exception messages to JS.
+            message = "Native action failed: " + ex.GetType().Name;
+        }
+        if (_closed || _browser.CoreWebView2 is null) return;
+        _browser.CoreWebView2.PostWebMessageAsJson(JsonSerializer.Serialize(new
+        {
+            version = 1,
+            type = "ui.actionResult",
+            payload = new { requestId = requestId.ToString("D"), message }
+        }, _json));
+        PublishSnapshot();
     }
 
     private void UpdateNativeFrameTheme(bool dark)
