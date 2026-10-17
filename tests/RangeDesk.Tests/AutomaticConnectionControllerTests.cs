@@ -12,48 +12,60 @@ public sealed class AutomaticConnectionControllerTests
     {
         var ctrl = new AutomaticConnectionController(16);
         Assert.Equal(2, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(2), MiB / 2, 128 * MiB));
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(3), MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(2), MiB / 2, 512 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(3), MiB, 512 * MiB));
         Assert.Equal(4, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(6), 3 * MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(6), 3 * MiB, 512 * MiB));
         Assert.Contains("1/2", ctrl.Decision);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(9), 5 * MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(9), 5 * MiB, 512 * MiB));
         Assert.Equal(4, ctrl.TargetWorkers);
         Assert.Contains("faster", ctrl.Decision, StringComparison.OrdinalIgnoreCase);
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(12), 7 * MiB, 128 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(12), 7 * MiB, 512 * MiB));
         Assert.Equal(8, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(15), 11 * MiB, 128 * MiB));
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(18), 15 * MiB, 128 * MiB));
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(21), 19 * MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(15), 11 * MiB, 512 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(18), 15 * MiB, 512 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(21), 19 * MiB, 512 * MiB));
         Assert.Equal(16, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(24), 27 * MiB, 128 * MiB));
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(27), 35 * MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(24), 27 * MiB, 512 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(27), 35 * MiB, 512 * MiB));
         Assert.True(ctrl.StoppedExpanding || ctrl.TargetWorkers == 16);
+    }
+
+    [Fact]
+    public void ShortTransfersRampSoonerWithoutSkippingMeasuredConfirmation()
+    {
+        var ctrl = new AutomaticConnectionController(16);
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(1.5), MiB, 32 * MiB));
+        Assert.Equal(4, ctrl.TargetWorkers);
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(3), 3 * MiB, 32 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(4.5), 5 * MiB, 32 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(6), 7 * MiB, 32 * MiB));
+        Assert.Equal(8, ctrl.TargetWorkers);
     }
 
     [Fact]
     public void PlateauRetiresSurplusAndReprobesLaterNotImmediately()
     {
         var ctrl = new AutomaticConnectionController(16);
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(3), MiB, 128 * MiB)); // 2 -> 4
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(6), 2 * MiB, 128 * MiB));
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(9), 3 * MiB, 128 * MiB)); // 4 -> 2
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(3), MiB, 512 * MiB)); // 2 -> 4
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(6), 2 * MiB, 512 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(9), 3 * MiB, 512 * MiB)); // 4 -> 2
         Assert.Equal(2, ctrl.TargetWorkers);
         Assert.False(ctrl.StoppedExpanding);
         Assert.Contains("later", ctrl.Decision, StringComparison.OrdinalIgnoreCase);
 
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(12), 4 * MiB, 128 * MiB));
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(21), 7 * MiB, 128 * MiB));
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(24), 8 * MiB, 128 * MiB)); // delayed 2 -> 4
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(12), 4 * MiB, 512 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(21), 7 * MiB, 512 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(24), 8 * MiB, 512 * MiB)); // delayed 2 -> 4
         Assert.Equal(4, ctrl.TargetWorkers);
         Assert.Contains("Re-testing", ctrl.Decision);
 
         // Improved conditions at the new worker target.
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(27), 10 * MiB, 128 * MiB));
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(30), 12 * MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(27), 10 * MiB, 512 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(30), 12 * MiB, 512 * MiB));
         Assert.False(ctrl.StoppedExpanding);
         Assert.Equal(4, ctrl.TargetWorkers);
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(33), 14 * MiB, 128 * MiB));
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(33), 14 * MiB, 512 * MiB));
         Assert.Equal(8, ctrl.TargetWorkers);
     }
 
@@ -65,7 +77,7 @@ public sealed class AutomaticConnectionControllerTests
         void Sample(int seconds)
         {
             amount += MiB;
-            ctrl.Observe(TimeSpan.FromSeconds(seconds), amount, 128 * MiB);
+            ctrl.Observe(TimeSpan.FromSeconds(seconds), amount, 512 * MiB);
         }
         Sample(3); // grow to 4
         Sample(6);
@@ -90,17 +102,17 @@ public sealed class AutomaticConnectionControllerTests
         Sample(51); // rollback permanently
         Assert.True(ctrl.StoppedExpanding);
         Assert.Equal(2, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(100), 100 * MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(100), 100 * MiB, 512 * MiB));
     }
 
     [Fact]
     public void RespectsOddSegmentCeilingAndUsefulRemainingBytes()
     {
         var odd = new AutomaticConnectionController(5);
-        Assert.True(odd.Observe(TimeSpan.FromSeconds(3), MiB, 128 * MiB));
-        Assert.False(odd.Observe(TimeSpan.FromSeconds(6), 3 * MiB, 128 * MiB));
-        Assert.False(odd.Observe(TimeSpan.FromSeconds(9), 5 * MiB, 128 * MiB));
-        Assert.True(odd.Observe(TimeSpan.FromSeconds(12), 7 * MiB, 128 * MiB));
+        Assert.True(odd.Observe(TimeSpan.FromSeconds(3), MiB, 512 * MiB));
+        Assert.False(odd.Observe(TimeSpan.FromSeconds(6), 3 * MiB, 512 * MiB));
+        Assert.False(odd.Observe(TimeSpan.FromSeconds(9), 5 * MiB, 512 * MiB));
+        Assert.True(odd.Observe(TimeSpan.FromSeconds(12), 7 * MiB, 512 * MiB));
         Assert.Equal(5, odd.TargetWorkers);
 
         var small = new AutomaticConnectionController(32);
@@ -113,12 +125,12 @@ public sealed class AutomaticConnectionControllerTests
     public void InconsistentOrStalledProgressCannotCauseAggressiveExpansion()
     {
         var ctrl = new AutomaticConnectionController(32);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(3), 0, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(3), 0, 512 * MiB));
         Assert.Equal(2, ctrl.TargetWorkers);
-        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(6), MiB, 128 * MiB)); // First useful window
+        Assert.True(ctrl.Observe(TimeSpan.FromSeconds(6), MiB, 512 * MiB)); // First useful window
         Assert.Equal(4, ctrl.TargetWorkers);
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(9), 2 * MiB, 128 * MiB));
-        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(12), MiB, 128 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(9), 2 * MiB, 512 * MiB));
+        Assert.False(ctrl.Observe(TimeSpan.FromSeconds(12), MiB, 512 * MiB));
         Assert.True(ctrl.StoppedExpanding);
     }
 
