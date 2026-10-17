@@ -18,7 +18,7 @@ export type DashboardSnapshot = {
   storage: { freeBytes: number; totalBytes: number } | null;
   settings: { startImmediately: boolean; defaultConnections: number; maxConcurrentDownloads: number; defaultBandwidthKiBps: number; proxyEnabled: boolean };
 };
-export type DownloadCommand = "pause" | "resume" | "stop" | "startQueue" | "openFolder" | "openFile" | "details" | "schedule" | "earlier" | "later";
+export type DownloadCommand = "pause" | "resume" | "stop" | "startQueue" | "openFolder" | "openFile" | "details" | "schedule" | "earlier" | "later" | "removeHistory";
 export type BrowserCommand = "connect" | "check" | "extensionFolder" | "extensionsPage";
 export type NativeActionResult = { requestId: string; message: string };
 
