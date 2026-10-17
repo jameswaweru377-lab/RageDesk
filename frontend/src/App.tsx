@@ -9,7 +9,7 @@ import {
   Zap, Plus, ArrowDownToLine
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { subscribeToNativeDashboard, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
+import { subscribeToNativeDashboard, openNativeDialog, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
 import SettingsPage from "./SettingsPage";
 import RageDeskMark from "./RageDeskMark";
 
