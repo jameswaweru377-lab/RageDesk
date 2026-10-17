@@ -10,7 +10,12 @@ namespace RangeDesk.Core;
 public sealed class AutomaticConnectionController
 {
     public const int StartingWorkers = 2;
+    // A 32 MiB transfer may finish before two long measurement windows.
+    // Use responsive warm-up on smaller files; reserve long stable windows
+    // for downloads where a plateau can cost hours of unnecessary waiting.
     public static readonly TimeSpan SampleWindow = TimeSpan.FromSeconds(3);
+    public static readonly TimeSpan ShortTransferSampleWindow = TimeSpan.FromMilliseconds(1500);
+    private const long LongTransferThreshold = 256L * 1024 * 1024;
     public static readonly TimeSpan ReprobeDelay = TimeSpan.FromSeconds(15);
     private const long MinimumWindowBytes = 64 * 1024;
     private const long MinimumUsefulRange = 512 * 1024;
@@ -57,7 +62,9 @@ public sealed class AutomaticConnectionController
             Finish("Automatic tests stopped because progress measurements were inconsistent.");
             return false;
         }
-        if (elapsed - _lastTime < SampleWindow) return false;
+        TimeSpan window = total >= LongTransferThreshold
+            ? SampleWindow : ShortTransferSampleWindow;
+        if (elapsed - _lastTime < window) return false;
 
         double seconds = (elapsed - _lastTime).TotalSeconds;
         long bytes = received - _lastBytes;
