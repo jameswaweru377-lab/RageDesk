@@ -1,0 +1,196 @@
+/* Approved RageDesk deep-navy theme — visual finish only, no element reordering.
+ * Important regression fix: the selection toolbar and the download table must STACK,
+ * rather than becoming two horizontal flex items inside .downloads-panel.
+ */
+.downloads-panel {
+  flex-direction: column;
+  min-width: 0;
+  min-height: 150px;
+}
+.downloads-panel > .selection-toolbar {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 40px;
+}
+.downloads-panel > .table-scroll {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.downloads-panel .download-table {
+  width: 100%;
+  /* At narrower window sizes the WHOLE table scrolls within its own region,
+     never pushing the selection bar to the left or clipping action columns. */
+  min-width: 1210px;
+}
+.downloads-panel .download-table thead th { position: sticky; top: 0; }
+
+/* Dark theme: deeper foundation + strong electric-blue contrast, without neon overload.
+ * Restrict explicitly to .theme-dark so Arctic/light colors remain untouched.
+ */
+.desktop.theme-dark {
+  --canvas: #020b1c;
+  --sidebar: #030e22;
+  --surface: #06172f;
+  --panel: #071c36;
+  --raised: #0b2a53;
+  --border: #16538c;
+  --border-bright: #1775bf;
+  --selected: #104b9a;
+  --text: #f2f8ff;
+  --muted: #b5d0ed;
+  --soft: #85b1dc;
+  --cyan: #36dbff;
+  --blue: #0988ff;
+  background:
+    radial-gradient(ellipse 76% 45% at 57% 100%, #0554b330 0%, transparent 79%),
+    linear-gradient(150deg, #020817 0%, #031029 64%, #051a37 100%);
+}
+.desktop.theme-dark .sidebar {
+  background: linear-gradient(160deg, #030d20 0%, #04132a 46%, #020b1c 100%);
+  border-right: 1px solid #125c9d;
+  box-shadow: inset -1px 0 #27b4ff1c, 4px 0 18px #01061599;
+}
+.desktop.theme-dark .brand-line {
+  background: linear-gradient(110deg, #031024, #041932);
+  border-bottom: 1px solid #11436d;
+}
+.desktop.theme-dark .brand-mark {
+  filter: drop-shadow(0 0 8px #14c8ff6e) drop-shadow(0 3px 5px #0008);
+}
+.desktop.theme-dark .toolbar {
+  background: linear-gradient(90deg, #031023, #041933 55%, #020d20 100%);
+  border-bottom: 1px solid #1765a6;
+  box-shadow: inset 0 1px #167ace29, 0 1px 10px #0006;
+}
+.desktop.theme-dark .global-search {
+  background: linear-gradient(180deg, #071d38 0%, #031026 100%);
+  border-color: #1c6aa6;
+  box-shadow: inset 0 1px #42adff20, 0 0 0 1px #00000025;
+}
+.desktop.theme-dark .metrics-grid .metric-card {
+  background:
+    radial-gradient(ellipse 85% 92% at 5% 0%, #10458552 0%, transparent 83%),
+    linear-gradient(113deg, #092348 0%, #041730 58%, #030f24 100%);
+  border-color: #207bc5;
+  box-shadow:
+    inset 0 1px #51ccff4d,
+    inset 0 -1px #0f4a8130,
+    0 0 0 1px #00000024,
+    0 5px 18px #00000062,
+    0 0 16px #076de21f;
+}
+.desktop.theme-dark .metrics-grid .metric-card::before {
+  content: "";
+  position: absolute;
+  height: 1px;
+  left: 17px;
+  right: 22px;
+  top: 0;
+  background: linear-gradient(90deg, transparent 0%, #74e5ff70 28%, #207cda30 70%, transparent);
+  pointer-events: none;
+}
+.desktop.theme-dark .metric-icon {
+  color: #60e3ff;
+  border: 1px solid #1675c2;
+  background: radial-gradient(circle at 38% 25%, #1279dd 0%, #074689 41%, #05214a 77%);
+  box-shadow: inset 0 1px #90e7ff55, 0 0 17px #007efc66;
+}
+.desktop.theme-dark .metric-label { color: #c3dafa; }
+.desktop.theme-dark .metric-value { color: #fcfdff; text-shadow: 0 1px 4px #0004; }
+.desktop.theme-dark .metric-note { color: #3cdbff; }
+.desktop.theme-dark .metric-spark { opacity: .96; filter: drop-shadow(0 0 4px #0f9fff9c); }
+
+.desktop.theme-dark .nav-item.is-active {
+  background: linear-gradient(100deg, #126cd3 0%, #073d80 56%, #052551 100%);
+  border-color: #1da2ff;
+  box-shadow: inset 3px 0 #41f3ff, inset 0 1px #9eeaff38, 0 0 14px #006cf54a;
+}
+.desktop.theme-dark .nav-badge {
+  background: linear-gradient(135deg, #144b91, #0d3372);
+  color: #e2f6ff;
+}
+.desktop.theme-dark .nav-item.is-active .nav-badge {
+  background: linear-gradient(135deg, #238ffd, #0656cb);
+  box-shadow: 0 0 9px #198bff7a;
+}
+.desktop.theme-dark .action-primary,
+.desktop.theme-dark .action-primary:disabled {
+  background: linear-gradient(110deg, #16b8f8 0%, #0675f5 60%, #0b51e6 100%);
+  border-color: #22c6ff;
+  box-shadow: inset 0 1px #baf7ff58, 0 0 12px #027cfb67, 0 4px 9px #0006;
+}
+.desktop.theme-dark .status-tabs {
+  background: linear-gradient(180deg, #071d39, #031329);
+  border-color: #16528b;
+}
+.desktop.theme-dark .tab-button.is-active,
+.desktop.theme-dark .square-button.is-selected {
+  background: linear-gradient(115deg, #14a7ff, #0460e9);
+  border-color: #36d7ff;
+  box-shadow: inset 0 1px #7feaff61, 0 0 12px #008eff62;
+}
+.desktop.theme-dark .filter-tools select,
+.desktop.theme-dark .filter-button,
+.desktop.theme-dark .toolbar-button:not(.action-primary) {
+  background: linear-gradient(180deg, #0a2a51, #04172e);
+  border-color: #1b6cac;
+}
+.desktop.theme-dark .downloads-panel {
+  background: #020e21;
+  border-color: #1870b9;
+  box-shadow: inset 0 1px #55cfff3b, 0 0 14px #087bf124, 0 5px 17px #0008;
+}
+.desktop.theme-dark .selection-toolbar {
+  background: linear-gradient(180deg, #0a2e5d, #041936);
+  border-bottom-color: #1e63a2;
+}
+.desktop.theme-dark .download-table th {
+  background: linear-gradient(180deg, #0b2b52, #061b39);
+  border-bottom-color: #2065a2;
+  color: #c7def7;
+}
+.desktop.theme-dark .download-row { background: #04152c; }
+.desktop.theme-dark .download-row:nth-child(even) { background: #061c37; }
+.desktop.theme-dark .download-row:hover { background: #0c345f; }
+.desktop.theme-dark .download-row.selected-row {
+  background: linear-gradient(96deg, #135fb1 0%, #0b3c7b 50%, #072653 100%);
+  box-shadow: inset 3px 0 #2de4ff, inset 0 1px #28b5ff38;
+}
+.desktop.theme-dark .download-table td { border-bottom-color: #16426e; }
+.desktop.theme-dark .segmented-progress i { background: linear-gradient(180deg, #334d70, #223b5c); }
+.desktop.theme-dark .segmented-progress i.is-filled {
+  background: linear-gradient(150deg, #17b8ff, #12dfff 80%);
+  box-shadow: inset 0 1px #d0f9ff65, 0 0 6px #08aaff50;
+}
+.desktop.theme-dark .table-scroll {
+  scrollbar-color: #258fe2 #04152c;
+  scrollbar-width: thin;
+}
+.desktop.theme-dark .insight-panel,
+.desktop.theme-dark .settings-panel {
+  background: linear-gradient(125deg, #08234b 0%, #051831 58%, #030f25 100%);
+  border-color: #1979c2;
+  box-shadow: inset 0 1px #4cc4ff3c, 0 4px 16px #0008, 0 0 11px #0a80e819;
+}
+.desktop.theme-dark .insight-heading {
+  background: linear-gradient(180deg, #092c54, #061b37);
+  border-bottom-color: #1e619d;
+}
+.desktop.theme-dark .preview-footer {
+  background: linear-gradient(90deg, #031025, #07234a 57%, #030d20 100%);
+  border-top-color: #185fa6;
+}
+/* Keep light theme layouts fixed too, without imposing navy styling. */
+.desktop.theme-light .downloads-panel { background: var(--panel); }
+@media (max-width: 1150px) {
+  .downloads-panel .download-table { min-width: 1210px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .desktop.theme-dark .segmented-progress i.is-filled { transition: none; }
+}

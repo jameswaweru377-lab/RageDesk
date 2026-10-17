@@ -1,4 +1,6 @@
 using System.IO;
+using System.Runtime.InteropServices;
+using System.Windows.Interop;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
@@ -21,6 +23,10 @@ internal sealed class ReactDashboardPreviewWindow : Window
     private readonly WebView2 _browser = new();
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _ready;
+    private bool? _frameDarkMode;
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
     private bool _closed;
     private string? _lastSnapshot;
     private readonly JsonSerializerOptions _json = new() { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -36,6 +42,8 @@ internal sealed class ReactDashboardPreviewWindow : Window
         MinHeight = 660;
         Background = new SolidColorBrush(Color.FromRgb(4, 17, 36));
         Content = _browser;
+        SourceInitialized += (_, _) => UpdateNativeFrameTheme(
+            _source.BuildReactPreviewSnapshot().Theme != RangeDeskTheme.Arctic);
         Loaded += async (_, _) => await InitializePreviewAsync();
         _refresh.Tick += (_, _) => PublishSnapshot();
         Closed += (_, _) =>
@@ -140,11 +148,29 @@ internal sealed class ReactDashboardPreviewWindow : Window
         }
     }
 
+    private void UpdateNativeFrameTheme(bool dark)
+    {
+        if (_frameDarkMode == dark) return;
+        _frameDarkMode = dark;
+        try
+        {
+            int enabled = dark ? 1 : 0;
+            // Windows DWM paints the standard native caption; the HTML theme cannot style it.
+            // 20 is supported on modern Windows 10/11; 19 covers some earlier Windows builds.
+            IntPtr hwnd = new WindowInteropHelper(this).Handle;
+            if (DwmSetWindowAttribute(hwnd, 20, ref enabled, sizeof(int)) != 0)
+                DwmSetWindowAttribute(hwnd, 19, ref enabled, sizeof(int));
+        }
+        catch (DllNotFoundException) { /* Keep the standard Windows frame. */ }
+        catch (EntryPointNotFoundException) { }
+    }
+
     private void PublishSnapshot()
     {
         if (!_ready || _closed || !IsVisible || _browser.CoreWebView2 is null) return;
         // The source is the same live WPF window, so no second engine or duplicated queue is created.
         var snapshot = _source.BuildReactPreviewSnapshot();
+        UpdateNativeFrameTheme(snapshot.Theme != RangeDeskTheme.Arctic);
         string json = JsonSerializer.Serialize(new
         {
             version = 1,

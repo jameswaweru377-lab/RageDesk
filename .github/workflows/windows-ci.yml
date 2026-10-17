@@ -123,6 +123,11 @@ jobs:
       - name: Package opt-in browser extensions and setup
         shell: pwsh
         run: Copy-Item -Path browser-capture -Destination artifact/RangeDesk/BrowserCapture -Recurse -Force
+      - name: Package one-click React dashboard preview launcher
+        shell: pwsh
+        run: |
+          Copy-Item tools/Launch-RageDesk-React-Preview.cmd artifact/RangeDesk/Preview-New-RageDesk.cmd
+          if (-not (Test-Path artifact/RangeDesk/Preview-New-RageDesk.cmd)) { throw "One-click preview launcher missing" }
       - name: Build unsigned installer preview (installer branch only)
         if: github.head_ref == 'feature/rangedesk-v5-installer' || github.head_ref == 'feature/ragedesk-installer-release' || github.head_ref == 'feature/cobalt-flow-theme-and-actions'
         shell: pwsh
