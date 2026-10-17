@@ -1,0 +1,157 @@
+name: Publish verified RangeDesk preview release
+
+# Only a successful main CI run for a merge explicitly carrying
+# [publish-preview] can create the public prerelease.
+on:
+  workflow_run:
+    workflows: ["RangeDesk Windows build and tests"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: write
+  actions: read
+
+concurrency:
+  group: rangedesk-preview-release
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: >-
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_branch == 'main' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      contains(github.event.workflow_run.head_commit.message, '[publish-preview]')
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      RELEASE_VERSION: 0.8.0-preview.1
+      RELEASE_TAG: v0.8.0-preview.1
+      SETUP_FILE: RangeDesk-Setup-0.8.0-preview.1-win-x64.exe
+      PORTABLE_FILE: RangeDesk-Portable-0.8.0-preview.1-win-x64.zip
+    steps:
+      - name: Check out the verified Windows CI commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+          persist-credentials: false
+      - name: Reject stale or mismatched release commits
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          $tip = (gh api "repos/$env:GITHUB_REPOSITORY/commits/main" --jq .sha).Trim()
+          if ($LASTEXITCODE -ne 0 -or $tip -ne $env:VERIFIED_SHA) { throw 'A newer main commit exists' }
+          if ((git rev-parse HEAD).Trim() -ne $env:VERIFIED_SHA) { throw 'Commit differs from passed CI' }
+          $version = (Select-String -Path src/RangeDesk.App/RangeDesk.App.csproj -Pattern '<Version>(.*?)</Version>').Matches.Groups[1].Value
+          if ($version -ne $env:RELEASE_VERSION) { throw "Project version mismatch: $version" }
+
+      - name: Download portable ZIP from successful Windows CI
+        uses: actions/download-artifact@v4
+        with:
+          name: RangeDesk-Preview-win-x64
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ github.token }}
+          path: artifact
+      - name: Expand exact CI-tested Windows build
+        shell: pwsh
+        run: |
+          $zip = 'artifact/RangeDesk-Preview-win-x64.zip'
+          if (-not (Test-Path $zip)) { throw 'Successful CI ZIP was not downloaded' }
+          Expand-Archive -LiteralPath $zip -DestinationPath artifact/RangeDesk -Force
+          foreach ($required in @('RangeDesk.exe',
+            'NativeHost/RangeDesk.NativeHost.exe',
+            'SchedulerWake/RangeDesk.SchedulerWake.exe',
+            'BrowserCapture/chromium/manifest.json')) {
+            if (-not (Test-Path (Join-Path artifact/RangeDesk $required))) {
+              throw "CI package missing required file: $required"
+            }
+          }
+          Copy-Item $zip (Join-Path artifact $env:PORTABLE_FILE) -Force
+
+      - name: Locate Inno Setup
+        shell: pwsh
+        run: |
+          $locations = @("${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe")
+          $iscc = $locations | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup -y --no-progress
+            if ($LASTEXITCODE -ne 0) { throw 'Inno Setup installation failed' }
+            $iscc = $locations | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          }
+          if (-not $iscc) { throw 'Inno Setup compiler unavailable' }
+          "RANGEDESK_ISCC=$iscc" >> $env:GITHUB_ENV
+
+      - name: Compile English and Kiswahili installer EXE
+        shell: pwsh
+        run: |
+          $source = (Resolve-Path artifact/RangeDesk).Path
+          & $env:RANGEDESK_ISCC 'installer/RangeDesk.iss' "/DSourceDir=$source"
+          if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path artifact $env:SETUP_FILE))) {
+            throw 'Inno Setup did not build installer EXE'
+          }
+
+      - name: Validate installation, shortcuts, registry, upgrade and removal
+        shell: pwsh
+        run: |
+          $setup = (Resolve-Path (Join-Path artifact $env:SETUP_FILE)).Path
+          $install = Join-Path $env:TEMP 'RangeDesk-publish-install-smoke'
+          $userState = Join-Path $env:LOCALAPPDATA 'RangeDesk'
+          New-Item $userState -ItemType Directory -Force | Out-Null
+          $sentinel = Join-Path $userState 'installer-keep-saved-data.txt'
+          [IO.File]::WriteAllText($sentinel, 'preserve checkpoints')
+          try {
+            foreach ($language in @('sw','en')) {
+              $p = Start-Process -FilePath $setup -ArgumentList @('/VERYSILENT',
+                '/SUPPRESSMSGBOXES','/NORESTART','/CURRENTUSER',
+                "/LANG=$language","/DIR=$install") -PassThru -Wait
+              if ($p.ExitCode -ne 0) { throw "Install/upgrade failed in $language" }
+              if (-not (Test-Path (Join-Path $install 'RangeDesk.exe')) -or
+                  -not (Test-Path $sentinel)) { throw 'Installation or saved-data preservation failed' }
+            }
+            $uninstallKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall'
+            $entry = Get-ChildItem $uninstallKey | ForEach-Object { Get-ItemProperty $_.PSPath } |
+              Where-Object { $_.DisplayName -like 'RangeDesk 0.8.0*' } | Select-Object -First 1
+            if (-not $entry -or -not $entry.UninstallString) { throw 'Missing Apps & Features registration' }
+            $shortcut = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\RangeDesk\RangeDesk.lnk'
+            if (-not (Test-Path $shortcut)) { throw 'Missing Start Menu shortcut' }
+            $uninstaller = Join-Path $install 'unins000.exe'
+            if (-not (Test-Path $uninstaller)) { throw 'Missing uninstaller' }
+            $p = Start-Process -FilePath $uninstaller -ArgumentList @('/VERYSILENT',
+              '/SUPPRESSMSGBOXES','/NORESTART') -PassThru -Wait
+            if ($p.ExitCode -ne 0 -or (Test-Path (Join-Path $install 'RangeDesk.exe'))) {
+              throw 'Uninstall failed'
+            }
+            if (-not (Test-Path $sentinel)) { throw 'Uninstall deleted user data' }
+          }
+          finally { Remove-Item -LiteralPath $sentinel -ErrorAction SilentlyContinue }
+
+      - name: Prepare SHA-256 integrity hashes
+        shell: pwsh
+        run: |
+          $files = @((Join-Path artifact $env:SETUP_FILE),(Join-Path artifact $env:PORTABLE_FILE))
+          $lines = foreach ($f in $files) {
+            "$((Get-FileHash -LiteralPath $f -Algorithm SHA256).Hash.ToLowerInvariant())  $(Split-Path $f -Leaf)"
+          }
+          [IO.File]::WriteAllLines((Join-Path (Get-Location) 'artifact/SHA256SUMS.txt'), $lines)
+          $lines | ForEach-Object { Write-Host $_ }
+      - name: Upload verified installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-Setup-0.8.0-preview.1-win-x64
+          path: artifact/${{ env.SETUP_FILE }}
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: Publish GitHub prerelease with installer EXE
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFIED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          gh release create $env:RELEASE_TAG (Join-Path artifact $env:SETUP_FILE) (Join-Path artifact $env:PORTABLE_FILE) artifact/SHA256SUMS.txt --repo $env:GITHUB_REPOSITORY --target $env:VERIFIED_SHA --title 'RangeDesk 0.8 — Arctic Glass | Windows Installer Preview' --notes-file releases/v0.8.0-preview.1.md --prerelease --latest=false
+          if ($LASTEXITCODE -ne 0) { throw 'Release could not be published' }
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json url --jq .url
