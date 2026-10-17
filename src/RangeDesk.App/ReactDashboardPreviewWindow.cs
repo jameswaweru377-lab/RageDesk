@@ -23,6 +23,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
     private readonly WebView2 _browser = new();
     private readonly DispatcherTimer _refresh = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private bool _ready;
+    private bool _readyOnce;
     private bool? _frameDarkMode;
 
     [DllImport("dwmapi.dll", PreserveSig = true)]
@@ -34,7 +35,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
     public ReactDashboardPreviewWindow(MainWindow owner)
     {
         _source = owner;
-        Owner = owner;
+        // The native service window can now hide behind the primary React window.
         Title = "RageDesk — New UI";
         Width = 1480;
         Height = 900;
@@ -52,6 +53,8 @@ internal sealed class ReactDashboardPreviewWindow : Window
             _ready = false;
             _refresh.Stop();
             _browser.Dispose();
+            // Closing the primary React view also stops the native engine/session.
+            if (_readyOnce) _source.Close();
         };
     }
 
@@ -130,6 +133,8 @@ internal sealed class ReactDashboardPreviewWindow : Window
                     if (messageType == "dashboard.ready")
                     {
                         _ready = true;
+                        _readyOnce = true;
+                        _source.ReactDashboardReady();
                         PublishSnapshot();
                         _refresh.Start();
                     }
