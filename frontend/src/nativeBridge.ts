@@ -15,6 +15,8 @@ export type DashboardSnapshot = {
   sources: { host: string; bytes: number }[];
   recent: { id: string; added: string; description: string }[];
   speedSamples: number[];
+  storage: { freeBytes: number; totalBytes: number } | null;
+  settings: { startImmediately: boolean; defaultConnections: number; maxConcurrentDownloads: number; defaultBandwidthKiBps: number; proxyEnabled: boolean };
 };
 type NativeEnvelope = { version: number; type: "dashboard.snapshot"; payload: DashboardSnapshot };
 
