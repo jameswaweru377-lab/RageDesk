@@ -53,6 +53,21 @@ jobs:
           path: artifact/controlled-benchmark/controlled-results.json
           retention-days: 7
           if-no-files-found: error
+      # Deliberately opt-in: one matrix on its own PR, never on main or
+      # every ordinary build. Uses localhost only; no public load tests.
+      - name: V7 controlled TCP matrix (6 connection counts, limits, recovery)
+        if: github.head_ref == 'feature/ragedesk-v7-network-matrix'
+        timeout-minutes: 12
+        shell: pwsh
+        run: dotnet run --project tools/RangeDesk.Benchmark/RangeDesk.Benchmark.csproj --configuration Release -- v7 artifact/v7-network-matrix
+      - name: Upload V7 network matrix evidence
+        if: always() && github.head_ref == 'feature/ragedesk-v7-network-matrix'
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-V7-Network-Matrix
+          path: artifact/v7-network-matrix/v7-results.json
+          retention-days: 7
+          if-no-files-found: warn
       - name: Publish portable Windows build
         run: dotnet publish src/RangeDesk.App/RangeDesk.App.csproj --configuration Release --runtime win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --output artifact/RangeDesk
       - name: Publish restricted browser native host

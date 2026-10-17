@@ -3,6 +3,13 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using RangeDesk.Core;
 
+if (args.Length > 0 && args[0] == "v7")
+{
+    string outFolder = args.Length > 1 ? args[1] : Path.Combine("artifact", "v7-network-matrix");
+    await V7NetworkBenchmark.RunAsync(outFolder);
+    return;
+}
+
 if (args.Length > 0 && args[0] == "controlled")
 {
     string outFolder = args.Length > 1 ? args[1] : Path.Combine("artifact","controlled-benchmark");
