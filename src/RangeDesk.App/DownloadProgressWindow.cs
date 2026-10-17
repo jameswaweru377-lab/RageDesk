@@ -69,7 +69,7 @@ public sealed class DownloadProgressWindow : Window
         _onCommand = onCommand;
         _kind = PreviewKind(entry);
         Title = "RageDesk Pro · " + entry.Name;
-        Icon = RageDeskPopupArtwork.WindowIcon();
+        base.Icon = RageDeskPopupArtwork.WindowIcon();
         Width = 846;
         Height = 700;
         MinWidth = 750;
