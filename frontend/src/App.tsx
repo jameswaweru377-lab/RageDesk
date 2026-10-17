@@ -12,6 +12,7 @@ import type { LucideIcon } from "lucide-react";
 import { subscribeToNativeDashboard, subscribeToActionResults, openNativeDialog, sendDownloadAction, type DownloadCommand, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
 import SettingsPage from "./SettingsPage";
 import RageDeskMark from "./RageDeskMark";
+import { AddDownloadDialog, ScheduleDownloadDialog } from "./NativeDownloadDialogs";
 
 type Nav = "all" | "completed" | "queued" | "scheduled" | "analytics" | "category" | "source" | "automation" | "settings";
 type Status = "all" | "downloading" | "paused" | "queued" | "completed" | "failed";
@@ -117,6 +118,9 @@ function App() {
   const [actionMessage, setActionMessage] = useState("");
   const [rowMenu, setRowMenu] = useState<string | null>(null);
   const [bulkMenu, setBulkMenu] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [scheduleItem, setScheduleItem] = useState<DownloadRow | null>(null);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<"General" | "Browser Capture">("General");
   const act = (action: DownloadCommand, ids: string[]) => {
     if (!sendDownloadAction(action, ids)) setActionMessage("Native RageDesk connection unavailable.");
     else setRowMenu(null);
@@ -155,6 +159,7 @@ function App() {
   const actionEligible = connection==="connected" && targetIds.length>0;
   const selected = rows.find(r => r.id === selectedRow) ?? null;
   const switchNav = (next: Nav) => { setNav(next); setFilter(next==="queued"?"queued":"all"); setSearch(""); };
+  const openBrowserCapture = () => {setSettingsInitialTab("Browser Capture");switchNav("settings");};
   const theme = data?.theme === "Arctic" ? "light" : "dark";
   return <div className={`desktop theme-${theme} ${collapsed ? "sidebar-collapsed" : ""} ${nav === "settings" ? "settings-open" : ""}`}>
     <aside className="sidebar">
@@ -177,7 +182,7 @@ function App() {
           <div className="extension-art"><MonitorDown size={29}/><span><Package size={22}/></span></div>
           <div className="extension-heading">Install RageDesk<br/>Browser Extension</div>
           <p>Capture links instantly<br/>from your browser.</p>
-          <button type="button" onClick={()=>openNativeDialog("ui.openSettings")} title="Open existing WPF Browser Capture settings">
+          <button type="button" onClick={openBrowserCapture} title="Configure RageDesk browser capture">
             Install Extension
           </button>
         </section>
@@ -199,8 +204,8 @@ function App() {
       <header className="toolbar">
         <div className="global-search"><Search size={18}/><input aria-label="Search downloads" value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search downloads, files, or paste links…"/><kbd>Ctrl + L</kbd></div>
         <div className="toolbar-actions">
-          <button className="toolbar-button" onClick={()=>openNativeDialog("ui.openAddDownload")} title="Opens the existing native Add Download dialog"><ExternalLink size={17}/> Add Link</button>
-          <button className="toolbar-button action-primary" onClick={()=>openNativeDialog("ui.openAddDownload")} title="Opens the existing native Add Download dialog"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
+          <button className="toolbar-button" onClick={()=>setAddOpen(true)} title="Add a new download using the existing C# engine"><ExternalLink size={17}/> Add Link</button>
+          <button className="toolbar-button action-primary" onClick={()=>setAddOpen(true)} title="New download"><Plus size={17}/> New Download <ChevronDown size={15}/></button>
           <button className="square-button" disabled={!actionEligible} title="Resume selected downloads" onClick={()=>act("resume",targetIds)}><Play size={17}/></button>
           <button className="square-button" disabled={!actionEligible} title="Pause selected downloads" onClick={()=>act("pause",targetIds)}><Pause size={17}/></button>
           <span className="top-local"><CloudDownload size={17}/> Local only</span>
@@ -208,7 +213,7 @@ function App() {
         </div>
       </header>
 
-      {nav==="settings" ? <SettingsPage data={data} onBack={()=>switchNav("all")}/> : <div className="content-pane">
+      {nav==="settings" ? <SettingsPage key={settingsInitialTab} initialTab={settingsInitialTab} data={data} onBack={()=>switchNav("all")}/> : <div className="content-pane">
         <div className="metrics-grid">
           <MetricCard title="ACTIVE DOWNLOADS" icon={Download} value={counts?.downloading ?? "—"} note="Active transfers" chart="line"/>
           <MetricCard title="CURRENT SPEED" icon={Activity} value={data?.summary.currentSpeed ?? "—"} note="Measured network speed" chart="bars"/>
@@ -268,7 +273,7 @@ function App() {
                     <button onClick={()=>act("resume",[r.id])}>Start / Resume</button>
                     <button onClick={()=>act("pause",[r.id])}>Pause</button>
                     <button onClick={()=>act("stop",[r.id])}>Stop (confirm)</button>
-                    <button onClick={()=>act("schedule",[r.id])}>Schedule start</button>
+                    <button onClick={()=>{setScheduleItem(r);setRowMenu(null);}}>Schedule start</button>
                     <button onClick={()=>act("earlier",[r.id])}>Move earlier</button>
                     <button onClick={()=>act("later",[r.id])}>Move later</button>
                     <button onClick={()=>act("openFolder",[r.id])}>Open folder</button>
@@ -308,6 +313,8 @@ function App() {
           <span><HardDrive size={15}/> {data?.storage ? `${fmtBytes(data.storage.freeBytes)} free`:"Disk space unavailable"}</span>
           <span><Check size={14}/> {counts?.failed ? `${counts.failed} failed downloads`:"No failed downloads"}</span></div>
       </div>}
+      {addOpen&&<AddDownloadDialog onClose={()=>setAddOpen(false)} queueDefault={!(data?.settings.startImmediately??true)} onError={setActionMessage} onFallback={()=>{setAddOpen(false);openNativeDialog("ui.openAddDownload");}}/>}
+      {scheduleItem&&<ScheduleDownloadDialog item={scheduleItem} onClose={()=>setScheduleItem(null)} onError={setActionMessage}/>}
     </main>
   </div>;
 }
