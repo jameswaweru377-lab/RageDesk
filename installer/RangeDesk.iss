@@ -130,4 +130,4 @@ Name: "{group}\Uninstall RangeDesk"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\RangeDesk"; Filename: "{app}\RangeDesk.exe"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\RangeDesk.exe"; Description: "{cm:LaunchProgram,RangeDesk}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\RangeDesk.exe"; Parameters: "--react-preview"; Description: "{cm:LaunchProgram,RageDesk New UI Preview}"; Flags: nowait postinstall skipifsilent
