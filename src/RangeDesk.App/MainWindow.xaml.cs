@@ -273,6 +273,54 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             "No selected downloads support that action in their current state.";
     }
 
+    /// <summary>
+    /// User-submitted HTTP(S) direct URL from the trusted local React UI. Resolve
+    /// the destination exclusively beneath the user's existing validated download
+    /// directory. Do not accept executable paths, arbitrary filenames or secrets
+    /// from the UI, and do not echo signed URLs into WebView2 responses.
+    /// </summary>
+    internal string AddReactDownload(string address, bool queued)
+    {
+        if (string.IsNullOrWhiteSpace(address) || address.Length > 3500 ||
+            !DownloadEngine.IsAllowedUrl(address.Trim()) ||
+            !Uri.TryCreate(address.Trim(), UriKind.Absolute, out var uri) ||
+            !string.IsNullOrEmpty(uri.UserInfo))
+            return "Enter a valid direct HTTP or HTTPS URL.";
+        try
+        {
+            string name = Path.GetFileName(uri.LocalPath);
+            if (name is "" or "." or ".." || name.Length > 120 ||
+                name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+                name = "download-" + Guid.NewGuid().ToString("N")[..12] + ".bin";
+            string destination = Path.Combine(_preferences.DownloadFolder, name);
+            string category = DownloadCategory.Guess(name);
+            var decision = DownloadAutomationPolicy.Apply(uri.AbsoluteUri, destination,
+                category, "", _preferences.DownloadFolder, _automationRules);
+            string target = Path.GetFullPath(decision.Destination);
+            if (Downloads.Any(d => string.Equals(d.Destination, target,
+                    StringComparison.OrdinalIgnoreCase)) ||
+                File.Exists(target) || File.Exists(target + ".rdpartial") ||
+                Directory.Exists(target + ".rdsegments") ||
+                Directory.Exists(target + ".rdadaptive"))
+                return "A download with this filename or recovery data already exists. Use the native Add Download dialog to choose another name.";
+            var item = _engine.Create(uri.AbsoluteUri, target, decision.Category,
+                decision.Labels, _preferences.DefaultConnections,
+                _preferences.DefaultBandwidthKiBps);
+            Track(item);
+            SelectedDownload = item;
+            if (!SaveCatalog())
+                return "The transfer is in the current session, but saving history failed. Check available disk space.";
+            if (!queued && !_engine.Start(item))
+                return "Download was added to the queue because it could not start immediately.";
+            return queued ? "Download safely added to the queue." : "Download started.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or InvalidOperationException or
+            IOException or UnauthorizedAccessException or NotSupportedException)
+        {
+            return "Could not add download: " + ex.GetType().Name;
+        }
+    }
+
     internal string UpdateReactPreference(string key, JsonElement value)
     {
         // Restrict writable fields to existing validated local-only preferences.
