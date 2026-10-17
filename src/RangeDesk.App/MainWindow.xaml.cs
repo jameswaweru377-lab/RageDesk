@@ -65,6 +65,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private bool _sidebarCollapsed;
     private SidebarSectionExpansion _sidebarSections = new();
     private readonly Dictionary<Guid, DownloadStatus> _lastStatuses = new();
+    private readonly Dictionary<Guid, DateTimeOffset> _completionTimes = new();
+    private readonly Dictionary<Guid, DownloadProgressWindow> _progressWindows = new();
 
     [DllImport("dwmapi.dll")]
     private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref int value, int size);
@@ -72,7 +74,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private sealed record SavedDownload(string Url, string Destination, string Category, string Labels, int Connections = 1, int BandwidthKiBps = 0, string? ExpectedSha256 = null, bool Adaptive = false, SafePostDownloadAction PostDownloadAction = SafePostDownloadAction.None, string? MediaJobId = null, string? MediaFormatId = null, bool MediaCompleted = false,
         bool MediaQueued = false, string? MediaFileStem = null, string MediaSaveLocation = "default",
-        bool AutomaticConnections = false);
+        bool AutomaticConnections = false, DateTimeOffset? CompletedAt = null);
 
     public MainWindow()
     {
@@ -120,6 +122,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RunDueSchedules();
             CheckBrowserInbox();
             await ApplyBandwidthCalendarAsync();
+            RefreshInsights();
         };
         _scheduleTimer.Start();
         _browserCaptureTimer.Tick += (_, _) =>
@@ -136,6 +139,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         RefreshFilter();
         RefreshCounters(); // Includes scheduled jobs loaded after initial binding.
         RefreshDashboard();
+        RefreshInsights();
     }
 
     private void ApplyTitleBarTheme()
@@ -162,9 +166,33 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     };
 
     public string ActiveSummaryLabel => $"{DownloadingCount} active download{(DownloadingCount == 1 ? "" : "s")}  ·  {AggregateSpeedLabel}";
+    // Completion time is persisted when a transfer finishes; legacy records without a
+    // verified completion date are intentionally excluded rather than guessed.
+    public string DownloadedTodayLabel => DownloadEntry.FormatSize(Downloads
+        .Where(d => d.Status == DownloadStatus.Completed &&
+                    _completionTimes.TryGetValue(d.Id, out var date) &&
+                    date.ToLocalTime().Date == DateTime.Today)
+        .Sum(d => (double)d.Received));
     public string AggregateSpeedLabel => DownloadingCount == 0 ? "—" :
         DownloadEntry.FormatSize(Downloads.Where(d => d.Status == DownloadStatus.Downloading)
             .Sum(d => d.BytesPerSecond)) + "/s";
+
+    public string[] TopSourceSummaries => Downloads
+        .Where(d => d.Received > 0 && !string.IsNullOrEmpty(d.Host))
+        .GroupBy(d => d.Host, StringComparer.OrdinalIgnoreCase)
+        .Select(g => new { Host = g.Key, Total = g.Sum(d => (double)d.Received) })
+        .OrderByDescending(s => s.Total).Take(5)
+        .Select(s => s.Host + "  ·  " + DownloadEntry.FormatSize(s.Total)).ToArray();
+
+    public string[] RecentActivitySummaries => Downloads
+        .OrderByDescending(d => d.AddedAt).Take(5)
+        .Select(d => d.Status + "  ·  " + d.Name).ToArray();
+
+    private void RefreshInsights()
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(TopSourceSummaries)));
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(RecentActivitySummaries)));
+    }
 
     private IReadOnlyList<DownloadEntry> KnownPendingDownloads() =>
         Downloads.Where(d => d.Status is not (DownloadStatus.Completed or DownloadStatus.Canceled or DownloadStatus.Failed)
@@ -216,13 +244,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         foreach (var property in new[] {
             nameof(GreetingText), nameof(ActiveSummaryLabel), nameof(AggregateSpeedLabel),
-            nameof(AggregateTotalSizeLabel), nameof(AggregateProgressPercent),
+            nameof(AggregateTotalSizeLabel), nameof(DownloadedTodayLabel), nameof(AggregateProgressPercent),
             nameof(AggregateProgressLabel), nameof(AggregateEtaLabel) })
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(property));
     }
     public int QueueCount => Downloads.Count(d => d.Status != DownloadStatus.Completed);
     public int ScheduledCount => _scheduled.Count;
     public int SoftwareCount => CategoryCount("Software");
+    public int MusicCount => CategoryCount("Music");
     public int VideosCount => CategoryCount("Videos");
     public int DocumentsCount => CategoryCount("Documents");
     public int ArchivesCount => CategoryCount("Archives");
@@ -248,6 +277,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         foreach (var property in new[] {
             nameof(DownloadsCount), nameof(CompletedCount), nameof(QueueCount), nameof(ScheduledCount),
             nameof(DownloadingCount), nameof(PausedCount), nameof(PendingCount), nameof(FailedCount),
+            nameof(MusicCount),
             nameof(SoftwareCount), nameof(VideosCount), nameof(DocumentsCount),
             nameof(ArchivesCount), nameof(ImagesCount),
             nameof(WorkCount), nameof(PersonalCount), nameof(ResearchCount), nameof(ImportantCount),
@@ -310,6 +340,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                             BrowserMediaJobState.TryUpdate(record.MediaJobId, "failed",
                                 "Previous RangeDesk media download was interrupted.");
                         }
+                        if (record.CompletedAt is { } mediaCompletion)
+                            _completionTimes[media.Id] = mediaCompletion;
                         Track(media);
                         continue;
                     }
@@ -339,6 +371,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                                 error: "Saved segment checkpoint is damaged. Original files were preserved.");
                         }
                     }
+                    if (record.CompletedAt is { } fileCompletion)
+                        _completionTimes[item.Id] = fileCompletion;
                     Track(item);
                 }
                 catch (Exception) { /* One malformed catalog entry must not block startup. */ }
@@ -364,7 +398,8 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     d.IsMedia && d.Status == DownloadStatus.Completed,
                     deferred is not null && d.Status == DownloadStatus.Queued,
                     deferred?.FileStem, deferred?.SaveLocation ?? "default",
-                    d.AutomaticConnections);
+                    d.AutomaticConnections,
+                    _completionTimes.TryGetValue(d.Id, out var finishedAt) ? finishedAt : null);
             });
             string temp = _catalogFile + ".tmp";
             File.WriteAllText(temp, JsonSerializer.Serialize(saved));
@@ -379,6 +414,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         _lastStatuses[item.Id] = item.Status;
         Downloads.Add(item);
         RefreshCounters();
+        RefreshInsights();
         RefreshDashboard();
         item.PropertyChanged += (_, _) =>
         {
@@ -390,7 +426,12 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (_lastStatuses.TryGetValue(item.Id, out var old) && old != item.Status)
                 {
                     _lastStatuses[item.Id] = item.Status;
+                    if (item.Status == DownloadStatus.Downloading)
+                        ShowTransferWindow(item);
+                    if (item.Status == DownloadStatus.Completed)
+                        _completionTimes[item.Id] = DateTimeOffset.Now;
                     RefreshCounters();
+                    RefreshInsights();
                     if (item.Status == DownloadStatus.Failed)
                         StatusMessage.Text = "Download failed: " + item.Name +
                             ". Select it to inspect the error and resume.";
@@ -398,6 +439,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                     {
                         StatusMessage.Text = "Download completed: " + item.Name;
                         ExecutePostDownloadAction(item, old);
+                        SaveCatalog();
                     }
                     RefreshFilter();
                 }
@@ -1157,9 +1199,50 @@ public partial class MainWindow : Window, INotifyPropertyChanged
 
     private void ShowDownloadDetails()
     {
-        if (SelectedDownload is null) return;
-        DetailsOverlay.Visibility = Visibility.Visible;
-        DetailsCloseButton.Focus();
+        if (SelectedDownload is not null) ShowTransferWindow(SelectedDownload);
+    }
+
+    private void Analytics_Click(object sender, RoutedEventArgs e)
+    {
+        AnalyticsGraph.BringIntoView();
+    }
+
+    private void ShowTransferWindow(DownloadEntry item)
+    {
+        if (_progressWindows.TryGetValue(item.Id, out var existing))
+        {
+            if (existing.WindowState == WindowState.Minimized) existing.WindowState = WindowState.Normal;
+            existing.Activate();
+            return;
+        }
+        var window = new DownloadProgressWindow(item, (entry, command) =>
+        {
+            try
+            {
+                switch (command)
+                {
+                    case DownloadProgressWindow.Command.StartOrResume:
+                        StartManually(entry);
+                        break;
+                    case DownloadProgressWindow.Command.Pause:
+                        if (!entry.IsMedia && entry.Status == DownloadStatus.Downloading)
+                            _engine.Pause(entry);
+                        break;
+                    case DownloadProgressWindow.Command.Stop:
+                        if (entry.Status == DownloadStatus.Downloading) StopManually(entry);
+                        break;
+                    case DownloadProgressWindow.Command.OpenFolder:
+                        if (entry.Status == DownloadStatus.Completed && File.Exists(entry.Destination))
+                            Process.Start(new ProcessStartInfo(Path.GetDirectoryName(entry.Destination)!)
+                                { UseShellExecute = true });
+                        break;
+                }
+            }
+            catch (Exception ex) { StatusMessage.Text = "Download action failed: " + ex.Message; }
+        });
+        _progressWindows[item.Id] = window;
+        window.Closed += (_, _) => _progressWindows.Remove(item.Id);
+        window.Show();
     }
 
     private void CloseDetails_Click(object sender, RoutedEventArgs e) =>

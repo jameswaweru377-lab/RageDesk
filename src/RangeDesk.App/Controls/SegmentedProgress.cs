@@ -7,6 +7,27 @@ namespace RangeDesk.App.Controls;
 /// The colored blocks reflect real received bytes / known total only.</summary>
 public sealed class SegmentedProgress : FrameworkElement
 {
+    // Frozen brushes are reused for every painted segment and never allocate per download tick.
+    private static readonly Brush TrackFill = CreateTrackFill();
+    private static readonly Brush ActiveFill = CreateActiveFill();
+
+    private static Brush CreateTrackFill()
+    {
+        var brush = new SolidColorBrush(Color.FromRgb(24, 54, 90));
+        brush.Freeze();
+        return brush;
+    }
+
+    private static Brush CreateActiveFill()
+    {
+        var brush = new LinearGradientBrush(
+            Color.FromRgb(34, 214, 255),
+            Color.FromRgb(9, 104, 251),
+            new Point(0, 0), new Point(1, 0));
+        brush.Freeze();
+        return brush;
+    }
+
     public static readonly DependencyProperty ValueProperty =
         DependencyProperty.Register(nameof(Value), typeof(double), typeof(SegmentedProgress),
             new FrameworkPropertyMetadata(0d, FrameworkPropertyMetadataOptions.AffectsRender));
@@ -35,18 +56,15 @@ public sealed class SegmentedProgress : FrameworkElement
         double width = (ActualWidth - gap * (segments - 1)) / segments;
         if (width <= 0 || ActualHeight <= 0) return;
         double fraction = double.IsFinite(Value) ? Math.Clamp(Value, 0, 100) / 100 : 0;
-        var baseBrush = new SolidColorBrush(Color.FromRgb(40, 64, 95));
-        var fill = new SolidColorBrush(Color.FromRgb(27, 144, 250));
-        baseBrush.Freeze();
-        fill.Freeze();
+
         for (int i = 0; i < segments; i++)
         {
             double start = i * (width + gap);
             double occupied = Math.Clamp(fraction * segments - i, 0, 1);
             var rect = new Rect(start, 0, width, ActualHeight);
-            drawing.DrawRoundedRectangle(baseBrush, null, rect, Math.Min(2, ActualHeight / 3), Math.Min(2, ActualHeight / 3));
+            drawing.DrawRoundedRectangle(TrackFill, null, rect, Math.Min(2, ActualHeight / 3), Math.Min(2, ActualHeight / 3));
             if (occupied > 0)
-                drawing.DrawRoundedRectangle(fill, null, new Rect(start, 0, width * occupied, ActualHeight),
+                drawing.DrawRoundedRectangle(ActiveFill, null, new Rect(start, 0, width * occupied, ActualHeight),
                     Math.Min(2, ActualHeight / 3), Math.Min(2, ActualHeight / 3));
         }
     }
