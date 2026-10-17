@@ -110,6 +110,7 @@ internal sealed class ReactDashboardPreviewWindow : Window
                     var root = doc.RootElement;
                     if (root.ValueKind != JsonValueKind.Object ||
                         !root.TryGetProperty("version", out var version) ||
+                        version.ValueKind != JsonValueKind.Number ||
                         !version.TryGetInt32(out int number) || number != 1 ||
                         !root.TryGetProperty("type", out var type) ||
                         type.ValueKind != JsonValueKind.String ||
