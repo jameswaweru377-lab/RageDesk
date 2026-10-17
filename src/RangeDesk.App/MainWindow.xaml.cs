@@ -156,17 +156,35 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         };
     }
 
+    internal void ReactDashboardReady()
+    {
+        if (_reactDashboard?.IsVisible == true) Hide();
+    }
+
+    private void ReturnToReactIfReady()
+    {
+        if (_reactDashboard?.IsVisible != true ||
+            AddOverlay.Visibility == Visibility.Visible ||
+            SettingsOverlay.Visibility == Visibility.Visible ||
+            ScheduledEditOverlay.Visibility == Visibility.Visible ||
+            CustomSiteOverlay.Visibility == Visibility.Visible) return;
+        Hide();
+        _reactDashboard.Activate();
+    }
+
     internal void OpenNativeDialogFromReact(string command)
     {
         // These commands only present existing native dialogs. All persistence and
         // download-side operations remain behind the validated WPF forms.
         if (command == "ui.openSettings")
         {
+            Show();
             Activate();
             Settings_Click(this, new RoutedEventArgs());
         }
         else if (command == "ui.openAddDownload")
         {
+            Show();
             Activate();
             Add_Click(this, new RoutedEventArgs());
         }
@@ -1371,6 +1389,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         _editingSchedule = null;
         ScheduledEditOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
     }
 
     private void SaveEditedSchedule_Click(object sender, RoutedEventArgs e)
@@ -1832,6 +1851,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             Add_Click(this, new RoutedEventArgs());
             // The native media/advanced review is still necessary for unsupported links.
             // Bring its owner forward rather than leaving an invisible overlay behind React.
+            Show();
             if (WindowState == WindowState.Minimized) WindowState = WindowState.Normal;
             Activate();
             NewUrl.Text = url;
@@ -2007,6 +2027,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     private void CloseAdd_Click(object sender, RoutedEventArgs e)
     {
         AddOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
         BrowserMediaNotice.Visibility = Visibility.Collapsed;
         AddDownloadTitle.Text = "Add Download";
         AddStartButton.IsEnabled = true;
@@ -2176,6 +2197,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 throw new InvalidOperationException("Could not start this download.");
             SelectedDownload = item;
             AddOverlay.Visibility = Visibility.Collapsed;
+            ReturnToReactIfReady();
             StatusMessage.Text = (schedule is not null ? "Scheduled: " :
                 queued ? "Added to queue: " : "Download started: ") + item.Name;
             NewUrl.Clear();
@@ -2239,6 +2261,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 if (StartManually(item)) started++;
         SelectedDownload = items.LastOrDefault();
         AddOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
         StatusMessage.Text = queued
             ? $"Added {items.Length} distinct links to the queue."
             : $"Added {items.Length} distinct links; started {started}. Other transfers may wait for available slots.";
@@ -2658,6 +2681,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             RangeDeskTheme.Apply(updated.Theme);
             ApplyTitleBarTheme();
             SettingsOverlay.Visibility = Visibility.Collapsed;
+            ReturnToReactIfReady();
             StatusMessage.Text = restartNeeded
                 ? "Settings saved. Restart RangeDesk to apply the changed network or simultaneous-download settings."
                 : "Settings saved. New downloads will use these defaults; active transfers are unchanged.";
@@ -2668,6 +2692,9 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void CloseSettings_Click(object sender, RoutedEventArgs e) =>
+    private void CloseSettings_Click(object sender, RoutedEventArgs e)
+    {
         SettingsOverlay.Visibility = Visibility.Collapsed;
+        ReturnToReactIfReady();
+    }
 }
