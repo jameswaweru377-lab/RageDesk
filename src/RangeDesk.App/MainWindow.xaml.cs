@@ -273,6 +273,46 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             "No selected downloads support that action in their current state.";
     }
 
+    internal string UpdateReactPreference(string key, JsonElement value)
+    {
+        // Restrict writable fields to existing validated local-only preferences.
+        // Proxy address and filesystem paths are intentionally excluded from WebView2.
+        RangeDeskPreferences updated;
+        try
+        {
+            updated = key switch
+            {
+                "startImmediately" when value.ValueKind is JsonValueKind.True or JsonValueKind.False
+                    => _preferences with { StartImmediately = value.GetBoolean() },
+                "theme" when value.ValueKind == JsonValueKind.String &&
+                    value.GetString() is "Cobalt" or "Arctic"
+                    => _preferences with { Theme = value.GetString()! },
+                "defaultConnections" when value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetInt32(out int connections)
+                    => _preferences with { DefaultConnections = connections },
+                "maxConcurrentDownloads" when value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetInt32(out int maxConcurrent)
+                    => _preferences with { MaxConcurrentDownloads = maxConcurrent },
+                "bandwidthLimit" when value.ValueKind == JsonValueKind.Number &&
+                    value.TryGetInt32(out int kbps)
+                    => _preferences with { DefaultBandwidthKiBps = kbps },
+                _ => throw new ArgumentException("Unsupported preference or value.")
+            };
+            updated = updated.Validate();
+            bool restart = updated.MaxConcurrentDownloads != _preferences.MaxConcurrentDownloads;
+            RangeDeskPreferencesStore.Save(_preferencesFile, updated);
+            _preferences = updated;
+            RangeDeskTheme.Apply(updated.Theme);
+            ApplyTitleBarTheme();
+            return restart ? "Setting saved. Restart RageDesk to change simultaneous transfers." :
+                "Setting saved locally.";
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return "Setting not saved: " + ex.GetType().Name;
+        }
+    }
+
     internal string ExecuteReactBrowserAction(string action)
     {
         try
