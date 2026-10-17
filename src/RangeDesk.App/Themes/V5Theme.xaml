@@ -13,6 +13,19 @@
   <SolidColorBrush x:Key="V5SuccessBrush" Color="#43D9A4"/>
   <SolidColorBrush x:Key="V5WarningBrush" Color="#F0BE73"/>
   <SolidColorBrush x:Key="V5DangerBrush" Color="#F18BA0"/>
+  <!-- Theme-aware premium surfaces retain the existing Arctic light switch. -->
+  <Color x:Key="V5PremiumToolbarTop">#12355E</Color>
+  <Color x:Key="V5PremiumToolbarBottom">#091B34</Color>
+  <Color x:Key="V5PremiumPrimaryTop">#32B6FF</Color>
+  <Color x:Key="V5PremiumPrimaryBottom">#0762F2</Color>
+  <LinearGradientBrush x:Key="V5PremiumToolbarFill" StartPoint="0,0" EndPoint="0,1">
+    <GradientStop Color="{DynamicResource V5PremiumToolbarTop}" Offset="0"/>
+    <GradientStop Color="{DynamicResource V5PremiumToolbarBottom}" Offset="1"/>
+  </LinearGradientBrush>
+  <LinearGradientBrush x:Key="V5PremiumPrimaryFill" StartPoint="0,0" EndPoint="1,1">
+    <GradientStop Color="{DynamicResource V5PremiumPrimaryTop}" Offset="0"/>
+    <GradientStop Color="{DynamicResource V5PremiumPrimaryBottom}" Offset="1"/>
+  </LinearGradientBrush>
   <Style x:Key="V5ToolbarButton" TargetType="Button">
     <Setter Property="Foreground" Value="{DynamicResource V5TextBrush}"/>
     <Setter Property="Background" Value="{DynamicResource V5ElevatedBrush}"/>
@@ -261,7 +274,7 @@
   <Style x:Key="V5LightToolbarButton" TargetType="{x:Type Button}">
     <Setter Property="Padding" Value="13,9"/>
     <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
-    <Setter Property="Background" Value="{DynamicResource V5LightSurface}"/>
+    <Setter Property="Background" Value="{DynamicResource V5PremiumToolbarFill}"/>
     <Setter Property="BorderBrush" Value="{DynamicResource V5LightBorder}"/>
     <Setter Property="BorderThickness" Value="1"/>
     <Setter Property="FontSize" Value="11"/>
@@ -271,12 +284,13 @@
         <ControlTemplate TargetType="{x:Type Button}">
           <Border x:Name="LightChrome" Background="{TemplateBinding Background}"
              BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}"
-             Padding="{TemplateBinding Padding}" CornerRadius="7">
+             Padding="{TemplateBinding Padding}" CornerRadius="9">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
           </Border>
           <ControlTemplate.Triggers>
             <Trigger Property="IsMouseOver" Value="True">
               <Setter TargetName="LightChrome" Property="Background" Value="{DynamicResource V5LightSelected}"/>
+              <Setter TargetName="LightChrome" Property="BorderBrush" Value="{DynamicResource V5AccentLightBrush}"/>
             </Trigger>
             <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.43"/></Trigger>
           </ControlTemplate.Triggers>
@@ -285,12 +299,14 @@
     </Setter>
   </Style>
   <Style x:Key="V5LightPrimaryButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
-    <Setter Property="Background" Value="{DynamicResource V5LightBlue}"/>
+    <Setter Property="Background" Value="{DynamicResource V5PremiumPrimaryFill}"/>
     <Setter Property="Foreground" Value="White"/>
-    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5AccentLightBrush}"/>
   </Style>
   <Style x:Key="V5LightTabButton" TargetType="{x:Type Button}" BasedOn="{StaticResource V5LightToolbarButton}">
-    <Setter Property="BorderThickness" Value="0"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource V5LightBorder}"/>
     <Setter Property="Background" Value="{DynamicResource FlowBackgroundF1F7FE}"/>
     <Setter Property="Padding" Value="13,8"/>
     <Setter Property="Margin" Value="0,0,6,0"/>
@@ -303,12 +319,12 @@
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="SnapsToDevicePixels" Value="True"/>
     <Style.Triggers>
+      <Trigger Property="IsMouseOver" Value="True">
+        <Setter Property="Background" Value="{DynamicResource FlowBackgroundF2F8FF}"/>
+      </Trigger>
       <Trigger Property="IsSelected" Value="True">
         <Setter Property="Background" Value="{DynamicResource V5LightSelected}"/>
         <Setter Property="Foreground" Value="{DynamicResource V5LightText}"/>
-      </Trigger>
-      <Trigger Property="IsMouseOver" Value="True">
-        <Setter Property="Background" Value="{DynamicResource FlowBackgroundF2F8FF}"/>
       </Trigger>
     </Style.Triggers>
   </Style>
@@ -343,7 +359,7 @@
     <Setter Property="BorderThickness" Value="0,0,0,1"/>
     <Setter Property="FontSize" Value="11"/>
     <Setter Property="Height" Value="30"/>
-    <Setter Property="FontWeight" Value="Normal"/>
+    <Setter Property="FontWeight" Value="SemiBold"/>
     <Setter Property="Padding" Value="8,7"/>
   </Style>
   <Style x:Key="V5LightGridText" TargetType="{x:Type TextBlock}">
