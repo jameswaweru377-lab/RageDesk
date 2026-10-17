@@ -11,59 +11,6 @@ public sealed class RecoveryReliabilityTests
     private const string Url = "https://fixture.example.test/large.bin";
 
     [Fact]
-    public void OnlyNetworkTransportDisconnectsAreRetryable()
-    {
-        var reset = new System.Net.Sockets.SocketException(
-            (int)System.Net.Sockets.SocketError.ConnectionReset);
-        Assert.True(HttpRetryPolicy.IsTransientTransportFailure(reset));
-        Assert.True(HttpRetryPolicy.IsTransientTransportFailure(
-            new IOException("HTTP response read failed", reset)));
-        Assert.True(HttpRetryPolicy.IsTransientTransportFailure(
-            new IOException("wrapper", new IOException("read", reset))));
-        Assert.False(HttpRetryPolicy.IsTransientTransportFailure(
-            new IOException("Local disk access denied")));
-        Assert.False(HttpRetryPolicy.IsTransientTransportFailure(
-            new InvalidDataException("ETag or Content-Range mismatch")));
-        Assert.False(HttpRetryPolicy.IsTransientTransportFailure(
-            new EndOfStreamException("Unrelated file ended")));
-    }
-
-    [Fact]
-    public async Task HttpResponseReadIoIsConvertedToRecoverableEof()
-    {
-        using var input = new ThrowingNetworkReadStream();
-        var error = await Assert.ThrowsAsync<EndOfStreamException>(
-            async () => await TransferInactivityTimeout.ReadHttpBodyAsync(
-                input, new byte[256], CancellationToken.None));
-        Assert.IsType<IOException>(error.InnerException);
-    }
-
-    private sealed class ThrowingNetworkReadStream : Stream
-    {
-        public override bool CanRead => true;
-        public override bool CanSeek => false;
-        public override bool CanWrite => false;
-        public override long Length => throw new NotSupportedException();
-        public override long Position
-        {
-            get => throw new NotSupportedException();
-            set => throw new NotSupportedException();
-        }
-        public override ValueTask<int> ReadAsync(
-            Memory<byte> buffer, CancellationToken cancellationToken = default) =>
-            ValueTask.FromException<int>(new IOException("Synthetic network read failure."));
-        public override int Read(byte[] buffer, int offset, int count) =>
-            throw new NotSupportedException();
-        public override void Flush() => throw new NotSupportedException();
-        public override long Seek(long offset, SeekOrigin origin) =>
-            throw new NotSupportedException();
-        public override void SetLength(long value) =>
-            throw new NotSupportedException();
-        public override void Write(byte[] buffer, int offset, int count) =>
-            throw new NotSupportedException();
-    }
-
-    [Fact]
     public async Task FixedSegmentCheckpointRestoresActualBytes()
     {
         await InFolder(async folder =>

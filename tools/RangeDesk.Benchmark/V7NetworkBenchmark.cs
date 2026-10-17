@@ -337,9 +337,17 @@ public static class V7NetworkBenchmark
                 if (!headerRange.StartsWith("bytes=", StringComparison.OrdinalIgnoreCase))
                     return;
                 string[] pieces = headerRange[6..].Split('-', 2);
-                if (pieces.Length != 2 || !long.TryParse(pieces[0], out first) ||
-                    !long.TryParse(pieces[1], out last) ||
-                    first < 0 || last < first || last >= _bytes.Length) return;
+                // Standard HTTP resume sends "Range: bytes=N-" (open-ended),
+                // while the parallel workers request "Range: bytes=N-M".
+                // Reject neither valid form or the test server itself will
+                // manufacture a fake transfer failure on every retry.
+                if (pieces.Length != 2 || !long.TryParse(pieces[0], out first))
+                    return;
+                if (pieces[1].Length == 0)
+                    last = _bytes.Length - 1;
+                else if (!long.TryParse(pieces[1], out last))
+                    return;
+                if (first < 0 || last < first || last >= _bytes.Length) return;
                 range = true;
                 Interlocked.Increment(ref _rangeRequests);
             }

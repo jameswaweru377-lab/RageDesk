@@ -227,7 +227,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     while (piece.Downloaded < piece.To - piece.From + 1)
                     {
                         long remaining = piece.To - piece.From + 1 - piece.Downloaded;
-                        int count = await TransferInactivityTimeout.ReadHttpBodyAsync(input, buffer.AsMemory(0,
+                        int count = await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0,
                             (int)Math.Min(buffer.Length, remaining)), allStop.Token, networkIdleTimeout);
                         if (count == 0)
                             throw new EndOfStreamException($"Adaptive range {piece.Id} ended early.");
@@ -248,7 +248,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     // Split donors deliberately end early; unsplit ranges must
                     // reject extra content, including on every retry.
                     if (piece.To == lastAtRequest &&
-                        await TransferInactivityTimeout.ReadHttpBodyAsync(input, buffer.AsMemory(0, 1),
+                        await TransferInactivityTimeout.ReadAsync(input, buffer.AsMemory(0, 1),
                             allStop.Token, networkIdleTimeout) != 0)
                         throw new InvalidDataException("Server returned bytes beyond its declared range.");
 
@@ -256,9 +256,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     output.Flush(true);
                     return;
                 }
-                catch (Exception ex) when (
-                    (ex is TimeoutException or EndOfStreamException ||
-                     HttpRetryPolicy.IsTransientTransportFailure(ex)) &&
+                catch (TimeoutException) when (
                     Interlocked.Read(ref piece.Downloaded) == piece.To - piece.From + 1 &&
                     !allStop.Token.IsCancellationRequested)
                 {
@@ -270,8 +268,7 @@ public sealed class AdaptiveRangeTransfer(HttpClient http, TimeSpan? networkIdle
                     if (attempt >= HttpRetryPolicy.MaximumAttempts) throw;
                     await Task.Delay(HttpRetryPolicy.Delay(attempt, null), allStop.Token);
                 }
-                catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException ||
-                    HttpRetryPolicy.IsTransientTransportFailure(ex)) &&
+                catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
                     attempt < HttpRetryPolicy.MaximumAttempts &&
                     Interlocked.Read(ref piece.Downloaded) < piece.To - piece.From + 1 &&
                     !allStop.Token.IsCancellationRequested)
