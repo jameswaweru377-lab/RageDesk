@@ -20,6 +20,7 @@ export type DashboardSnapshot = {
 };
 export type DownloadCommand = "pause" | "resume" | "stop" | "startQueue" | "openFolder" | "openFile" | "details" | "schedule" | "earlier" | "later" | "removeHistory";
 export type BrowserCommand = "connect" | "check" | "extensionFolder" | "extensionsPage";
+export type PreferenceKey = "startImmediately" | "theme" | "defaultConnections" | "maxConcurrentDownloads" | "bandwidthLimit";
 export type NativeActionResult = { requestId: string; message: string };
 
 type NativeEnvelope =
@@ -52,6 +53,13 @@ export function sendBrowserAction(action: BrowserCommand): boolean {
   if (!window.chrome?.webview) return false;
   window.chrome.webview.postMessage({
     version: 1, type: "ui.browser", requestId: crypto.randomUUID(), action
+  });
+  return true;
+}
+export function sendPreference(key: PreferenceKey, value: boolean | string | number): boolean {
+  if (!window.chrome?.webview) return false;
+  window.chrome.webview.postMessage({
+    version: 1, type: "ui.setting", requestId: crypto.randomUUID(), action: key, value
   });
   return true;
 }
