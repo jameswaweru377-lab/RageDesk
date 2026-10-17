@@ -11,6 +11,24 @@ public sealed class RecoveryReliabilityTests
     private const string Url = "https://fixture.example.test/large.bin";
 
     [Fact]
+    public void OnlyNetworkTransportDisconnectsAreRetryable()
+    {
+        var reset = new System.Net.Sockets.SocketException(
+            (int)System.Net.Sockets.SocketError.ConnectionReset);
+        Assert.True(HttpRetryPolicy.IsTransientTransportFailure(reset));
+        Assert.True(HttpRetryPolicy.IsTransientTransportFailure(
+            new IOException("HTTP response read failed", reset)));
+        Assert.True(HttpRetryPolicy.IsTransientTransportFailure(
+            new IOException("wrapper", new IOException("read", reset))));
+        Assert.False(HttpRetryPolicy.IsTransientTransportFailure(
+            new IOException("Local disk access denied")));
+        Assert.False(HttpRetryPolicy.IsTransientTransportFailure(
+            new InvalidDataException("ETag or Content-Range mismatch")));
+        Assert.False(HttpRetryPolicy.IsTransientTransportFailure(
+            new EndOfStreamException("Unrelated file ended")));
+    }
+
+    [Fact]
     public async Task FixedSegmentCheckpointRestoresActualBytes()
     {
         await InFolder(async folder =>

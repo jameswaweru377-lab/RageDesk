@@ -207,7 +207,9 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                                 output.Flush(true);
                                 break;
                             }
-                            catch (TimeoutException) when (
+                            catch (Exception ex) when (
+                                (ex is TimeoutException ||
+                                 HttpRetryPolicy.IsTransientTransportFailure(ex)) &&
                                 Interlocked.Read(ref workerBytes[i]) == totalSegment &&
                                 !workerStop.Token.IsCancellationRequested)
                             {
@@ -220,7 +222,8 @@ public sealed class ParallelRangeTransfer(HttpClient http, TimeSpan? networkIdle
                                 if (bodyAttempt >= HttpRetryPolicy.MaximumAttempts) throw;
                                 await Task.Delay(HttpRetryPolicy.Delay(bodyAttempt, null), workerStop.Token);
                             }
-                            catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException) &&
+                            catch (Exception ex) when ((ex is TimeoutException or EndOfStreamException ||
+                                HttpRetryPolicy.IsTransientTransportFailure(ex)) &&
                                 bodyAttempt < HttpRetryPolicy.MaximumAttempts &&
                                 Interlocked.Read(ref workerBytes[i]) < totalSegment &&
                                 !workerStop.Token.IsCancellationRequested)

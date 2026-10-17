@@ -8,6 +8,23 @@ namespace RangeDesk.Core;
 public static class HttpRetryPolicy
 {
     public const int MaximumAttempts = 5;
+    /// <summary>
+    /// Retry only recognizable socket/HTTP response transport failures.
+    /// In particular, do not mistake disk I/O, corrupt manifests or validator
+    /// errors for recoverable network disconnects.
+    /// </summary>
+    public static bool IsTransientTransportFailure(Exception exception)
+    {
+        for (Exception? current = exception; current is not null;
+             current = current.InnerException)
+        {
+            if (current is System.Net.Http.HttpIOException or
+                System.Net.Sockets.SocketException)
+                return true;
+        }
+        return false;
+    }
+
     public static bool IsTemporary(HttpStatusCode status) => status is
         HttpStatusCode.RequestTimeout or
         HttpStatusCode.TooManyRequests or
