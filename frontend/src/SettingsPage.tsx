@@ -1,11 +1,11 @@
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import RageDeskMark from "./RageDeskMark";
 import {
   Bell, CheckCircle2, ChevronDown, CloudDownload, Download, ExternalLink,
   Eye, Folder, Globe2, HardDrive, LayoutList, Palette, Power, RefreshCcw,
   Save, Settings2, Shield, SlidersHorizontal, Zap, X, Wrench
 } from "lucide-react";
-import { openNativeDialog, type DashboardSnapshot } from "./nativeBridge";
+import { openNativeDialog, sendBrowserAction, subscribeToActionResults, type DashboardSnapshot } from "./nativeBridge";
 
 type Tab = "General" | "Downloads" | "Browser Capture" | "Connections" | "Appearance" | "Advanced";
 const tabs = [
@@ -41,6 +41,8 @@ function Panel({ icon: Icon, title, subtitle, children, className="" }: {
 }
 export default function SettingsPage({ data, onBack }: { data: DashboardSnapshot | null; onBack: () => void }) {
   const [tab, setTab] = useState<Tab>("General");
+  const [nativeResult, setNativeResult] = useState("");
+  useEffect(() => subscribeToActionResults(setNativeResult), []);
   const actual = data?.settings;
   const accent = data?.theme === "Arctic" ? "Arctic Light" : "Cobalt Dark";
   return <div className="settings-page">
@@ -105,7 +107,19 @@ export default function SettingsPage({ data, onBack }: { data: DashboardSnapshot
         {tab==="Appearance"&&<><SettingRow icon={Palette} title="Current theme" description="Saved native preference"><strong>{accent}</strong></SettingRow></>}
         {tab==="Downloads"&&<><SettingRow icon={LayoutList} title="Default connections" description="Applied by the download engine"><strong>{actual?.defaultConnections??"—"}</strong></SettingRow><SettingRow icon={Download} title="Simultaneous downloads" description="Applied by the download engine"><strong>{actual?.maxConcurrentDownloads??"—"}</strong></SettingRow></>}
         {tab==="Connections"&&<><SettingRow icon={Globe2} title="Proxy enabled" description="Native network settings; proxy address is never passed into the preview"><strong>{actual?.proxyEnabled?"Yes":"No"}</strong></SettingRow><SettingRow icon={SlidersHorizontal} title="Bandwidth limit" description="Native setting (KiB/s; zero means unlimited)"><strong>{actual?.defaultBandwidthKiBps??"—"}</strong></SettingRow></>}
-        {tab==="Browser Capture"&&<><SettingRow icon={Shield} title="Browser extension" description="Existing Chrome/Edge capture behavior is preserved"><span className="settings-pending">Managed by native host</span></SettingRow></>}
+        {tab==="Browser Capture"&&<>
+          <SettingRow icon={Shield} title="RageDesk Browser Capture"
+            description="Chrome: first load the bundled extension manually, then register the local native messaging host. Browser permissions and automatic capture remain opt-in.">
+            <button className="settings-mini-button" onClick={()=>sendBrowserAction("extensionsPage")}>Open Chrome extensions</button>
+            <button className="settings-mini-button" onClick={()=>sendBrowserAction("extensionFolder")}>Open extension folder</button>
+          </SettingRow>
+          <SettingRow icon={Globe2} title="Native host connection"
+            description="Register for this Windows account only. Check the extension's connection badge in Chrome to test the full handoff.">
+            <button className="settings-mini-button" onClick={()=>sendBrowserAction("connect")}>Connect Chrome</button>
+            <button className="settings-mini-button" onClick={()=>sendBrowserAction("check")}>Check registration</button>
+          </SettingRow>
+          {nativeResult&&<p role="status" className="settings-native-result">{nativeResult}</p>}
+        </>}
         {tab==="Advanced"&&<><SettingRow icon={Shield} title="Privacy" description="No new telemetry, sync or remote metadata is enabled"><span className="settings-pending">Local-first</span></SettingRow></>}
       </Panel></div>}
     <footer className="settings-footer"><span><Shield size={15}/> Read-only preview · all changes remain in the native settings until parity verification</span>
