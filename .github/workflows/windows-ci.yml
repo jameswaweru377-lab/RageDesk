@@ -207,6 +207,19 @@ jobs:
       - name: Zip portable build
         shell: pwsh
         run: Compress-Archive -Path artifact/RangeDesk/* -DestinationPath artifact/RangeDesk-Preview-win-x64.zip -Force
+      - name: Package compiled offline HTML renderer
+        shell: pwsh
+        run: |
+          if (-not (Test-Path artifact/RangeDesk/web/index.html)) { throw 'Bundled HTML entrypoint missing' }
+          Compress-Archive -Path artifact/RangeDesk/web/* -DestinationPath artifact/RangeDesk-HTML-Preview.zip -Force
+          if (-not (Test-Path artifact/RangeDesk-HTML-Preview.zip)) { throw 'HTML bundle archive missing' }
+      - name: Upload offline HTML renderer
+        uses: actions/upload-artifact@v4
+        with:
+          name: RangeDesk-HTML-Preview
+          path: artifact/RangeDesk-HTML-Preview.zip
+          retention-days: 7
+          if-no-files-found: error
       - name: Upload portable EXE preview
         uses: actions/upload-artifact@v4
         with:
