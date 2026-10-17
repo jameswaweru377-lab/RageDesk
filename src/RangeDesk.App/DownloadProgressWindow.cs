@@ -44,7 +44,14 @@ public sealed class DownloadProgressWindow : Window
     private readonly TextBlock _bytes = Label("", 16, Accent, true);
     private readonly TextBlock _speed = Label("", 16, Accent, true);
     private readonly TextBlock _eta = Label("", 16, Muted);
-    private readonly TextBlock _percent = Label("", 22, Accent, true);
+    private readonly TextBlock _percent = Label("", 30, Accent, true);
+    private readonly TextBlock _connectionCaption = Label("", 12, TextColor, true);
+    private readonly TextBlock _sourceCaption = Label("", 12, Muted);
+    private readonly TextBlock _fileCategory = Label("", 13, TextColor);
+    private readonly TextBlock _fileTypeChip = Label("", 13, TextColor);
+    private readonly Grid _previewSlot = new();
+    private bool _localIconApplied;
+    private bool _localIconPending;
     private readonly ProgressBar _progress = new() { Height = 13, Minimum = 0, Maximum = 100,
         Background = Brush("#061528"), Foreground = PremiumProgressFill, BorderBrush = Outline, BorderThickness = new Thickness(0) };
     private readonly TextBlock _details = Label("", 12, TextColor);
@@ -61,9 +68,9 @@ public sealed class DownloadProgressWindow : Window
         _onCommand = onCommand;
         _kind = PreviewKind(entry);
         Title = "RageDesk Pro · " + entry.Name;
-        Width = 910;
+        Width = 846;
         Height = 700;
-        MinWidth = 680;
+        MinWidth = 750;
         MinHeight = 550;
         WindowStartupLocation = WindowStartupLocation.CenterScreen;
         ShowInTaskbar = true;
@@ -97,6 +104,7 @@ public sealed class DownloadProgressWindow : Window
         _entry.PropertyChanged += OnEntryChanged;
         Closed += (_, _) => _entry.PropertyChanged -= OnEntryChanged;
         Refresh();
+        _ = TryApplyLocalIconAsync();
     }
 
     private static Brush Brush(string hex) => new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex)!);
@@ -120,29 +128,46 @@ public sealed class DownloadProgressWindow : Window
         root.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         root.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var heading = new StackPanel { Margin = new Thickness(3, 1, 3, 18) };
-        heading.Children.Add(Label("RageDesk Pro", 25, TextColor, true));
-        heading.Children.Add(_subtitle);
+        var heading = new Grid { Margin = new Thickness(3, 1, 3, 18) };
+        heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(62) });
+        heading.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        heading.Children.Add(RageDeskPopupArtwork.BrandMark(51));
+        var headline = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        var title = new StackPanel { Orientation = Orientation.Horizontal };
+        title.Children.Add(Label("RageDesk", 27, TextColor, true));
+        title.Children.Add(new TextBlock { Text = " Pro", FontSize = 27, FontWeight = FontWeights.Bold,
+            Foreground = Accent, VerticalAlignment = VerticalAlignment.Center });
+        headline.Children.Add(title);
+        headline.Children.Add(_subtitle);
+        Grid.SetColumn(headline, 1); heading.Children.Add(headline);
         Grid.SetRow(heading, 0); root.Children.Add(heading);
 
         var summary = new Grid { Margin = new Thickness(0, 0, 0, 18) };
         summary.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(250) });
         summary.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         var preview = new StackPanel { HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
-        var previewIcon = Label(PreviewSymbol(_kind), 76, Accent, true);
-        previewIcon.Effect = new DropShadowEffect { Color = Color.FromRgb(0, 153, 255), BlurRadius = 17, ShadowDepth = 0, Opacity = 0.4 };
-        preview.Children.Add(previewIcon);
-        preview.Children.Add(Label(_kind, 14, Muted, true));
+        _previewSlot.Width = 152;
+        _previewSlot.Height = 118;
+        _previewSlot.Children.Add(RageDeskPopupArtwork.PreviewGraphic(_entry, _kind));
+        preview.Children.Add(_previewSlot);
+        preview.Children.Add(Label(RageDeskPopupArtwork.RecognizedSource(_entry) is { Length: > 0 } name
+            ? name : _kind, 13, Muted, true));
         Grid.SetColumn(preview, 0);
-        var artwork = Panel(preview, new Thickness(0, 0, 16, 0), new Thickness(28));
-        artwork.Effect = new DropShadowEffect { Color = Colors.Black, BlurRadius = 17, ShadowDepth = 3, Opacity = 0.22 };
+        var artwork = Panel(preview, new Thickness(0, 0, 18, 0), new Thickness(16));
+        artwork.Effect = new DropShadowEffect { Color = Color.FromRgb(0, 112, 255),
+            BlurRadius = 15, ShadowDepth = 0, Opacity = 0.18 };
         summary.Children.Add(artwork);
         var file = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+        _name.ToolTip = _entry.Name; // Full filenames stay accessible even when ellipsized.
         file.Children.Add(_name);
         file.Children.Add(_origin);
-        file.Children.Add(new Border { Height = 18, Background = Brushes.Transparent });
-        file.Children.Add(_type);
+        file.Children.Add(new Border { Height = 13, Background = Brushes.Transparent });
+        var chips = new WrapPanel { Margin = new Thickness(0, 0, 0, 10) };
+        chips.Children.Add(InfoChip(_fileTypeChip));
+        chips.Children.Add(InfoChip(_fileCategory));
+        file.Children.Add(chips);
         file.Children.Add(_size);
+        file.Children.Add(_sourceCaption);
         Grid.SetColumn(file, 1); summary.Children.Add(file);
         Grid.SetRow(summary, 1); root.Children.Add(summary);
 
@@ -153,8 +178,10 @@ public sealed class DownloadProgressWindow : Window
         readout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         readout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         readout.Children.Add(_bytes);
-        Grid.SetColumn(_speed, 1); readout.Children.Add(_speed);
-        Grid.SetColumn(_eta, 2); readout.Children.Add(_eta);
+        var speedReadout = ReadoutWithIcon("\uE9D9", _speed);
+        var clockReadout = ReadoutWithIcon("\uE823", _eta);
+        Grid.SetColumn(speedReadout, 1); readout.Children.Add(speedReadout);
+        Grid.SetColumn(clockReadout, 2); readout.Children.Add(clockReadout);
         Grid.SetColumn(_percent, 3); readout.Children.Add(_percent);
         progress.Children.Add(readout);
         progress.Children.Add(_progress);
@@ -175,15 +202,21 @@ public sealed class DownloadProgressWindow : Window
         _workersNotice.Margin = new Thickness(8, 9, 8, 8);
         connectionLayout.Children.Add(_workersNotice);
         connectionLayout.Children.Add(workerList);
-        tabs.Items.Add(new TabItem { Header = "Connections", Content = connectionLayout });
-        tabs.Items.Add(new TabItem { Header = "Speed", Content = new SpeedGraph { Source = _entry, MinHeight = 150, Margin = new Thickness(8) } });
-        tabs.Items.Add(new TabItem { Header = "Details", Content = Panel(_details, new Thickness(7), new Thickness(16)) });
-        tabs.Items.Add(new TabItem { Header = "Log", Content = new ListBox { ItemsSource = _entry.Events,
-            Background = Surface, Foreground = TextColor, BorderThickness = new Thickness(0) } });
+        var connectionsTab = new TabItem { Header = TabHeader("\uE71B", _connectionCaption), Content = connectionLayout };
+        tabs.Items.Add(connectionsTab);
+        tabs.Items.Add(new TabItem { Header = TabHeader("\uE9D9", Label("Speed", 12, TextColor)),
+            Content = new SpeedGraph { Source = _entry, MinHeight = 150, Margin = new Thickness(8) } });
+        tabs.Items.Add(new TabItem { Header = TabHeader("\uE8A5", Label("Details", 12, TextColor)),
+            Content = Panel(_details, new Thickness(7), new Thickness(16)) });
+        tabs.Items.Add(new TabItem { Header = TabHeader("\uE8EF", Label("Log", 12, TextColor)),
+            Content = new ListBox { ItemsSource = _entry.Events,
+                Background = Surface, Foreground = TextColor, BorderThickness = new Thickness(0) } });
         Grid.SetRow(tabs, 3); root.Children.Add(tabs);
 
         var actions = new DockPanel { LastChildFill = false };
         var left = new StackPanel { Orientation = Orientation.Horizontal };
+        _pause.Content = ButtonCaption("\uE769", "Pause");
+        _stop.Content = ButtonCaption("\uE71A", "Stop");
         left.Children.Add(_pause); left.Children.Add(_stop);
         DockPanel.SetDock(left, Dock.Left); actions.Children.Add(left);
         var right = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Right };
@@ -205,11 +238,7 @@ public sealed class DownloadProgressWindow : Window
         return "File";
     }
 
-    private static string PreviewSymbol(string type) => type switch
-    {
-        "Archive" => "▣", "Application" => "▦", "Video" => "▶",
-        "Music" => "♫", "Image" => "▧", "Document" => "▤", _ => "↓"
-    };
+
 
     private void OnEntryChanged(object? sender, PropertyChangedEventArgs e)
     {
