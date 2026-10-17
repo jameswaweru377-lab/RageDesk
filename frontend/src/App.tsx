@@ -5,22 +5,23 @@ import {
   FileArchive, FileImage, FileText, Filter, Folder, FolderOpen,
   Globe2, HardDrive, Image as ImageIcon, LayoutGrid, List, Menu,
   MoreHorizontal, Music2, Pause, Play, Search, Settings2,
-  ShieldCheck, Video, XCircle,
+  ShieldCheck, Video, XCircle, Home, Trash2, Package, MonitorDown,
   Zap, CircleAlert, Plus, ArrowDownToLine
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { subscribeToNativeDashboard, type DashboardSnapshot, type DownloadRow } from "./nativeBridge";
+import SettingsPage from "./SettingsPage";
 
 type Nav = "all" | "completed" | "queued" | "scheduled" | "analytics" | "category" | "source" | "automation" | "settings";
 type Status = "all" | "downloading" | "paused" | "queued" | "completed" | "failed";
 type Sort = "queue" | "recent" | "name" | "speed";
 
 const categories: { name: string; icon: LucideIcon; color: string }[] = [
-  { name: "All Downloads", icon: FolderOpen, color: "blue" },
-  { name: "Programs", icon: Code2, color: "blue" },
-  { name: "Videos", icon: Video, color: "cyan" },
+  { name: "All Downloads", icon: Home, color: "yellow" },
+  { name: "Programs", icon: Folder, color: "cyan" },
+  { name: "Videos", icon: Video, color: "red" },
   { name: "Music", icon: Music2, color: "purple" },
-  { name: "Documents", icon: FileText, color: "blue" },
+  { name: "Documents", icon: FileText, color: "sky" },
   { name: "Compressed", icon: FileArchive, color: "amber" },
   { name: "Images", icon: ImageIcon, color: "green" },
 ];
@@ -78,6 +79,21 @@ function StatusPill({ status }: {status:string}) {
   const I = v === "completed" ? CheckCircle2 : v === "failed" ? XCircle : v === "paused" ? Pause : v === "queued" ? Clock3 : Activity;
   return <span className={`status-pill status-${v}`}><I size={12}/>{status}</span>;
 }
+function CategoryPill({ category }: { category: string }) {
+  const normalized = categoryFor(category);
+  const kind = normalized === "All Downloads" ? (category || "Other") : normalized;
+  return <span className={`category-pill category-${kind.toLowerCase().replaceAll(" ","-")}`}>{kind}</span>;
+}
+function SegmentedProgress({value}:{value:number|null}) {
+  const segments = 12, complete = value===null?0:Math.max(0,Math.min(segments,Math.round(value/100*segments)));
+  return <span className="segmented-progress" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+    aria-valuenow={value??undefined} aria-label="Download progress">
+    {Array.from({length:segments},(_,i)=><i key={i} className={i<complete?"is-filled":""}/>)}
+  </span>;
+}
+const filterIcons: Record<Exclude<Status, "all">, LucideIcon> = {
+  downloading: Download, paused: Pause, queued: Clock3, completed: CheckCircle2, failed: XCircle,
+};
 function MetricCard({ title, value, note, icon: Icon, chart, variant }: {
   title: string; value: string | number; note: string; icon: LucideIcon; chart: string; variant?: string
 }) {
@@ -101,6 +117,8 @@ function App() {
   const [selectedRow, setSelectedRow] = useState<string | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [cardView, setCardView] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set());
+  const toggleSelect = (id:string) => setSelectedIds(previous=>{const next=new Set(previous);if(next.has(id))next.delete(id);else next.add(id);return next;});
   useEffect(() => subscribeToNativeDashboard(setData, setConnection), []);
   const rows = data?.rows ?? [];
   const counts = data?.counts;
@@ -121,6 +139,7 @@ function App() {
     return next;
   }, [rows, nav, selectedCategory, selectedSite, search, sort, filter]);
   const displayRows = filtered.slice(0, 500);
+  const allSelected = displayRows.length>0 && displayRows.every(row=>selectedIds.has(row.id));
   const selected = rows.find(r => r.id === selectedRow) ?? null;
   const switchNav = (next: Nav) => { setNav(next); setFilter("all"); setSearch(""); };
   const theme = data?.theme === "Arctic" ? "light" : "dark";
@@ -141,6 +160,14 @@ function App() {
             active={nav === "category" && selectedCategory === name}
             onClick={() => { setSelectedCategory(name); switchNav("category"); }}/>)}
         </div>
+        <section className="browser-extension-card" aria-label="Browser extension installation">
+          <div className="extension-art"><MonitorDown size={29}/><span><Package size={22}/></span></div>
+          <div className="extension-heading">Install RageDesk<br/>Browser Extension</div>
+          <p>Capture links instantly<br/>from your browser.</p>
+          <button type="button" disabled title="Use the existing WPF Browser Capture settings to install">
+            Install Extension
+          </button>
+        </section>
         <div className="nav-section">
           <button className="nav-section-title" onClick={() => setExpanded(v => ({...v,sites:!v.sites}))} aria-expanded={expanded.sites}><span>Sites / Groups</span>{expanded.sites ? <ChevronDown size={16}/> : <ChevronDown size={16} className="rotate"/>}</button>
           {expanded.sites && sites.map(({name,icon,color}) => <NavButton key={name} label={name} icon={icon} color={color} count={data?.siteCounts[name] ?? 0}
@@ -150,7 +177,7 @@ function App() {
       </nav>
       <div className="sidebar-bottom">
         <NavButton label="Automation" icon={Zap} disabled onClick={() => switchNav("automation")}/>
-        <NavButton label="Settings" icon={Settings2} disabled onClick={() => switchNav("settings")}/>
+        <NavButton label="Settings" icon={Settings2} active={nav==="settings"} onClick={() => switchNav("settings")}/>
         <div className="local-mode"><ShieldCheck size={14}/><span>Local only · preview</span></div>
       </div>
     </aside>
@@ -164,11 +191,11 @@ function App() {
           <button className="square-button" disabled title="Available in WPF"><Play size={17}/></button>
           <button className="square-button" disabled title="Available in WPF"><Pause size={17}/></button>
           <span className="top-local"><CloudDownload size={17}/> Local only</span>
-          <button className="square-button" disabled aria-label="Settings in WPF" title="Settings remain in WPF"><Settings2 size={18}/></button>
+          <button className="square-button" aria-label="Open settings" onClick={()=>switchNav("settings")}><Settings2 size={18}/></button>
         </div>
       </header>
 
-      <div className="content-pane">
+      {nav==="settings" ? <SettingsPage data={data} onBack={()=>switchNav("all")}/> : <div className="content-pane">
         <div className="metrics-grid">
           <MetricCard title="ACTIVE DOWNLOADS" icon={Download} value={counts?.downloading ?? "—"} note="Active transfers" chart="line"/>
           <MetricCard title="CURRENT SPEED" icon={Activity} value={data?.summary.currentSpeed ?? "—"} note="Measured network speed" chart="bars"/>
@@ -178,7 +205,7 @@ function App() {
         <div className="list-controls">
           <div className="status-tabs" role="tablist" aria-label="Download status">
             {statuses.map(s => <button role="tab" aria-selected={filter===s} key={s} onClick={()=>setFilter(s)} className={`tab-button ${filter===s?"is-active":""}`}>
-              {s!=="all"&&<span className={`status-dot dot-${s}`}/>}
+              {s!=="all"&&(() => { const Icon=filterIcons[s]; return <Icon size={15} strokeWidth={2.7}/>; })()}
               {s==="all"?"All":s[0].toUpperCase()+s.slice(1)} <span className="tab-count">{counts?.[s] ?? 0}</span>
             </button>)}
           </div>
@@ -192,16 +219,33 @@ function App() {
           </div>
         </div>
         <section className="downloads-panel" aria-label="Download list">
+          <div className="selection-toolbar">
+            <label className="selection-total"><input type="checkbox" checked={allSelected} onChange={()=>setSelectedIds(allSelected?new Set():new Set(displayRows.map(row=>row.id)))}/>
+              {selectedIds.size} selected</label>
+            <button disabled title="Deletion stays in WPF until validated native command parity"><Trash2 size={15}/> Delete</button>
+            <button disabled title="Open Folder stays in WPF until validated native command parity"><FolderOpen size={15}/> Open Folder</button>
+            <button disabled title="More actions stay in WPF"><MoreHorizontal size={16}/> More Actions</button>
+            <span className="toolbar-readonly">Read-only preview</span>
+          </div>
           <div className="table-scroll">
-            {!cardView ? <table className="download-table"><thead><tr><th aria-label="Selection" className="check-col"><span className="fake-check"/></th>
-              <th className="name-col">Name</th><th>Status</th><th>Progress</th><th>Size</th><th>Speed</th><th>ETA</th><th>Connections</th><th>Added</th><th aria-label="Actions"/></tr></thead>
-              <tbody>{displayRows.map(r=> <tr key={r.id} className={`download-row ${selected?.id===r.id?"selected-row":""}`} onClick={()=>setSelectedRow(r.id)}>
-                <td><span className={`fake-check ${selected?.id===r.id?"checked":""}`}/></td><td><div className="filename"><IconForFile item={r}/><div className="file-lines"><strong title={r.name}>{r.name}</strong><span title={r.host}>{r.host}</span></div></div></td>
-                <td><StatusPill status={r.status}/></td><td><div className="progress-cell"><div className="progress-track"><span style={{width:`${Math.min(100,Math.max(0,r.percent ?? 0))}%`}}/></div><span>{r.percent === null ? "—" : `${r.percent.toFixed(1)}%`}</span></div></td>
+            {!cardView ? <table className="download-table"><thead><tr><th aria-label="Select all visible downloads" className="check-col">
+                <input type="checkbox" checked={allSelected} onChange={()=>setSelectedIds(allSelected?new Set():new Set(displayRows.map(row=>row.id)))}/>
+              </th><th className="row-index-col">#</th><th className="name-col">Name</th><th>Category</th><th>Status</th>
+              <th>Progress</th><th>Size</th><th>Speed</th><th>ETA</th><th>Connections</th><th>Added</th><th aria-label="Actions"/></tr></thead>
+              <tbody>{displayRows.map((r,index)=> <tr key={r.id} className={`download-row ${selectedIds.has(r.id)?"selected-row":""}`} onClick={()=>setSelectedRow(r.id)}>
+                <td><input type="checkbox" aria-label={`Select ${r.name}`} checked={selectedIds.has(r.id)} onClick={e=>e.stopPropagation()} onChange={()=>toggleSelect(r.id)}/></td>
+                <td className="row-index">{index+1}</td>
+                <td><div className="filename"><IconForFile item={r}/><div className="file-lines"><strong title={r.name}>{r.name}</strong><span title={r.host}>{r.host}</span></div></div></td>
+                <td><CategoryPill category={r.category}/></td><td><StatusPill status={r.status}/></td>
+                <td><div className="progress-cell"><SegmentedProgress value={r.percent}/><span>{r.percent===null?"—":`${r.percent.toFixed(1)}%`}</span></div></td>
                 <td className="numbers">{r.totalBytes === null ? fmtBytes(r.receivedBytes) : `${fmtBytes(r.receivedBytes)} / ${fmtBytes(r.totalBytes)}`}</td>
                 <td className="numbers">{r.status.toLowerCase()==="downloading" && r.bytesPerSecond>0 ? fmtBytes(r.bytesPerSecond)+"/s":"—"}</td><td>{r.eta}</td>
                 <td><span className="connections"><Activity size={12}/>{r.connections} / {r.requestedConnections}</span></td>
-                <td className="added">{r.added}</td><td><MoreHorizontal size={17} className="muted"/></td>
+                <td className="added">{r.added}</td><td><div className="row-actions">
+                  <button disabled title="Open folder is available in WPF"><Folder size={16}/></button>
+                  <button disabled title="Delete requires a validated native confirmation flow"><Trash2 size={16}/></button>
+                  <button disabled title="Context actions remain in WPF"><MoreHorizontal size={17}/></button>
+                </div></td>
               </tr>)}</tbody></table> :
               <div className="download-cards">{displayRows.map(r=><button key={r.id} className="download-mini-card" onClick={()=>setSelectedRow(r.id)}><IconForFile item={r}/><strong title={r.name}>{r.name}</strong><StatusPill status={r.status}/><div className="progress-track"><span style={{width:`${r.percent??0}%`}}/></div></button>)}</div>}
             {displayRows.length === 0 && <div className="empty-list"><FolderOpen size={28}/><strong>{connection==="connected"?"No downloads match this view":"Waiting for RageDesk data"}</strong><span>{connection==="connected"?"Adjust your filters or search.":"Open the desktop preview using --react-preview. No demo transactions are shown."}</span></div>}
@@ -227,9 +271,11 @@ function App() {
               {!data?.recent?.length && <span className="hint">No activity recorded.</span>}</div>
           </div>
         </section>
-        <div className="preview-footer">{connection==="connected"?<><Check size={14}/> Live C# snapshot · Read-only React preview</>:<><CircleAlert size={14}/> {connection==="unavailable"?"WebView2 native bridge not available":"Connecting to RageDesk..."}</>}
-          <span>Changes to files and downloads remain in WPF during migration.</span></div>
-      </div>
+        <div className="preview-footer"><span className="footer-ready"><span className="status-green-dot"/>{connection==="connected"?"Ready":connection==="unavailable"?"Preview unavailable":"Connecting"}</span>
+          <span><CloudDownload size={15}/> Sync coming soon</span>
+          <span><HardDrive size={15}/> {data?.storage ? `${fmtBytes(data.storage.freeBytes)} free`:"Disk space unavailable"}</span>
+          <span><Check size={14}/> {counts?.failed ? `${counts.failed} failed downloads`:"No failed downloads"}</span></div>
+      </div>}
     </main>
   </div>;
 }
