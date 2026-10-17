@@ -199,13 +199,14 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 "RageDesk — Remove history only", MessageBoxButton.YesNo,
                 MessageBoxImage.Question) != MessageBoxResult.Yes)
                 return "History removal canceled.";
-            var originalIndices = existing.Select(d => Downloads.IndexOf(d!)).ToArray();
-            foreach (var item in existing) Downloads.Remove(item!);
+            var originals = existing.Select(d => (Index: Downloads.IndexOf(d!), Item: d!))
+                .OrderBy(x => x.Index).ToArray();
+            foreach (var old in originals) Downloads.Remove(old.Item);
             if (!SaveCatalog())
             {
-                // Revert the visible list if persistence failed.
-                for (int i = 0; i < existing.Length; i++)
-                    Downloads.Insert(Math.Min(originalIndices[i], Downloads.Count), existing[i]!);
+                // Restore original positions in ascending order if atomic save failed.
+                foreach (var old in originals)
+                    Downloads.Insert(Math.Min(old.Index, Downloads.Count), old.Item);
                 return "Could not save the updated download history.";
             }
             foreach (var item in existing)
