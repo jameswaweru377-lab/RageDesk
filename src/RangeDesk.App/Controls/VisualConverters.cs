@@ -8,6 +8,32 @@ namespace RangeDesk.App.Controls;
 
 /// <summary>System Segoe MDL2 Assets glyphs, bundled with Windows 10/11.
 /// No remote icon CDN or third-party downloaded icon library.</summary>
+/// <summary>Show actions only when they make sense for the inspected task.
+/// Bind both Status and IsMedia, so completed tasks never show Pause/Resume.</summary>
+public sealed class DownloadDetailActionVisibilityConverter : IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, CultureInfo culture)
+    {
+        if (values.Length < 2 || values[0] is not DownloadStatus state ||
+            values[1] is not bool isMedia)
+            return System.Windows.Visibility.Collapsed;
+        string action = parameter?.ToString() ?? "";
+        bool show = action switch
+        {
+            "Pause" => DownloadDetailActions.CanPause(state, isMedia),
+            "Resume" => DownloadDetailActions.CanResume(state, isMedia),
+            "Start" => DownloadDetailActions.CanStart(state, isMedia),
+            "Open" => DownloadDetailActions.CanOpen(state),
+            "Again" => DownloadDetailActions.CanDownloadAgain(state, isMedia),
+            "Stop" => DownloadDetailActions.CanStop(state),
+            _ => false
+        };
+        return show ? System.Windows.Visibility.Visible : System.Windows.Visibility.Collapsed;
+    }
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter,
+        CultureInfo culture) => throw new NotSupportedException();
+}
+
 public sealed class FileIconConverter : IValueConverter
 {
     public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
