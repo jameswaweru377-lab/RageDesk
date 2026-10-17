@@ -60,6 +60,31 @@ public sealed class ReactApprovedVisualParityTests
     }
 
     [Fact]
+    public void DownloadSelectionToolbarStacksAboveTableAndDeepNavyThemeIsScoped()
+    {
+        string polish = Read("frontend/src/deep-navy-finish.css");
+        string entrypoint = Read("frontend/src/main.tsx");
+        string app = Read("frontend/src/App.tsx");
+        Assert.Contains(".downloads-panel {", polish);
+        Assert.Contains("flex-direction: column;", polish);
+        Assert.Contains(".downloads-panel > .selection-toolbar", polish);
+        Assert.Contains(".downloads-panel > .table-scroll", polish);
+        Assert.Contains("min-height: 0;", polish);
+        Assert.Contains("overflow-x: auto;", polish);
+        Assert.Contains("overflow-y: auto;", polish);
+        Assert.Contains(".desktop.theme-dark", polish);
+        Assert.Contains(".desktop.theme-light .downloads-panel", polish);
+        Assert.Contains("import \"./visual-parity.css\";", entrypoint);
+        Assert.Contains("import \"./deep-navy-finish.css\";", entrypoint);
+        Assert.True(entrypoint.IndexOf("visual-parity.css", StringComparison.Ordinal) <
+                    entrypoint.IndexOf("deep-navy-finish.css", StringComparison.Ordinal));
+        Assert.Contains("<div className=\"table-scroll\">", app);
+        Assert.Contains("<div className=\"selection-toolbar\">", app);
+        Assert.True(app.IndexOf("className=\"selection-toolbar\"", StringComparison.Ordinal) <
+                    app.IndexOf("className=\"table-scroll\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void NativeProjectionExposesOnlyDiskTotalsAndNonSensitiveSettings()
     {
         string projection = Read("src/RangeDesk.App/ReactDashboardSnapshot.cs");
