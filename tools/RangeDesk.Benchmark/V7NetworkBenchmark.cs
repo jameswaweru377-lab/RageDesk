@@ -38,10 +38,10 @@ public static class V7NetworkBenchmark
         string reportPath = Path.Combine(output, "v7-results.json");
         var scenarios = new[]
         {
-            new Scenario("per_connection_throttle", 8, 20),
-            new Scenario("aggregate_bandwidth_cap", 4, 20, AggregateCap: true),
-            new Scenario("high_latency_and_jitter", 4, 9, HeaderDelayMs: 140, JitterMs: 35),
-            new Scenario("abrupt_tcp_disconnect", 4, 6, DropOnce: true)
+            new Scenario("per_connection_throttle", 16, 20),
+            new Scenario("aggregate_bandwidth_cap", 16, 20, AggregateCap: true),
+            new Scenario("high_latency_and_jitter", 16, 9, HeaderDelayMs: 140, JitterMs: 35),
+            new Scenario("abrupt_tcp_disconnect", 16, 6, DropOnce: true)
         };
         try
         {
@@ -60,7 +60,7 @@ public static class V7NetworkBenchmark
             foreach (int count in RecoveryMatrix)
             {
                 var result = await PauseAndResumeAsync(
-                    new Scenario("pause_then_resume_new_engine", 8, 22), count, scratch);
+                    new Scenario("pause_then_resume_new_engine", 16, 22), count, scratch);
                 results.Add(result);
                 Console.WriteLine("V7_NETWORK " + JsonSerializer.Serialize(result));
                 await WriteReportAsync(reportPath, results, complete: false);
@@ -93,6 +93,11 @@ public static class V7NetworkBenchmark
         {
             await AwaitStatusAsync(item, watch, TimeSpan.FromSeconds(90));
             ValidateCompleted(item, destination, body.Length, hash);
+            // The engine has a 512 KiB minimum per segment. The 16 MiB
+            // body is deliberately large enough for all 32 real workers.
+            if (count > 1 && item.WorkerCount != count)
+                throw new InvalidDataException(
+                    "The benchmark did not engage the requested worker count.");
             if (count > 1 && server.RangeRequests < count + 1)
                 throw new InvalidDataException(
                     "Expected actual parallel HTTP 206 requests, not a silent fallback.");
